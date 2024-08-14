@@ -7,7 +7,7 @@ from data import do_list_in_batches, lang_bin_mapping
 from vivisect import CouplingSpecTuple, load_module_config
 from collections import defaultdict
 
-hf_tok = "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"
+hf_tok = "TODO"
 
 host_remote = True
 
