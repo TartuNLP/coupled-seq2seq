@@ -1,26 +1,18 @@
 #!/usr/bin/env python3
 
 import json
-import os
 import sys
+import torch
 
-from datetime import datetime
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
 from random import randrange, shuffle
 
+from aux import log, log_2dict, debug
+
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 DataEntry = namedtuple('DataEntry', ["tr_pair", "prepared", "src_bin_idx", "tgt_bin_idx"])
 
-
-def log(msg):
-    sys.stderr.write(str(datetime.now()) + ": " + msg + '\n')
-
-
-def log_2dict(twod_dict, msg):
-    for k1 in twod_dict:
-        for k2 in twod_dict[k1]:
-            log(f"D {msg}: {k1}, {k2} --> {twod_dict[k1][k2]}")
 
 def do_list_in_batches(data, batch_size):
     i = 0
@@ -113,21 +105,28 @@ def lang_bin_mapping(coupling_specs):
 
     return lang_to_idx
 
+
+def mix_and_sample_idxs_carefully(src_idxs, tgt_idxs):
+    idx_pairs = [(s, t) for s in src_idxs for t in tgt_idxs if not (s == 1 and t == 1)]
+
+    if len(idx_pairs) == 0:
+        result = (None, None)
+    else:
+        pair_idx = randrange(len(idx_pairs))
+        result = idx_pairs[pair_idx]
+
+    # debug(f"src lang: {tr_pair.src_lang}, tgt_lang: {tr_pair.tgt_lang}, idx list: {idx_pairs}, result: {result}")
+
+    return result
+
+
+def inject_bin_indices(batch, src_k, tgt_k):
+    batch['input_ids'][0,0] += src_k << 30
+
+    batch['labels'][0,0] += tgt_k << 30
+
+
 class MultilingualBatchingDataset(IterableDataset):
-    def _get_bin_idx(self, lang):
-        res_list = list(self._lang_to_idx[lang])
-        len_res_list = len(res_list)
-
-        if len_res_list == 1:
-            res_idx = 0
-        elif len_res_list > 1:
-            res_idx = randrange(len_res_list)
-        else:
-            raise ValueError
-
-        return res_list[res_idx]
-
-
     def _post_proc_bins(self, bins):
         for src_k in bins:
             for tgt_k in bins[src_k]:
@@ -137,50 +136,26 @@ class MultilingualBatchingDataset(IterableDataset):
                     bins[src_k][tgt_k].append(rnd_elem)
         return bins
 
+    def _get_idxs(self, tr_pair):
+        src_idxs = self._lang_to_idx[tr_pair.src_lang]
+        tgt_idxs = self._lang_to_idx[tr_pair.tgt_lang]
 
-    def tokenize_and_pad(self, raw_batch, src_k, tgt_k):
-        inputs = [e.input for e in raw_batch]
-
-        src_tokenizer = self.coupling_specs[src_k].tokenizer
-        src_tokenizer.src_lang = raw_batch[0].src_lang
-
-        prep_batch_grouped = src_tokenizer(text=inputs, return_tensors="pt", padding="longest", truncation=True, max_length=256)
-
-        outputs = [e.output for e in raw_batch]
-
-        tgt_tokenizer = self.coupling_specs[tgt_k].tokenizer
-        tgt_tokenizer.tgt_lang = raw_batch[0].tgt_lang
-
-        labels = tgt_tokenizer(text_target=outputs, return_tensors="pt", padding="longest", truncation=True, max_length=256)
-
-        prep_batch_grouped['labels'] = labels['input_ids']
-        prep_batch_grouped['bin_idxs'] = ((src_k, tgt_k),) * len(raw_batch)
-
-        split_prep_batch = [ DataEntry(trp, { k: prep_batch_grouped[k][i] for k in prep_batch_grouped }, src_k, tgt_k) for i, trp in enumerate(raw_batch)]
-
-        return split_prep_batch
-
-
-    def _bins_to_batches(self, bins):
-        for src_k in bins:
-            for tgt_k in bins[src_k]:
-                for raw_batch in do_list_in_batches(bins[src_k][tgt_k], self.batch_size):
-                    yield self.tokenize_and_pad(raw_batch, src_k, tgt_k)
-
+        return mix_and_sample_idxs_carefully(src_idxs, tgt_idxs)
 
     def _fill_bins(self, input_data):
         bins = defaultdict(lambda: defaultdict(list))
 
         for tr_pair in input_data:
-            src_bin_idx = self._get_bin_idx(tr_pair.src_lang)
-            tgt_bin_idx = self._get_bin_idx(tr_pair.tgt_lang)
+            src_bin_idx, tgt_bin_idx = self._get_idxs(tr_pair)
 
-            bins[src_bin_idx][tgt_bin_idx].append(tr_pair)
+            if src_bin_idx is not None and tgt_bin_idx is not None:
+                bins[src_bin_idx][tgt_bin_idx].append(tr_pair)
 
         return self._post_proc_bins(bins)
 
     def report_update_stats(self, bins):
         total = 0
+        totalx = 0
         updates = 0
         duds = 0
 
@@ -192,7 +167,9 @@ class MultilingualBatchingDataset(IterableDataset):
                 l = len(bins[src_k][tgt_k])
 
                 total += l
-                updates += l * (1 - (src_k + tgt_k)/2)
+                if src_k == 0 or tgt_k == 0:
+                    totalx += l
+                updates += l * (1 - (src_k + tgt_k) / 2)
 
                 enc_count += l * (1 - src_k)
                 dec_count += l * (1 - tgt_k)
@@ -200,9 +177,49 @@ class MultilingualBatchingDataset(IterableDataset):
                 if src_k == 1 and tgt_k == 1:
                     duds += 1
 
-        log(f"### Ratio of coupled model updates: {100 * updates / total:.2f}%; " + \
+        log(f"### Ratio of coupled model updates: {100 * updates / total:.2f}% ({100 * updates / totalx:.2f}%); " + \
             f"frozen meaningless updates: {100 * duds / total:.2f}%; " + \
             f"enc samples: {enc_count}, dec samples: {dec_count}")
+
+    def tokenize_and_pad(self, raw_batch, src_k, tgt_k):
+        inputs = [e.input for e in raw_batch]
+
+        src_tokenizer = self.coupling_specs[src_k].tokenizer
+        src_tokenizer.src_lang = raw_batch[0].src_lang
+
+        prep_batch_grouped = src_tokenizer(text=inputs, return_tensors="pt", padding="longest", truncation=True,
+                                           max_length=256)
+
+        outputs = [e.output for e in raw_batch]
+
+        tgt_tokenizer = self.coupling_specs[tgt_k].tokenizer
+        tgt_tokenizer.tgt_lang = raw_batch[0].tgt_lang
+
+        labels = tgt_tokenizer(text_target=outputs, return_tensors="pt", padding="longest", truncation=True,
+                               max_length=256)
+
+        #batch_size = len(raw_batch)
+        #src_trojan = torch.LongTensor(((src_k,),) * batch_size)
+        #tgt_trojan = torch.LongTensor(((tgt_k,),) * batch_size)
+
+        #prep_batch_grouped['input_ids'] = torch.cat((prep_batch_grouped['input_ids'], src_trojan), dim=1)
+        #prep_batch_grouped['labels'] = torch.cat((labels['input_ids'], tgt_trojan), dim=1)
+
+        prep_batch_grouped['labels'] = labels['input_ids']
+
+        inject_bin_indices(prep_batch_grouped, src_k, tgt_k)
+
+        split_prep_batch = [DataEntry(trp, {k: prep_batch_grouped[k][i] for k in prep_batch_grouped}, src_k, tgt_k) for
+                            i, trp in enumerate(raw_batch)]
+
+        return split_prep_batch
+
+    def _bins_to_batches(self, bins):
+        for src_k in bins:
+            for tgt_k in bins[src_k]:
+                if src_k == 0 or tgt_k == 0:
+                    for raw_batch in do_list_in_batches(bins[src_k][tgt_k], self.batch_size):
+                        yield self.tokenize_and_pad(raw_batch, src_k, tgt_k)
 
     def reorganize_data(self, raw_data):
         bins = self._fill_bins(raw_data)
@@ -212,11 +229,10 @@ class MultilingualBatchingDataset(IterableDataset):
         batches = list(self._bins_to_batches(bins))
         shuffle(batches)
 
-        # self.data = [elem for batch in batches for elem in batch]
-        self.data = [elem for batch in batches for elem in batch if 0 in (elem.src_bin_idx, elem.tgt_bin_idx)]
+        self.data = [elem for batch in batches for elem in batch]
 
-
-    def __init__(self, tr_pair_list, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256, max_tgt_len=256, verbose=False):
+    def __init__(self, tr_pair_list, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256,
+                 max_tgt_len=256, verbose=False):
         self.data = list()
         self.text_data = list()
         self.msg = tracing_msg
@@ -232,7 +248,6 @@ class MultilingualBatchingDataset(IterableDataset):
 
         if verbose:
             self.check_out_of_bounds()
-
 
     def check_out_of_bounds(self):
         max_dict = defaultdict(lambda: defaultdict(int))
@@ -256,7 +271,6 @@ class MultilingualBatchingDataset(IterableDataset):
         self.prev = None
         return self
 
-
     def __next__(self):
         if self.i < len(self.data):
             res = self.data[self.i]
@@ -266,24 +280,22 @@ class MultilingualBatchingDataset(IterableDataset):
         else:
             raise StopIteration
 
-
-
             # if self.i % self.batch_size == 0:
             #    curr = (res.src_bin_idx, res.tgt_bin_idx)
 
             #    if curr != self.prev:
-                    # log(f"!!! Prev batch (e/d): {self.prev}, curr batch: {curr} ({self.msg})")
+            # log(f"!!! Prev batch (e/d): {self.prev}, curr batch: {curr} ({self.msg})")
 
-                    # tl0 = self.coupling_specs[0].model.model.encoder.embed_tokens.weight.size()[0]
-                    # ty0 = self.coupling_specs[0].model.model.decoder.embed_tokens.weight.size()[0]
+            # tl0 = self.coupling_specs[0].model.model.encoder.embed_tokens.weight.size()[0]
+            # ty0 = self.coupling_specs[0].model.model.decoder.embed_tokens.weight.size()[0]
 
-                    # self.switch_modules(*curr)
+            # self.switch_modules(*curr)
             #        self.prev = curr
 
-                    # tl1 = self.coupling_specs[0].model.model.encoder.embed_tokens.weight.size()[0]
-                    # ty1 = self.coupling_specs[0].model.model.decoder.embed_tokens.weight.size()[0]
+            # tl1 = self.coupling_specs[0].model.model.encoder.embed_tokens.weight.size()[0]
+            # ty1 = self.coupling_specs[0].model.model.decoder.embed_tokens.weight.size()[0]
 
-                    # log(f"Enc: {tl0} -> {tl1}, Dec: {ty0} -> {ty1}")
+            # log(f"Enc: {tl0} -> {tl1}, Dec: {ty0} -> {ty1}")
 
             # tl = self.coupling_specs[0].model.model.encoder.embed_tokens.weight.size()[0]
             # ty = self.coupling_specs[0].model.model.decoder.embed_tokens.weight.size()[0]
@@ -291,11 +303,11 @@ class MultilingualBatchingDataset(IterableDataset):
             # my = max(res.prepared['labels'].tolist())
 
             # log(f"AAANNNDDD {mx} / {tl} // {my} / {ty} // {self.modules}")
-#
-#           # return res.prepared
-#        else:
-#            raise StopIteration
 
+    #
+    #           # return res.prepared
+    #        else:
+    #            raise StopIteration
 
     def __len__(self):
         return len(self.data)
@@ -349,26 +361,28 @@ def moses_to_json(file1, file2):
         for line1 in h1:
             line2 = h2.readline()
 
-            result.append({ l1: line1.strip(), l2: line2.strip() })
+            result.append({l1: line1.strip(), l2: line2.strip()})
 
     return result
 
-def multi_moses_to_json(output_file, init_json, input_file_tuples):
-    #result = list()
 
-    with open(init_json, "r") as h:
-        result = json.load(h)
+def multi_moses_to_json(output_file, init_json, input_file_tuples):
+    try:
+        with open(init_json, "r") as h:
+            result = json.load(h)
+    except:
+        result = list()
 
     for input_file_tuple in input_file_tuples:
         this_result = moses_to_json(*input_file_tuple)
-        result.append({ "source": f"{input_file_tuple[0]}-{input_file_tuple[1]}", "sentences": this_result })
+        result.append({"source": f"{input_file_tuple[0]}-{input_file_tuple[1]}", "sentences": this_result})
 
     with open(output_file, "w") as f:
         json.dump(result, f, indent=2, sort_keys=True)
 
 
 def group_tuples(input_tuples):
-    return [(input_tuples[2*i], input_tuples[2*i + 1]) for i in range(int(len(input_tuples)/2))]
+    return [(input_tuples[2 * i], input_tuples[2 * i + 1]) for i in range(int(len(input_tuples) / 2))]
 
 
 def combine_two_jsons(json_target, json_addition):
@@ -412,4 +426,3 @@ et 16
 et-liv-lv 11431
 et-lv 1
 """
-

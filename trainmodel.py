@@ -6,14 +6,16 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
 from translate import hf_tok
-from data import get_tr_pairs, log, MultilingualBatchingDataset
-from collections import namedtuple
+from data import get_tr_pairs, MultilingualBatchingDataset
+from aux import log
+from collections import namedtuple, defaultdict
 from vivisect import vivisect_save_chkpt, inject_enc_dec_tracing, vivisect_train_step, vivisect_eval_step, \
-    CouplingSpecTuple, save_all_models
+    to_cpl_spec, save_all_models
 
 CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
 
 host_remote = True
+
 
 def freeze_model(model):
     for n, p in model.named_parameters():
@@ -24,17 +26,18 @@ def train_args(name, batch_size):
     return Seq2SeqTrainingArguments(
         name,
         eval_strategy="steps",
-        eval_steps=500,
+        eval_steps=1000,
         learning_rate=1.5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         gradient_accumulation_steps=1,
         weight_decay=0.01,
         save_strategy="steps",
-        save_steps=5000,
-        logging_steps=500,
-        num_train_epochs=3,
-        # predict_with_generate=True,
+        save_steps=10000,
+        logging_steps=1000,
+        max_steps=200000,
+        # num_train_epochs=3,
+        # predict_with_generate=True
     )
 
 
@@ -69,7 +72,7 @@ def cmdline_args():
 
             anchor_langs = set(raw_anchor_langs.split(","))
 
-            mdl_name_suff = "-cpltrained"
+            mdl_name_suff = "-mixtrained" if (coupled_langs & anchor_langs) else "-cpltrained"
         else:
             anchor_mdl_id = None
             anchor_langs = None
@@ -100,15 +103,15 @@ def get_lps_from_specs(coupling_specs):
                 yield f"{src_lang}-{tgt_lang}"
 
 
-def integrate_tokenizer_with_cpl_specs(cpl_specs):
-    result = dict()
-
-    for idx, spec_tuple in enumerate(cpl_specs):
-        for lang in spec_tuple.lang_set:
-            lang_tok_id = spec_tuple.tokenizer.get_lang_id(lang)
-            result[lang_tok_id] = idx
-
-    return result, cpl_specs
+#def integrate_tokenizer_with_cpl_specs(cpl_specs):
+#    result = defaultdict(set)
+#
+#    for idx, spec_tuple in enumerate(cpl_specs):
+#        for lang in spec_tuple.lang_set:
+#            lang_tok_id = spec_tuple.tokenizer.get_lang_id(lang)
+#            result[lang_tok_id].add(idx)
+#
+#    return result, cpl_specs
 
 
 def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
@@ -126,9 +129,9 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
 
     vivisect_save_chkpt(trainer, cpl_specs, cpl_specs[0].tokenizer)
 
-    tok_cpl_specs = integrate_tokenizer_with_cpl_specs(cpl_specs)
-    vivisect_train_step(trainer, tok_cpl_specs)
-    vivisect_eval_step(trainer, tok_cpl_specs)
+    # tok_cpl_specs = integrate_tokenizer_with_cpl_specs(cpl_specs)
+    vivisect_train_step(trainer, cpl_specs)
+    vivisect_eval_step(trainer, cpl_specs)
 
     log("Started training")
 
@@ -136,18 +139,17 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
 
     log("Finished training, saving models")
 
+    trainer.save_state()
+
 
 def dud():
-    return CmdlineArgs("models/m2m_orig", "data/train.json", "data/dev.json", {"fi", "en"}, None, None, "-indtmp")
-
-
-def to_cpl_spec(langs, model, tokenizer, location):
-    # return [ CouplingSpecTuple(langs, model, tokenizer, location) ]
-    return [CouplingSpecTuple(langs, model.config.vocab_size, model.model.encoder, model.model.decoder, model.lm_head, tokenizer, location)]
+    return CmdlineArgs("models/smol", "data/train.json", "data/dev.json", {"fi", "en"}, "facebook/m2m100_418M", {"fi", "en"}, "-indtmp")
 
 
 def do_main():
     args = cmdline_args() if host_remote else dud()
+
+    log(f"Launched as {args}")
 
     log("loading coupled model and tokenizer")
     coupled_model, coupled_tokenizer = load_hf_mdl_and_tok(args.coupled_mdl_id, verbose=True)
@@ -166,7 +168,7 @@ def do_main():
     # lp_set = { "en-fi" }
 
     train_set_pairs = list(get_tr_pairs(filename=args.train_data_file, leave_only=lp_set))
-    val_set_pairs = list(get_tr_pairs(filename=args.dev_data_file, leave_only=lp_set))[:64]
+    val_set_pairs = list(get_tr_pairs(filename=args.dev_data_file, leave_only=lp_set))
 
     batch_size = 16
 
