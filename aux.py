@@ -11,6 +11,7 @@ def debug(msg):
     # log("\n(DEBUG) " + msg)
 
 def log_2dict(twod_dict, msg):
+    print(msg)
     for k1 in twod_dict:
         for k2 in twod_dict[k1]:
             log(f"DEBUG {msg}: {k1}, {k2} --> {twod_dict[k1][k2]}")
