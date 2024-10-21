@@ -19,10 +19,14 @@ if __name__ == '__main__':
             tok_corpus = sys.argv[3]
 
             unk_toks = get_unk_toks(tokenizer, tok_corpus, verbose=True)
-
+            old_len = len(tokenizer)
             tokenizer.add_tokens(unk_toks)
 
-            model.resize_token_embeddings(len(tokenizer) + get_stupid_correction(mdl_id))
+            upd_amt = get_stupid_correction(mdl_id)
+            new_len = len(tokenizer)
+            model.resize_token_embeddings(new_len + upd_amt)
+
+            print(f"Increased tokens from {old_len} to {new_len}")
 
         except IndexError:
             pass

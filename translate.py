@@ -13,14 +13,13 @@ host_remote = True
 
 
 def prepare_for_translation(input_text, tokenizer, input_language, output_language=None, for_output=False):
-    if for_output:
-        tokenizer.tgt_lang = output_language
-
-        labels = tokenizer(text_target=input_text, return_tensors="pt")
-        return labels['input_ids']
-    else:
+    #if for_output:
+    #    tokenizer.tgt_lang = output_language
+    #
+    #    labels = tokenizer(text_target=input_text, return_tensors="pt")
+    #    return labels['input_ids']
+    #else:
         tokenizer.src_lang = input_language
-
         inputs = tokenizer(input_text, return_tensors="pt", padding=True, truncation=True, max_length=512)
         if host_remote:
             inputs.to("cuda:0")

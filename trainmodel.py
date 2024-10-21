@@ -26,7 +26,26 @@ def train_args(name, batch_size):
     return Seq2SeqTrainingArguments(
         name,
         eval_strategy="steps",
-        eval_steps=1000,
+        eval_steps=100000,
+        learning_rate=1.5e-5,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        gradient_accumulation_steps=1,
+        weight_decay=0.01,
+        save_strategy="steps",
+        save_steps=100000,
+        logging_steps=100000,
+        max_steps=500000,
+        # num_train_epochs=3,
+        # predict_with_generate=True
+    )
+
+
+def train_args_tmp(name, batch_size):
+    return Seq2SeqTrainingArguments(
+        name,
+        eval_strategy="steps",
+        eval_steps=10000,
         learning_rate=1.5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -34,10 +53,8 @@ def train_args(name, batch_size):
         weight_decay=0.01,
         save_strategy="steps",
         save_steps=10000,
-        logging_steps=1000,
-        max_steps=200000,
-        # num_train_epochs=3,
-        # predict_with_generate=True
+        logging_steps=10000,
+        max_steps=10000,
     )
 
 
@@ -72,7 +89,9 @@ def cmdline_args():
 
             anchor_langs = set(raw_anchor_langs.split(","))
 
-            mdl_name_suff = "-mixtrained" if (coupled_langs & anchor_langs) else "-cpltrained"
+            mdl_name_suff = "-mix" if (coupled_langs & anchor_langs) else "-cpl"
+
+            mdl_name_suff += "-" + anchor_mdl_id.replace("/", "_").replace(":", "-")
         else:
             anchor_mdl_id = None
             anchor_langs = None
@@ -115,7 +134,8 @@ def get_lps_from_specs(coupling_specs):
 
 
 def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
-    args = train_args(model_name, batch_size=batch_size)
+    #args = train_args(model_name, batch_size=batch_size)
+    args = train_args_tmp(model_name, batch_size=batch_size)
 
     trainer = Seq2SeqTrainer(
         model,
@@ -143,7 +163,8 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
 
 
 def dud():
-    return CmdlineArgs("models/smol", "data/train.json", "data/dev.json", {"fi", "en"}, "facebook/m2m100_418M", {"fi", "en"}, "-indtmp")
+    #return CmdlineArgs("models/smol", "data/train.json", "data/dev.json", {"fi", "en"}, "facebook/m2m100_418M", {"fi", "en"}, "-indtmp")
+    return CmdlineArgs("models/smol", "data/train.json", "data/dev.json", {"fi", "en"}, None, None, "-indtmp")
 
 
 def do_main():

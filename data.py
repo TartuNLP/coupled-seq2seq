@@ -2,7 +2,6 @@
 
 import json
 import sys
-import torch
 
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict

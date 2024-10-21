@@ -163,12 +163,13 @@ def to_cpl_spec(langs, model, tokenizer, location):
 
 
 def load_module_config(model_dir):
-    try:
-        with open(os.path.join(model_dir, MODULE_CONFIG_FILE), "r") as f:
-            config = json.load(f)
-            return config
-    except FileNotFoundError:
-        return [{"model_id": model_dir, "lang_set": {}}]
+    return [{"model_id": model_dir, "lang_set": {}}]
+    #try:
+    #    with open(os.path.join(model_dir, MODULE_CONFIG_FILE), "r") as f:
+    #        config = json.load(f)
+    #        return config
+    #except FileNotFoundError:
+    #    return [{"model_id": model_dir, "lang_set": {}}]
 
 
 def save_all_models(location, model, tokenizer, cpl_specs):
