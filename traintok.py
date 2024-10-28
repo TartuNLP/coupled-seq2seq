@@ -115,7 +115,7 @@ def learn_spm_tokenizer(corpus, model_dir, vocab_size, lang_set = None):
 
     tok = NllbTokenizer(tmp_location + ".model", additional_special_tokens=lang_set)
 
-    for tmp_file in (".vocab", ".model", ".vocab.json"):
+    for tmp_file in (".vocab", ".model"):
         os.remove(tmp_location + tmp_file)
 
     return tok
