@@ -4,7 +4,7 @@ import sys
 
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer
 from translate import hf_tok
-from traintok import learn_spm_tokenizer, get_stupid_correction, get_unk_toks
+from traintok import learn_spm_tokenizer, get_stupid_correction, get_unk_toks, extend_tok_langs
 
 def maybe_convert(value):
     try:
@@ -54,11 +54,11 @@ def mdl_param_count(model):
 
 
 def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
+    lang_set = kwargs["lang_set"].split(",") if "lang_set" in kwargs else None
+
     # train a new sentence-piece tokenizer
     if "tok_train_set" in kwargs and "vocab_size" in kwargs:
         correction = get_stupid_correction(mdl_id)
-
-        lang_set = kwargs["lang_set"].split(",") if "lang_set" in kwargs else None
 
         tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name,
                                         vocab_size=int(kwargs["vocab_size"]) - correction, lang_set=lang_set)
@@ -66,6 +66,9 @@ def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
     # save the pre-trained model's original tokenizer
     else:
         tokenizer = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok)
+
+        if lang_set is not None:
+            extend_tok_langs(tokenizer, lang_set)
 
         if "tok_train_set" in kwargs:
             unk_toks = get_unk_toks(tokenizer, kwargs["tok_train_set"], verbose=True)
