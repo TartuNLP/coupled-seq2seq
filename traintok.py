@@ -134,7 +134,7 @@ if __name__ == '__main__':
     tok = learn_spm_tokenizer(sys.argv[1], sys.argv[2], int(sys.argv[3]), lang_set = sys.argv[4].split(","))
     tok.save_pretrained(sys.argv[2])
 
-    snts = ["Pǟgiņ vȯȯnnõ mäd kolēgõn", "see on jama"]
+    snts = ["Pǟgiņ vȯȯnnõ", "see on jama"]
     for snt in snts:
         test_tok(tok, snt, "liv_Latn")
 
