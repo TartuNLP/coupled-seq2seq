@@ -5,7 +5,7 @@ import sentencepiece as spm
 import json
 
 from transformers import AutoTokenizer
-from transformers.models.m2m_100 import M2M100Tokenizer
+from transformers.models.nllb import NllbTokenizer
 from collections import defaultdict
 
 def test_tok(tok, snt, lang):
@@ -112,15 +112,12 @@ def learn_spm_tokenizer(corpus, model_dir, vocab_size, lang_set = None):
 
     spm.SentencePieceTrainer.train(input=corpus, model_prefix=tmp_location, vocab_size=vocab_size)
 
-    json_vocab_location = tsv_to_json_vocab(tmp_location + ".vocab")
-
-    m2m_tok = M2M100Tokenizer(json_vocab_location, tmp_location + ".model",
-                              language_codes = "m2m100", num_madeup_words = 0)
+    tok = NllbTokenizer(tmp_location + ".model", additional_special_tokens=lang_set)
 
     for tmp_file in (".vocab", ".model", ".vocab.json"):
         os.remove(tmp_location + tmp_file)
 
-    return m2m_tok
+    return tok
 
 
 """
