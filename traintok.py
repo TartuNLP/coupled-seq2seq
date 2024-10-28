@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import sys
 
 import sentencepiece as spm
 import json
@@ -120,63 +121,11 @@ def learn_spm_tokenizer(corpus, model_dir, vocab_size, lang_set = None):
     return tok
 
 
-"""
-    tok = AutoTokenizer.from_pretrained(sys.argv[1])
-    
-    test_tok(tok, "Pǟgiņ vȯnnõ mäd kolēgõn", "fi")
-    s = "Amā tǟdzi nēšti um LI Līvõd institūt jag"
-    raw_data = load_raw_liv_data("train.json")
-    data_iter = data_iter_for_tok_train(raw_data, {"fi", "et"})
-    unk_toks = get_unk_toks(tok, data_iter)
-    for t in unk_toks:
-        tok.add_tokens(t)
-        print(t)
-    
-    test_tok(tok, "Pǟgiņ vȯȯnnõ mäd kolēgõn", "fi")
-     
-    tok.save_pretrained("upd-m2m-tok-liv-et")
-     
-
-    #tmp_tok = learn_spm_tokenizer(data_iter, 16000, )
-    #tok.save_pretrained("newtok.tokmdl")
-
-    #tok = AutoTokenizer.from_pretrained(output_name)
-    #test_tok(tok, "see on õige яма, räägime uuesti", "fi")
-
-    #tokenizer = AutoTokenizer.from_pretrained("facebook/m2m100_418M")
-    #snts = ["Pǟgiņ vȯȯnnõ mäd kolēgõn", "see on jama"]
-    #test_tok(tokenizer, snt, "fi")
-
-    #unk_toks = get_unk_toks(tokenizer, snts)
-    #print(unk_toks)
-
-    #tokenizer.add_tokens(unk_toks)
-
-    #tokenizer.save_pretrained("upd.tok")
-
-"""
-
-
 if __name__ == '__main__':
-    raise Exception("Just testing stuff")
+    tok = learn_spm_tokenizer(sys.argv[1], sys.argv[2], int(sys.argv[3]), lang_set = sys.argv[4].split(","))
+    tok.save_pretrained(sys.argv[2])
 
-    raw_data = load_raw_liv_data("data/train.json")
-    data_iter = data_iter_for_tok_train(raw_data, {"fi", "et"})
-
-    tmp_tok = learn_spm_tokenizer(data_iter, 16000, )
-    #tok.save_pretrained("newtok.tokmdl")
-
-    #tok = AutoTokenizer.from_pretrained(output_name)
-    #test_tok(tok, "see on õige яма, räägime uuesti", "fi")
-
-    tokenizer = AutoTokenizer.from_pretrained("facebook/m2m100_418M")
     snts = ["Pǟgiņ vȯȯnnõ mäd kolēgõn", "see on jama"]
-    #test_tok(tokenizer, snt, "fi")
-
-    unk_toks = get_unk_toks(tokenizer, snts)
-    print(unk_toks)
-
-    tokenizer.add_tokens(unk_toks)
-
-    tokenizer.save_pretrained("upd.tok")
+    for snt in snts:
+        test_tok(tok, snt, "liv_Latn")
 
