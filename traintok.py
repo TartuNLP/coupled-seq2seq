@@ -19,9 +19,11 @@ def test_tok(tok, snt, lang):
 
 
 def get_stupid_correction(mdl_id):
-    if "m2m" in mdl_id.lower():
+    l_mdl_id = mdl_id.lower()
+
+    if "m2m" in l_mdl_id:
         correction = 108
-    elif "nllb" in mdl_id.lower():
+    elif "nllb" in l_mdl_id:
         correction = 2
     else:
         correction = 0
@@ -86,17 +88,6 @@ def get_unk_toks(tokenizer, corpus, verbose=False):
     return list(unk_toks)
 
 
-#def extend_tokenizer(tokenizer, new_tokens):
-#    #with open(corpus, 'r', encoding='utf-8') as f:
-#    #    lines = [l.strip() for l in f]
-#    #    unk_toks, ratio, _ = get_unk_toks(tokenizer, lines)
-#
-#        print(f"Added {len(unk_toks)} tokens to the tokenizer: {' '.join(unk_toks)}; " +
-#              f"UNK tokens account for {100*ratio:.2f}% of the corpus")
-#
-#        tokenizer.add_tokens(list(unk_toks))
-
-
 def test_existing_toks(test_snt = "Pǟgiņ vȯȯnnõ mäd kolēgõn", lang = "fi", mdl_list = ["facebook/m2m100_418M", "facebook/seamless-m4t-v2-large", "facebook/nllb-200-1.3B", "google/madlad400-3b-mt", "google/gemma-7b", "google/mt5-base", "facebook/mbart-large-50"]):
     for mdl_id in mdl_list:
        print(mdl_id)
@@ -131,10 +122,24 @@ def learn_spm_tokenizer(corpus, model_dir, vocab_size, lang_set = None):
 
 
 if __name__ == '__main__':
-    tok = learn_spm_tokenizer(sys.argv[1], sys.argv[2], int(sys.argv[3]), lang_set = sys.argv[4].split(","))
-    tok.save_pretrained(sys.argv[2])
+    # sys.argv: either 1 or 4 arguments; 1 is for loading, 4 is for training new
+    # 1: tokenizer location (to load or save)
+    # 2: text corpus for training a new SentencePiece model
+    # 3: size of the new model's vocabulary
+    # 4: comma-separated list of languages for the new tokenizer
 
-    snts = ["Pǟgiņ vȯȯnnõ", "see on jama"]
+    try:
+        tok = learn_spm_tokenizer(sys.argv[2], sys.argv[1], int(sys.argv[3]), lang_set=sys.argv[4].split(","))
+        tok.save_pretrained(sys.argv[1])
+    except IndexError:
+        tok = AutoTokenizer.from_pretrained(sys.argv[1])
+
+    new_lang = "liv_Latn"
+
+    snts = ["Pǟgiņ vȯnnõ", "see on jama"]
+
+    print(sys.argv[1])
     for snt in snts:
-        test_tok(tok, snt, "liv_Latn")
+        test_tok(tok, snt, new_lang)
 
+    test_existing_toks(snts[0], lang="liv_Latn")
