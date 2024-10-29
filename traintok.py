@@ -105,6 +105,7 @@ def extend_tok_langs(tokenizer, lang_set):
 
         addable_langs = list(set(lang_set) - orig_lang_set)
     else:
+        orig_langs = []
         addable_langs = lang_set
 
     tokenizer.add_special_tokens({'additional_special_tokens': orig_langs + addable_langs})
