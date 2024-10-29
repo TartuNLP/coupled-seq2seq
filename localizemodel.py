@@ -4,7 +4,7 @@ import sys
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from initmodel import mdl_param_count
-from traintok import get_stupid_correction, get_unk_toks
+from traintok import get_stupid_correction, get_unk_toks, extend_tok_langs
 
 if __name__ == '__main__':
     try:
@@ -21,6 +21,12 @@ if __name__ == '__main__':
             unk_toks = get_unk_toks(tokenizer, tok_corpus, verbose=True)
             old_len = len(tokenizer)
             tokenizer.add_tokens(unk_toks)
+
+            try:
+                tok_new_langs = sys.argv[4].split(",")
+                extend_tok_langs(tokenizer, tok_new_langs)
+            except IndexError:
+                pass
 
             upd_amt = get_stupid_correction(mdl_id)
             new_len = len(tokenizer)
@@ -39,4 +45,4 @@ if __name__ == '__main__':
 
         model.save_pretrained(mdl_new_name)
     except IndexError:
-        print("Usage: localizemodel.py  <model_id>  <model_new_name>  [<tok_corpus>]")
+        print("Usage: localizemodel.py  <model_id>  <model_new_name>  [<tok_corpus> <new_langs>]")
