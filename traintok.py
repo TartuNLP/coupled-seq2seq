@@ -99,10 +99,13 @@ def test_existing_toks(test_snt = "Pǟgiņ vȯȯnnõ mäd kolēgõn", lang = "fi
 
 
 def extend_tok_langs(tokenizer, lang_set):
-    orig_langs = tokenizer.special_tokens_map['additional_special_tokens']
-    orig_lang_set = set(orig_langs)
+    if 'additional_special_tokens' in tokenizer.special_tokens_map:
+        orig_langs = tokenizer.special_tokens_map['additional_special_tokens']
+        orig_lang_set = set(orig_langs)
 
-    addable_langs = list(set(lang_set) - orig_lang_set)
+        addable_langs = list(set(lang_set) - orig_lang_set)
+    else:
+        addable_langs = lang_set
 
     tokenizer.add_special_tokens({'additional_special_tokens': orig_langs + addable_langs})
 
