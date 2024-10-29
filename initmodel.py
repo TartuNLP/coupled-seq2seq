@@ -63,7 +63,8 @@ def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
         tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name,
                                         vocab_size=int(kwargs["vocab_size"]) - correction, lang_set=lang_set)
 
-    # save the pre-trained model's original tokenizer
+    # save the pre-trained model's tokenizer,
+    # possibly adding new languages and tokens
     else:
         tokenizer = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok)
 
