@@ -21,25 +21,22 @@ def do_list_in_batches(data, batch_size):
         i += batch_size
 
 
-def _tmp_repl(lang):
-    return 'fi' if lang == 'liv' else lang
+#def _tmp_repl(lang):
+#    return 'fi' if lang == 'liv' else lang
 
 
 def _post_proc(text, lang):
-    if lang == 'fi':
-        if "’" in text and "O’R" not in text:
-            return text.replace("’", "")
-        else:
-            return text
+    if lang == 'liv' and "’" in text and "O’R" not in text:
+        return text.replace("’", "")
     else:
         return text
 
 
 def clean_entry(entry, leave_out):
-    return {_tmp_repl(k): _post_proc(entry[k], k) for k in entry if entry[k].strip() and k not in leave_out}
+    return {k: _post_proc(entry[k], k) for k in entry if entry[k].strip() and k not in leave_out}
 
 
-def load_raw_liv_data(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
+def load_json_data(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
     with open(path, 'r') as f:
         data = json.load(f)
 
@@ -58,7 +55,7 @@ def load_raw_liv_data(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
 
 def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
     if filename is not None:
-        raw_data = load_raw_liv_data(filename)
+        raw_data = load_json_data(filename)
 
     if raw_data is None:
         raise ValueError("Neither file nor data are provided")
@@ -76,7 +73,7 @@ def split_by_lang(tr_pairs=None, filename=None):
     result = defaultdict(list)
 
     if filename is not None:
-        tr_pairs = load_raw_liv_data(filename)
+        tr_pairs = load_json_data(filename)
 
     for tup in tr_pairs:
         for l1 in tup:
@@ -327,7 +324,7 @@ def dump_to_stdout(filename=None, lang_or_lp=None):
     else:
         langs = lang_or_lp
         lang_set = set(langs.split(","))
-        raw_data = load_raw_liv_data(filename)
+        raw_data = load_json_data(filename)
         data_iter = data_iter_for_tok_train(raw_data, lang_set)
         i = 0
         for snt in data_iter:
@@ -337,13 +334,13 @@ def dump_to_stdout(filename=None, lang_or_lp=None):
 
 def do_stats(filename):
     stats = defaultdict(int)
-    raw_data = load_raw_liv_data(filename)
+    raw_data = load_json_data(filename)
 
     for data in raw_data:
         langs = sorted([k for k in data.keys() if data[k].strip() != ""])
         stats["-".join(langs)] += 1
     for k in stats:
-        print(k.replace("fi", "liv"), stats[k])
+        print(k, stats[k])
 
 
 def lang_from_name(filename):
