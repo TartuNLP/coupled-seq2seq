@@ -181,6 +181,8 @@ class MultilingualBatchingDataset(IterableDataset):
         inputs = [e.input for e in raw_batch]
 
         src_tokenizer = self.coupling_specs[src_k].tokenizer
+        tgt_tokenizer = self.coupling_specs[tgt_k].tokenizer
+
         src_tokenizer.src_lang = raw_batch[0].src_lang
 
         prep_batch_grouped = src_tokenizer(text=inputs, return_tensors="pt", padding="longest", truncation=True,
@@ -188,7 +190,6 @@ class MultilingualBatchingDataset(IterableDataset):
 
         outputs = [e.output for e in raw_batch]
 
-        tgt_tokenizer = self.coupling_specs[tgt_k].tokenizer
         tgt_tokenizer.tgt_lang = raw_batch[0].tgt_lang
 
         labels = tgt_tokenizer(text_target=outputs, return_tensors="pt", padding="longest", truncation=True,
@@ -210,19 +211,19 @@ class MultilingualBatchingDataset(IterableDataset):
 
         return split_prep_batch
 
-    def _bins_to_batches(self, bins):
+    def _bins_to_tokenized_batches(self, bins):
         for src_k in bins:
             for tgt_k in bins[src_k]:
                 if src_k == 0 or tgt_k == 0:
                     for raw_batch in do_list_in_batches(bins[src_k][tgt_k], self.batch_size):
                         yield self.tokenize_and_pad(raw_batch, src_k, tgt_k)
 
-    def reorganize_data(self, raw_data):
+    def group_and_tokenize_data(self, raw_data):
         bins = self._fill_bins(raw_data)
 
         self.report_update_stats(bins)
 
-        batches = list(self._bins_to_batches(bins))
+        batches = list(self._bins_to_tokenized_batches(bins))
         shuffle(batches)
 
         self.data = [elem for batch in batches for elem in batch]
@@ -240,7 +241,7 @@ class MultilingualBatchingDataset(IterableDataset):
         self._lang_to_idx = lang_bin_mapping(coupling_specs)
 
         # collect data into bins and fill self.data:
-        self.reorganize_data(tr_pair_list)
+        self.group_and_tokenize_data(tr_pair_list)
 
         if verbose:
             self.check_out_of_bounds()

@@ -9,7 +9,7 @@ from translate import hf_tok
 from data import get_tr_pairs, MultilingualBatchingDataset
 from aux import log
 from collections import namedtuple, defaultdict
-from vivisect import vivisect_save_chkpt, inject_enc_dec_tracing, vivisect_train_step, vivisect_eval_step, \
+from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
     to_cpl_spec, save_all_models
 
 CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
@@ -195,11 +195,6 @@ def do_main():
 
     train_set = MultilingualBatchingDataset(train_set_pairs, coupling_specs, batch_size=batch_size, tracing_msg="TRAIN", verbose=True)
     val_set = MultilingualBatchingDataset(val_set_pairs, coupling_specs, batch_size=batch_size, tracing_msg="VAL", verbose=True)
-
-    # inject_special_fwd(coupled_model, "cond_model->forward")
-
-    # inject_enc_dec_tracing(coupled_model.model.encoder, "encoder->forward", "encoder")
-    # inject_enc_dec_tracing(coupled_model.model.decoder, "decoder->forward", "decoder")
 
     do_training(coupled_model, args.save_location, train_set, val_set, batch_size, coupling_specs)
 
