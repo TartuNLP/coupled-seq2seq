@@ -6,6 +6,8 @@ from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer
 from translate import hf_tok
 from traintok import learn_spm_tokenizer, get_stupid_correction, get_unk_toks, extend_tok_langs
 
+from aux import log
+
 def maybe_convert(value):
     try:
         return int(value)
