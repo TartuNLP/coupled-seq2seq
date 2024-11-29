@@ -23,8 +23,9 @@ def inject_enc_dec_tracing(model, msg, prefx):
 
     def new_func(self, *args, **kwargs):
         input_ids = kwargs['input_ids']
-        max_val = max(reshape(input_ids, (-1,)).tolist())
+
         langs = set(input_ids[:, 0].tolist())
+        max_val = max(reshape(input_ids, (-1,)).tolist())
 
         #if max_val >= self.config.vocab_size:
         #    sys.stderr.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")

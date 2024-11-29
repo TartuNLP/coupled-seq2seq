@@ -198,8 +198,8 @@ def do_main():
 
     # inject_special_fwd(coupled_model, "cond_model->forward")
 
-    inject_enc_dec_tracing(coupled_model.model.encoder, "encoder->forward", "encoder")
-    inject_enc_dec_tracing(coupled_model.model.decoder, "decoder->forward", "decoder")
+    # inject_enc_dec_tracing(coupled_model.model.encoder, "encoder->forward", "encoder")
+    # inject_enc_dec_tracing(coupled_model.model.decoder, "decoder->forward", "decoder")
 
     do_training(coupled_model, args.save_location, train_set, val_set, batch_size, coupling_specs)
 
