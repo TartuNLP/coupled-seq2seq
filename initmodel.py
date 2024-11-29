@@ -58,6 +58,8 @@ def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
 
     # train a new sentence-piece tokenizer
     if "tok_train_set" in kwargs and "vocab_size" in kwargs:
+        assert lang_set is not None, "lang_set must be provided"
+
         correction = get_stupid_correction(mdl_id)
 
         tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name,

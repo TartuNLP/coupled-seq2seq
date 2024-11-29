@@ -6,6 +6,24 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from initmodel import mdl_param_count
 from traintok import get_stupid_correction, get_unk_toks, extend_tok_langs
 
+
+def maybe_update_tokenizer(tok, tok_corpus, tok_new_langs = None):
+    unk_toks = get_unk_toks(tok, tok_corpus, verbose=True)
+
+    old_len = len(tok)
+
+    tok.add_tokens(unk_toks)
+
+    if tok_new_langs is not None:
+        extend_tok_langs(tok, tok_new_langs)
+
+    upd_amt = get_stupid_correction(mdl_id)
+    new_len = len(tok)
+    model.resize_token_embeddings(new_len + upd_amt)
+
+    print(f"Increased tokens from {old_len} to {new_len}")
+
+
 if __name__ == '__main__':
     try:
         mdl_id = sys.argv[1]
@@ -15,27 +33,15 @@ if __name__ == '__main__':
 
         tokenizer = AutoTokenizer.from_pretrained(mdl_id)
 
-        try:
-            tok_corpus = sys.argv[3]
-
-            unk_toks = get_unk_toks(tokenizer, tok_corpus, verbose=True)
-            old_len = len(tokenizer)
-            tokenizer.add_tokens(unk_toks)
+        if len(sys.argv) > 3:
+            tok_corp_file = sys.argv[3]
 
             try:
                 tok_new_langs = sys.argv[4].split(",")
-                extend_tok_langs(tokenizer, tok_new_langs)
             except IndexError:
-                pass
+                tok_new_langs = None
 
-            upd_amt = get_stupid_correction(mdl_id)
-            new_len = len(tokenizer)
-            model.resize_token_embeddings(new_len + upd_amt)
-
-            print(f"Increased tokens from {old_len} to {new_len}")
-
-        except IndexError:
-            pass
+            maybe_update_tokenizer(tokenizer, tok_corp_file, tok_new_langs)
 
         mdl_size, emb_size = mdl_param_count(model)
         print(f"Cached model with {mdl_size} parameters" +

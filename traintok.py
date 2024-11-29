@@ -111,7 +111,7 @@ def extend_tok_langs(tokenizer, lang_set):
     tokenizer.add_special_tokens({'additional_special_tokens': orig_langs + addable_langs})
 
 
-def learn_spm_tokenizer(corpus, model_dir, vocab_size, lang_set = None):
+def learn_spm_tokenizer(corpus, model_dir, vocab_size, lang_set=None):
     tmp_location = os.path.join(model_dir, "sentencepiece.bpe.tmp")
     os.makedirs(model_dir, exist_ok=True)
 
