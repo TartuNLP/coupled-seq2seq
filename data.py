@@ -180,8 +180,19 @@ class MultilingualBatchingDataset(IterableDataset):
     def tokenize_and_pad(self, raw_batch, src_k, tgt_k):
         inputs = [e.input for e in raw_batch]
 
+        """
+        NLLB:
+        set src_tok.src_lang
+        set tgt_tok.tgt_lang
+        
+        MADLAD:
+        each input gets a prefix of "<tgt_lang tgt_dialect>"
+        """
+
         src_tokenizer = self.coupling_specs[src_k].tokenizer
         tgt_tokenizer = self.coupling_specs[tgt_k].tokenizer
+
+        log(f"src_tok class: {type(src_tokenizer)}, tgt_tok class: {type(tgt_tokenizer)}")
 
         src_tokenizer.src_lang = raw_batch[0].src_lang
 
