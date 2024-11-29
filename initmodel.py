@@ -56,10 +56,12 @@ def mdl_param_count(model):
 def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
     lang_set = kwargs["lang_set"].split(",") if "lang_set" in kwargs else None
 
+    tokenizer_changed = False
+
     # train a new sentence-piece tokenizer
     if "tok_train_set" in kwargs and "vocab_size" in kwargs:
         assert lang_set is not None, "lang_set must be provided"
-
+        tokenizer_changed = True
         correction = get_stupid_correction(mdl_id)
 
         tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name,
@@ -71,15 +73,17 @@ def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
         tokenizer = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok)
 
         if lang_set is not None:
+            tokenizer_changed = True
             extend_tok_langs(tokenizer, lang_set)
 
         if "tok_train_set" in kwargs:
+            tokenizer_changed = True
             unk_toks = get_unk_toks(tokenizer, kwargs["tok_train_set"], verbose=True)
             tokenizer.add_tokens(unk_toks)
 
     tokenizer.save_pretrained(mdl_new_name)
 
-    return tokenizer
+    return tokenizer, tokenizer_changed
 
 
 if __name__ == '__main__':
@@ -90,12 +94,14 @@ if __name__ == '__main__':
         mdl_new_name = sys.argv[2]
         kwargs = to_kwargs(sys.argv[3:])
 
-        tok = handle_tokenizers(mdl_id, mdl_new_name, kwargs)
+        tok, it_changed = handle_tokenizers(mdl_id, mdl_new_name, kwargs)
 
         config = get_changed_config(mdl_id, **kwargs)
 
         model = AutoModelForSeq2SeqLM.from_config(config)
-        model.resize_token_embeddings(len(tok) + get_stupid_correction(mdl_id))
+        if it_changed:
+            log("Yes, it did change")
+            model.resize_token_embeddings(len(tok) + get_stupid_correction(mdl_id))
         model.save_pretrained(mdl_new_name)
 
         mdl_size, emb_size = mdl_param_count(model)
