@@ -89,7 +89,7 @@ def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
 
 
 if __name__ == '__main__':
-    sys.argv = ["X", "facebook/m2m100_418M", "new_tok", "decoder_layers=2", "dropout=0.01"]
+    #sys.argv = ["X", "facebook/nllb-200-distilled-600M", "new_tok", "decoder_layers=2", "dropout=0.01"]
 
     try:
         mdl_id = sys.argv[1]
