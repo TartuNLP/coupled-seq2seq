@@ -21,8 +21,9 @@ def maybe_convert(value):
 def get_changed_config(model_id, **kw):
     conf = AutoConfig.from_pretrained(model_id)
 
-    if "tok_train_set" in kw:
-        del kw["tok_train_set"]
+    for extra_key in "tok_train_set lang_set".split():
+        if extra_key in kw:
+            del kw[extra_key]
 
     for kwarg in kw:
         if kwarg in conf.__dict__:
