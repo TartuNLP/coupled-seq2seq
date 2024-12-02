@@ -43,24 +43,14 @@ def clean_lang(raw_lang):
 
 
 def any_to_base(lang):
-    if "_" in lang:
-        iso3 = lang.split("_")[0]
-        return pycountry.languages.get(alpha_3=iso3)
-    elif "<2" in lang:
-        iso2 = lang[2:-1]
-        res = pycountry.languages.get(alpha_2=iso2)
+    clang = clean_lang(lang)
 
-        if res is None:
-            return pycountry.languages.get(alpha_3=iso2)
-        else:
-            return res
+    res = pycountry.languages.get(alpha_2=clang)
+
+    if res is None:
+        return pycountry.languages.get(alpha_3=clang)
     else:
-        result = pycountry.languages.get(alpha_2=lang)
-
-        if result is None:
-            return pycountry.languages.get(alpha_3=lang)
-        else:
-            return result
+        return res
 
 
 def base_to_nllb(lang_entry=None, lang_code=None):
