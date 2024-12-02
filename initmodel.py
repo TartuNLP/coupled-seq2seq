@@ -67,7 +67,7 @@ def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
         tokenizer_changed = True
         correction = get_stupid_correction(mdl_id)
 
-        tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name,
+        tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name, base_model=mdl_id,
                                         vocab_size=int(kwargs["vocab_size"]) - correction, lang_set=lang_set)
 
     # save the pre-trained model's tokenizer,

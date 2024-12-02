@@ -7,7 +7,11 @@ import json
 
 from transformers import AutoTokenizer
 from transformers.models.nllb import NllbTokenizer
+from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
+
+from langconv import langs_to_madlad, langs_to_nllb
+
 
 def test_tok(tok, snt, lang):
     tok.src_lang = lang
@@ -47,18 +51,6 @@ def tsv_to_json_vocab(location):
     return new_location
 
 
-def x_report_tok_corpus_overlap(tokenizer, filename):
-    all_toks = set()
-
-    with open(filename, "r", encoding='utf-8') as f:
-        for line in f:
-            toks = tokenizer(line.strip(), return_tensors="pt")
-            for tok in toks["input_ids"][0]:
-                all_toks.add(int(tok))
-
-        print(f"Tokenizer vocab_size: {tokenizer.vocab_size}, used tokens: {len(all_toks)}")
-
-
 def get_unk_toks(tokenizer, corpus, verbose=False):
     unk_id = tokenizer.unk_token_id
     unk_toks = defaultdict(int)
@@ -88,7 +80,7 @@ def get_unk_toks(tokenizer, corpus, verbose=False):
     return list(unk_toks)
 
 
-def test_existing_toks(test_snt = "Pǟgiņ vȯȯnnõ mäd kolēgõn", lang = "fi", mdl_list = ["facebook/m2m100_418M", "facebook/seamless-m4t-v2-large", "facebook/nllb-200-1.3B", "google/madlad400-3b-mt", "google/gemma-7b", "google/mt5-base", "facebook/mbart-large-50"]):
+def test_existing_toks(test_snt="Pǟgiņ vȯȯnnõ mäd kolēgõn", lang="fi", mdl_list=["facebook/m2m100_418M", "facebook/seamless-m4t-v2-large", "facebook/nllb-200-1.3B", "google/madlad400-3b-mt", "google/gemma-7b", "google/mt5-base", "facebook/mbart-large-50"]):
     for mdl_id in mdl_list:
        print(mdl_id)
        try:
@@ -111,16 +103,34 @@ def extend_tok_langs(tokenizer, lang_set):
     tokenizer.add_special_tokens({'additional_special_tokens': orig_langs + addable_langs})
 
 
-def learn_spm_tokenizer(corpus, model_dir, vocab_size, lang_set=None):
+def wrap_tok_in_correct_class(location, base_model_id, lang_set):
+    l_base_mdl_id = base_model_id.lower()
+
+    if "nllb" in l_base_mdl_id:
+        nllb_lang_set = langs_to_nllb(lang_set)
+        return NllbTokenizer(location + ".model", additional_special_tokens=nllb_lang_set)
+
+    elif "madlad" in l_base_mdl_id or "t5" in l_base_mdl_id:
+        madlad_lang_set = langs_to_madlad(lang_set)
+        return T5Tokenizer(location + ".model", additional_special_tokens=madlad_lang_set)
+    else:
+        raise ValueError("Incompatible model type for tokenizer")
+
+
+def remove_tmp_spm_files(location):
+    for tmp_file in (".vocab", ".model"):
+        os.remove(location + tmp_file)
+
+
+def learn_spm_tokenizer(corpus, model_dir, base_model_id, vocab_size, lang_set=None):
     tmp_location = os.path.join(model_dir, "sentencepiece.bpe.tmp")
     os.makedirs(model_dir, exist_ok=True)
 
     spm.SentencePieceTrainer.train(input=corpus, model_prefix=tmp_location, vocab_size=vocab_size)
 
-    tok = NllbTokenizer(tmp_location + ".model", additional_special_tokens=lang_set)
+    tok = wrap_tok_in_correct_class(tmp_location, base_model_id, lang_set)
 
-    for tmp_file in (".vocab", ".model"):
-        os.remove(tmp_location + tmp_file)
+    remove_tmp_spm_files(tmp_location)
 
     return tok
 
@@ -133,10 +143,10 @@ if __name__ == '__main__':
     # 4: comma-separated list of languages for the new tokenizer
 
     try:
-        tok = learn_spm_tokenizer(sys.argv[2], sys.argv[1], int(sys.argv[3]), lang_set=sys.argv[4].split(","))
-        tok.save_pretrained(sys.argv[1])
+        _tok = learn_spm_tokenizer(sys.argv[2], sys.argv[1], int(sys.argv[3]), lang_set=sys.argv[4].split(","))
+        _tok.save_pretrained(sys.argv[1])
     except IndexError:
-        tok = AutoTokenizer.from_pretrained(sys.argv[1])
+        _tok = AutoTokenizer.from_pretrained(sys.argv[1])
 
     new_lang = "liv_Latn"
 
@@ -144,6 +154,6 @@ if __name__ == '__main__':
 
     print(sys.argv[1])
     for snt in snts:
-        test_tok(tok, snt, new_lang)
+        test_tok(_tok, snt, new_lang)
 
     test_existing_toks(snts[0], lang="liv_Latn")
