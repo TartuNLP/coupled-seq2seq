@@ -27,6 +27,12 @@ iso3_to_nllb = { code: f"{code}_{_iso3_to_script[code]}" for code in _iso3_to_sc
 iso3_to_nllb['lav'] = "lvs_Latn"
 iso3_to_nllb['yid'] = "ydd_Hebr"
 
+for lang in "fkv izh krl liv lud olo sje sju sma sme smj smn sms vep vot vro".split():
+    iso3_to_nllb[lang] = f"{lang}_Latn"
+
+for lang in "kca koi kpv mdf mhr mns mrj myv sjd udm".split():
+    iso3_to_nllb[lang] = f"{lang}_Cyrl"
+
 
 def guess_script(lang):
     return "Unk"

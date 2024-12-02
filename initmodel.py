@@ -67,7 +67,7 @@ def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
         tokenizer_changed = True
         correction = get_stupid_correction(mdl_id)
 
-        tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name, base_model=mdl_id,
+        tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name, base_model_id=mdl_id,
                                         vocab_size=int(kwargs["vocab_size"]) - correction, lang_set=lang_set)
 
     # save the pre-trained model's tokenizer,
@@ -103,7 +103,6 @@ if __name__ == '__main__':
 
         model = AutoModelForSeq2SeqLM.from_config(config)
         if it_changed:
-            log("Yes, it did change")
             model.resize_token_embeddings(len(tok) + get_stupid_correction(mdl_id))
         model.save_pretrained(mdl_new_name)
 
