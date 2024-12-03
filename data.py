@@ -181,6 +181,7 @@ class MultilingualBatchingDataset(IterableDataset):
 
     def tokenize_input(self, cplspec, input_list, rawbatch):
         src_tokenizer = cplspec.tokenizer
+        src_tokenizer.src_lang = rawbatch[0].src_lang
         prep_batch_grouped = src_tokenizer(text=input_list, return_tensors="pt",
                                            padding="longest", truncation=True, max_length=256)
         if is_nllb(src_tokenizer):
@@ -192,6 +193,7 @@ class MultilingualBatchingDataset(IterableDataset):
 
     def tokenize_output(self, tgttokenizer, rawbatch):
         outputs = [e.output for e in rawbatch]
+        tgttokenizer.tgt_lang = rawbatch[0].tgt_lang
         labels = tgttokenizer(text_target=outputs, return_tensors="pt", padding="longest", truncation=True,
                                max_length=256)
         if is_nllb(tgttokenizer):
