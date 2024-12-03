@@ -3,7 +3,7 @@
 import sys
 
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer
-from translate import hf_tok
+from translate import hf_tok, maybe_smugri
 from traintok import learn_spm_tokenizer, get_stupid_correction, get_unk_toks, extend_tok_langs
 
 from aux import log
@@ -57,7 +57,7 @@ def mdl_param_count(model):
 
 
 def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
-    lang_set = kwargs["lang_set"].split(",") if "lang_set" in kwargs else None
+    lang_set = maybe_smugri(kwargs["lang_set"]).split(",") if "lang_set" in kwargs else None
 
     tokenizer_changed = False
 

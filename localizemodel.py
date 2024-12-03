@@ -5,6 +5,7 @@ import sys
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from initmodel import mdl_param_count
 from traintok import get_stupid_correction, get_unk_toks, extend_tok_langs
+from translate import maybe_smugri
 
 
 def maybe_update_tokenizer(tok, tok_corpus, tok_new_langs = None):
@@ -37,7 +38,7 @@ if __name__ == '__main__':
             tok_corp_file = sys.argv[3]
 
             try:
-                tok_new_langs = sys.argv[4].split(",")
+                tok_new_langs = maybe_smugri(sys.argv[4]).split(",")
             except IndexError:
                 tok_new_langs = None
 

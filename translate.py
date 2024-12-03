@@ -12,6 +12,20 @@ hf_tok = "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"
 
 host_remote = True
 
+SMUGRI_LOW = "fkv,izh,kca,koi,kpv,krl,liv,lud,mdf,mhr,mns,mrj,myv,olo,sjd,sje,sju,sma,sme,smj,smn,sms,udm,vep,vot,vro"
+SMUGRI_HIGH = "deu,eng,est,fin,hun,lvs,nor,rus,swe"
+
+
+def maybe_smugri(lang_def):
+    if lang_def == "smugri-low":
+        return SMUGRI_LOW
+    elif lang_def == "smugri-high":
+        return SMUGRI_HIGH
+    elif lang_def == "smugri":
+        return SMUGRI_LOW + "," + SMUGRI_HIGH
+    else:
+        return lang_def
+
 
 def prepare_for_translation(inputs, tokenizer, input_language, output_language=None):
     if is_nllb(tokenizer):

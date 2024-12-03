@@ -5,10 +5,10 @@ import sys
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
-from translate import hf_tok
+from translate import hf_tok, maybe_smugri
 from data import get_tr_pairs, MultilingualBatchingDataset
 from aux import log
-from collections import namedtuple, defaultdict
+from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
     to_cpl_spec, save_all_models
 
@@ -16,9 +16,6 @@ CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data
 
 host_remote = True
 
-SMUGRI_LOW = "fkv,izh,kca,koi,kpv,krl,liv,lud,mdf,mhr,mns,mrj,myv,olo,sjd,sje,sju,sma,sme,smj,smn,sms,udm,vep,vot,vro"
-
-SMUGRI_HIGH = "deu,eng,est,fin,hun,lvs,nor,rus,swe"
 
 def freeze_model(model):
     for n, p in model.named_parameters():
@@ -75,17 +72,6 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
         log(f"Loaded {mdl_id}, tokenizer voc size {len(tokenizer)}, model voc size {model.config.vocab_size}")
 
     return model, tokenizer
-
-
-def maybe_smugri(lang_def):
-    if lang_def == "smugri-low":
-        return SMUGRI_LOW
-    elif lang_def == "smugri-high":
-        return SMUGRI_HIGH
-    elif lang_def == "smugri":
-        return SMUGRI_LOW + "," + SMUGRI_HIGH
-    else:
-        return lang_def
 
 
 def cmdline_args():
