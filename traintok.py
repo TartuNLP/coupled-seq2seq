@@ -10,7 +10,7 @@ from transformers.models.nllb import NllbTokenizer
 from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
-from langconv import langs_to_madlad, langs_to_nllb
+from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad
 
 
 def test_tok(tok, snt, lang):
@@ -90,7 +90,14 @@ def test_existing_toks(test_snt="Pǟgiņ vȯȯnnõ mäd kolēgõn", lang="fi", m
            print("Failed because:", e)
 
 
-def extend_tok_langs(tokenizer, lang_set):
+def extend_tok_langs(tokenizer, lang_set_raw):
+    if is_nllb(tokenizer):
+        lang_set = langs_to_nllb(lang_set_raw)
+    elif is_madlad(tokenizer):
+        lang_set = langs_to_madlad(lang_set_raw)
+    else:
+        raise NotImplementedError
+
     if 'additional_special_tokens' in tokenizer.special_tokens_map:
         orig_langs = tokenizer.special_tokens_map['additional_special_tokens']
         orig_lang_set = set(orig_langs)
