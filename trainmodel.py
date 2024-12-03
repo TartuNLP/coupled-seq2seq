@@ -16,6 +16,9 @@ CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data
 
 host_remote = True
 
+SMUGRI_LOW = "fkv,izh,kca,koi,kpv,krl,liv,lud,mdf,mhr,mns,mrj,myv,olo,sjd,sje,sju,sma,sme,smj,smn,sms,udm,vep,vot,vro"
+
+SMUGRI_HIGH = "deu,eng,est,fin,hun,lvs,nor,rus,swe"
 
 def freeze_model(model):
     for n, p in model.named_parameters():
@@ -74,18 +77,29 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
     return model, tokenizer
 
 
+def maybe_smugri(lang_def):
+    if lang_def == "smugri-low":
+        return SMUGRI_LOW
+    elif lang_def == "smugri-high":
+        return SMUGRI_HIGH
+    elif lang_def == "smugri":
+        return SMUGRI_LOW + "," + SMUGRI_HIGH
+    else:
+        return lang_def
+
+
 def cmdline_args():
     try:
         coupled_mdl_id = sys.argv[1]
         train_data_file = sys.argv[2]
         dev_data_file = sys.argv[3]
-        raw_coupled_langs = sys.argv[4]
+        raw_coupled_langs = maybe_smugri(sys.argv[4])
 
         coupled_langs = set(raw_coupled_langs.split(","))
 
         if len(sys.argv) > 5:
             anchor_mdl_id = sys.argv[5]
-            raw_anchor_langs = sys.argv[6]
+            raw_anchor_langs = maybe_smugri(sys.argv[6])
 
             anchor_langs = set(raw_anchor_langs.split(","))
 
