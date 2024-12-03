@@ -6,27 +6,29 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from data import do_list_in_batches, lang_bin_mapping
 from vivisect import load_module_config, to_cpl_spec, switch_modules
 from collections import defaultdict
+from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
 
 hf_tok = "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"
 
 host_remote = True
 
 
-def prepare_for_translation(input_text, tokenizer, input_language, output_language=None, for_output=False):
-    #if for_output:
-    #    tokenizer.tgt_lang = output_language
-    #
-    #    labels = tokenizer(text_target=input_text, return_tensors="pt")
-    #    return labels['input_ids']
-    #else:
-        tokenizer.src_lang = input_language
-        inputs = tokenizer(input_text, return_tensors="pt", padding=True, truncation=True, max_length=512)
-        if host_remote:
-            inputs.to("cuda:0")
+def prepare_for_translation(inputs, tokenizer, input_language, output_language=None):
+    if is_nllb(tokenizer):
+        tokenizer.src_lang = any_to_nllb(input_language)
+        inputs_to_process = inputs
+    elif is_madlad(tokenizer):
+        madlad_tgt_lang = any_to_madlad(output_language)
+        inputs_to_process = [f"{madlad_tgt_lang} {inp}" for inp in inputs]
 
-        frc_bos = tokenizer.get_lang_id(output_language) if output_language is not None else None
+    prepared_inputs = tokenizer(inputs_to_process, return_tensors="pt", padding=True, truncation=True, max_length=512)
 
-        return inputs, frc_bos
+    if host_remote:
+        inputs.to("cuda:0")
+
+    frc_bos = tokenizer.get_lang_id(output_language) if output_language is not None else None
+
+    return prepared_inputs, frc_bos
 
 
 def finalize_translation(outputs, tokenizer, output_language):

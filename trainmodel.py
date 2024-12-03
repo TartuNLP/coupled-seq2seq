@@ -164,7 +164,7 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
 
 def dud():
     #return CmdlineArgs("models/smol", "data/train.json", "data/dev.json", {"fi", "en"}, "facebook/m2m100_418M", {"fi", "en"}, "-indtmp")
-    return CmdlineArgs("models/smol", "data/train.json", "data/dev.json", {"fi", "en"}, None, None, "-indtmp")
+    return CmdlineArgs("models/smol", "data/liv_train.json", "data/liv_train.json", {"liv", "et", "lv", "en"}, None, None, "-indtmp")
 
 
 def do_main():

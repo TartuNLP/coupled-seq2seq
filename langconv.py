@@ -134,3 +134,11 @@ if __name__ == "__main__":
     run_test(NLLB_CODES, NLLB_CODES, any_to_nllb, "NLLB to NLLB")
     run_test(MADLAD_CODES, NLLB_CODES, any_to_nllb, "MADLAD TO NLLB")
     run_test(MADLAD_CODES, MADLAD_CODES, any_to_madlad, "MADLAD TO MADLAD")
+
+
+def is_nllb(tokenizer):
+    return "nllb" in tokenizer.__class__.__name__.lower()
+
+
+def is_madlad(tokenizer):
+    return "t5" in tokenizer.__class__.__name__.lower()

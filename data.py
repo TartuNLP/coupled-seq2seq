@@ -3,11 +3,13 @@
 import json
 import sys
 
+from torch import tensor
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
 from random import randrange, shuffle
 
-from aux import log, log_2dict, debug
+from aux import log, log_2dict
+from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 DataEntry = namedtuple('DataEntry', ["tr_pair", "prepared", "src_bin_idx", "tgt_bin_idx"])
@@ -177,48 +179,44 @@ class MultilingualBatchingDataset(IterableDataset):
             f"frozen meaningless updates: {100 * duds / total:.2f}%; " + \
             f"enc samples: {enc_count}, dec samples: {dec_count}")
 
+    def tokenize_input(self, cplspec, input_list, rawbatch):
+        src_tokenizer = cplspec.tokenizer
+        prep_batch_grouped = src_tokenizer(text=input_list, return_tensors="pt",
+                                           padding="longest", truncation=True, max_length=256)
+        if is_nllb(src_tokenizer):
+            src_lang_list = [any_to_nllb(e.src_lang) for e in rawbatch]
+            src_lang_vec = src_tokenizer.convert_tokens_to_ids(src_lang_list)
+            prep_batch_grouped['input_ids'][:,0] = tensor(src_lang_vec)
+
+        return prep_batch_grouped
+
+    def tokenize_output(self, tgttokenizer, rawbatch):
+        outputs = [e.output for e in rawbatch]
+        labels = tgttokenizer(text_target=outputs, return_tensors="pt", padding="longest", truncation=True,
+                               max_length=256)
+        if is_nllb(tgttokenizer):
+            tgt_lang_list = [any_to_nllb(e.tgt_lang) for e in rawbatch]
+            tgt_lang_vec = tgttokenizer.convert_tokens_to_ids(tgt_lang_list)
+            labels['input_ids'][:, 0] = tensor(tgt_lang_vec)
+
+        return labels
+
     def tokenize_and_pad(self, raw_batch, src_k, tgt_k):
-        inputs = [e.input for e in raw_batch]
-
-        """
-        NLLB:
-        set src_tok.src_lang
-        set tgt_tok.tgt_lang
-        
-        MADLAD:
-        each input gets a prefix of "<tgt_lang tgt_dialect>"
-        """
-
-        src_tokenizer = self.coupling_specs[src_k].tokenizer
         tgt_tokenizer = self.coupling_specs[tgt_k].tokenizer
 
-        log(f"src_tok class: {type(src_tokenizer)}, tgt_tok class: {type(tgt_tokenizer)}")
+        if is_madlad(tgt_tokenizer):
+            inputs = [f"{any_to_madlad(e.tgt_lang)} {e.input}" for e in raw_batch]
+        else:
+            inputs = [e.input for e in raw_batch]
 
-        src_tokenizer.src_lang = raw_batch[0].src_lang
-
-        prep_batch_grouped = src_tokenizer(text=inputs, return_tensors="pt", padding="longest", truncation=True,
-                                           max_length=256)
-
-        outputs = [e.output for e in raw_batch]
-
-        tgt_tokenizer.tgt_lang = raw_batch[0].tgt_lang
-
-        labels = tgt_tokenizer(text_target=outputs, return_tensors="pt", padding="longest", truncation=True,
-                               max_length=256)
-
-        #batch_size = len(raw_batch)
-        #src_trojan = torch.LongTensor(((src_k,),) * batch_size)
-        #tgt_trojan = torch.LongTensor(((tgt_k,),) * batch_size)
-
-        #prep_batch_grouped['input_ids'] = torch.cat((prep_batch_grouped['input_ids'], src_trojan), dim=1)
-        #prep_batch_grouped['labels'] = torch.cat((labels['input_ids'], tgt_trojan), dim=1)
-
+        prep_batch_grouped = self.tokenize_input(self.coupling_specs[src_k], inputs, raw_batch)
+        labels = self.tokenize_output(tgt_tokenizer, raw_batch)
         prep_batch_grouped['labels'] = labels['input_ids']
 
         inject_bin_indices(prep_batch_grouped, src_k, tgt_k)
 
-        split_prep_batch = [DataEntry(trp, {k: prep_batch_grouped[k][i] for k in prep_batch_grouped}, src_k, tgt_k) for
-                            i, trp in enumerate(raw_batch)]
+        split_prep_batch = [DataEntry(trp, {k: prep_batch_grouped[k][i] for k in prep_batch_grouped}, src_k, tgt_k)
+                            for i, trp in enumerate(raw_batch)]
 
         return split_prep_batch
 
