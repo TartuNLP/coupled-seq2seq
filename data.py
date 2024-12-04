@@ -271,8 +271,8 @@ class MultilingualBatchingDataset(IterableDataset):
             #print("DEBUG", l, m, trp.src_bin_idx, trp.tgt_bin_idx, max_dict[trp.src_bin_idx][trp.tgt_bin_idx])
             #raise NotImplementedError
 
-        log_2dict(max_dict, f"MAX ({self.msg})")
-        log_2dict(count_dict, f"COUNT ({self.msg})")
+        # log_2dict(max_dict, f"MAX ({self.msg})")
+        # log_2dict(count_dict, f"COUNT ({self.msg})")
 
     def __iter__(self):
         self.i = 0

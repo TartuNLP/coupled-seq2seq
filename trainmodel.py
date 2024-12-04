@@ -185,7 +185,7 @@ def do_main():
         coupling_specs += to_cpl_spec(args.anchor_langs, anchor_model, anchor_tokenizer, args.anchor_mdl_id)
 
     lp_set = set(get_lps_from_specs(coupling_specs))
-    log(f"loading training data {lp_set}")
+    log(f"loading training data {str(lp_set)[:50]}")
     # lp_set = { "en-fi" }
 
     train_set_pairs = list(get_tr_pairs(filename=args.train_data_file, leave_only=lp_set))
