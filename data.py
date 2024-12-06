@@ -67,7 +67,7 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
         raise ValueError("Neither file nor data are provided")
 
     i = 0
-
+    log("Loading data")
     for tup in raw_data:
         for l1 in tup:
             for l2 in tup:
@@ -233,6 +233,8 @@ class MultilingualBatchingDataset(IterableDataset):
 
     def _bins_to_tokenized_batches(self, bins):
         i = 0
+        log("Tokenizing data")
+
         for src_k in bins:
             for tgt_k in bins[src_k]:
                 if src_k == 0 or tgt_k == 0:
@@ -273,6 +275,7 @@ class MultilingualBatchingDataset(IterableDataset):
         if there_is_a_cache:
             with open(cache_location, "r") as fh:
                 self.data = json.load(fh)
+                log("Loaded data from cache")
 
         return there_is_a_cache
 
@@ -284,6 +287,7 @@ class MultilingualBatchingDataset(IterableDataset):
 
         with open(cache_location, "w") as fh:
             json.dump(self.data, fh)
+            log("Saved data into cache")
 
     def load_group_and_tokenize_data(self, filename):
         did_it_work = self._load_data_from_cache(filename)
