@@ -256,7 +256,7 @@ class MultilingualBatchingDataset(IterableDataset):
     def _get_data_cache_location(self, filename):
         name = filename + "-cache"
 
-        for spec_tuple in sorted(self.coupling_specs, key=lambda x: x.model_id):
+        for spec_tuple in self.coupling_specs:
             sorted_lang_set = sorted(spec_tuple.lang_set)
 
             lang_set_str = ",".join(sorted_lang_set)
