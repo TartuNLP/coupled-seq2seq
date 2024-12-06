@@ -71,7 +71,7 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
                     if leave_out is None or f"{l1}-{l2}" not in leave_out:
                         if leave_only is None or f"{l1}-{l2}" in leave_only:
                             i += 1
-                            if not i % 100000:
+                            if not i % 1000000:
                                 log(f"Loaded {i} pairs")
                             yield TrPair(l1, l2, tup[l1], tup[l2])
 
