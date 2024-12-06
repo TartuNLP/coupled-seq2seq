@@ -251,18 +251,14 @@ class MultilingualBatchingDataset(IterableDataset):
         self.data = [elem for batch in batches for elem in batch]
 
     def _get_data_cache_location(self, filename):
-        # from filename and self.coupling_specs
-        # filename-cache-langset-tok-langset-tok
-        # CouplingSpecTuple = namedtuple("CouplingSpecPair",
-        #                               ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer",
-        #                                "model_id"])
-
         name = filename + "-cache"
 
         for spec_tuple in sorted(self.coupling_specs, key=lambda x: x.model_id):
             sorted_lang_set = sorted(spec_tuple.lang_set)
 
-            name += f"-{sorted_lang_set}-{spec_tuple.model_id}"
+            lang_set_str = ",".join(sorted_lang_set)
+
+            name += f"-{lang_set_str}-{spec_tuple.model_id}"
 
         return name
 

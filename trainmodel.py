@@ -181,7 +181,7 @@ def do_main():
         coupling_specs += to_cpl_spec(args.anchor_langs, anchor_model, anchor_tokenizer, args.anchor_mdl_id)
 
     lp_set = set(get_lps_from_specs(coupling_specs))
-    batch_size = 16
+    batch_size = 8
 
     train_set = MultilingualBatchingDataset(args.train_data_file, coupling_specs, batch_size,
                                             tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
