@@ -265,7 +265,7 @@ class MultilingualBatchingDataset(IterableDataset):
 
             name += f"-{lang_set_str}-{make_path_compatible(spec_tuple.model_id)}"
 
-        return name + ".json"
+        return name + ".pt"
 
     def _load_data_from_cache(self, filename):
         cache_location = self._get_data_cache_location(filename)
