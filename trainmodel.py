@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
@@ -11,6 +12,7 @@ from aux import log
 from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
     to_cpl_spec, save_all_models
+
 
 CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
 
@@ -124,17 +126,6 @@ def get_lps_from_specs(coupling_specs):
                 yield f"{src_lang}-{tgt_lang}"
 
 
-#def integrate_tokenizer_with_cpl_specs(cpl_specs):
-#    result = defaultdict(set)
-#
-#    for idx, spec_tuple in enumerate(cpl_specs):
-#        for lang in spec_tuple.lang_set:
-#            lang_tok_id = spec_tuple.tokenizer.get_lang_id(lang)
-#            result[lang_tok_id].add(idx)
-#
-#    return result, cpl_specs
-
-
 def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
     #args = train_args(model_name, batch_size=batch_size)
     args = train_args_tmp(model_name, batch_size=batch_size)
@@ -165,7 +156,6 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
 
 
 def dud():
-    #return CmdlineArgs("models/smol", "data/train.json", "data/dev.json", {"fi", "en"}, "facebook/m2m100_418M", {"fi", "en"}, "-indtmp")
     return CmdlineArgs("models/smol", "data/liv_train.json", "data/liv_train.json", {"liv", "et", "lv", "en"}, None, None, "-indtmp")
 
 
@@ -173,6 +163,10 @@ def do_main():
     args = cmdline_args() if host_remote else dud()
 
     log(f"Launched as {args}")
+
+    # if the directory args.save_location already exists, raise an exception:
+    if os.path.exists(args.save_location):
+        raise Exception("Save location already exists, don't want to overwrite")
 
     log("loading coupled model and tokenizer")
     coupled_model, coupled_tokenizer = load_hf_mdl_and_tok(args.coupled_mdl_id, verbose=True)
