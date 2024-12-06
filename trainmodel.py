@@ -90,6 +90,8 @@ def cmdline_args():
             anchor_langs = set(raw_anchor_langs.split(","))
 
             mdl_name_suff = "-mix" if (coupled_langs & anchor_langs) else "-cpl"
+            if "bigmix" in train_data_file:
+                mdl_name_suff += "big"
 
             mdl_name_suff += "-" + anchor_mdl_id.replace("/", "_").replace(":", "-")
         else:
