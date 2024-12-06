@@ -3,8 +3,8 @@
 import json
 import os
 import sys
+import torch
 
-from torch import tensor
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
 from random import randrange, shuffle
@@ -196,7 +196,7 @@ class MultilingualBatchingDataset(IterableDataset):
         if is_nllb(src_tokenizer):
             src_lang_list = [any_to_nllb(e.src_lang) for e in rawbatch]
             src_lang_vec = src_tokenizer.convert_tokens_to_ids(src_lang_list)
-            prep_batch_grouped['input_ids'][:,0] = tensor(src_lang_vec)
+            prep_batch_grouped['input_ids'][:,0] = torch.tensor(src_lang_vec)
 
         return prep_batch_grouped
 
@@ -208,7 +208,7 @@ class MultilingualBatchingDataset(IterableDataset):
         if is_nllb(tgttokenizer):
             tgt_lang_list = [any_to_nllb(e.tgt_lang) for e in rawbatch]
             tgt_lang_vec = tgttokenizer.convert_tokens_to_ids(tgt_lang_list)
-            labels['input_ids'][:, 0] = tensor(tgt_lang_vec)
+            labels['input_ids'][:, 0] = torch.tensor(tgt_lang_vec)
 
         return labels
 
@@ -273,9 +273,10 @@ class MultilingualBatchingDataset(IterableDataset):
         there_is_a_cache = os.path.exists(cache_location)
 
         if there_is_a_cache:
-            with open(cache_location, "r") as fh:
-                self.data = json.load(fh)
-                log("Loaded data from cache")
+            #with open(cache_location, "r") as fh:
+            #    self.data = json.load(fh)
+            self.data = torch.load(cache_location)
+            log("Loaded data from cache")
 
         return there_is_a_cache
 
@@ -285,9 +286,10 @@ class MultilingualBatchingDataset(IterableDataset):
         if os.path.exists(cache_location):
             raise Exception("Cache already exists")
 
-        with open(cache_location, "w") as fh:
-            json.dump(self.data, fh)
-            log("Saved data into cache")
+        #with open(cache_location, "w") as fh:
+        #    json.dump(self.data, fh)
+        torch.save(self.data, cache_location)
+        log("Saved data into cache")
 
     def load_group_and_tokenize_data(self, filename):
         did_it_work = self._load_data_from_cache(filename)
