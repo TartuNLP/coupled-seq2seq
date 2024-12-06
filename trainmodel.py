@@ -43,7 +43,7 @@ def train_args(name, batch_size):
     )
 
 
-def train_args_tmp(name, batch_size):
+def train_args_tmpx(name, batch_size):
     return Seq2SeqTrainingArguments(
         name,
         eval_strategy="steps",
@@ -127,8 +127,7 @@ def get_lps_from_specs(coupling_specs):
 
 
 def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
-    #args = train_args(model_name, batch_size=batch_size)
-    args = train_args_tmp(model_name, batch_size=batch_size)
+    args = train_args(model_name, batch_size=batch_size)
 
     trainer = Seq2SeqTrainer(
         model,
