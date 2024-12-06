@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
 from random import randrange, shuffle
+from translate import smugri_back
 
 from aux import log, log_2dict
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
@@ -259,9 +260,7 @@ class MultilingualBatchingDataset(IterableDataset):
         name = filename + "-cache"
 
         for spec_tuple in self.coupling_specs:
-            sorted_lang_set = sorted(spec_tuple.lang_set)
-
-            lang_set_str = ",".join(sorted_lang_set)
+            lang_set_str = smugri_back(spec_tuple.lang_set)
 
             name += f"-{lang_set_str}-{make_path_compatible(spec_tuple.model_id)}"
 

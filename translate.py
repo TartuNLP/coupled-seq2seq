@@ -15,6 +15,8 @@ host_remote = True
 SMUGRI_LOW = "fkv,izh,kca,koi,kpv,krl,liv,lud,mdf,mhr,mns,mrj,myv,olo,sjd,sje,sju,sma,sme,smj,smn,sms,udm,vep,vot,vro"
 SMUGRI_HIGH = "deu,eng,est,fin,hun,lvs,nor,rus,swe"
 
+SMUGRI = "deu,eng,est,fin,fkv,hun,izh,kca,koi,kpv,krl,liv,lud,lvs,mdf,mhr,mns,mrj,myv,nor,olo,rus,sjd,sje,sju,sma,sme,smj,smn,sms,swe,udm,vep,vot,vro"
+
 
 def maybe_smugri(lang_def):
     if lang_def == "smugri-low":
@@ -22,9 +24,24 @@ def maybe_smugri(lang_def):
     elif lang_def == "smugri-high":
         return SMUGRI_HIGH
     elif lang_def == "smugri":
-        return SMUGRI_LOW + "," + SMUGRI_HIGH
+        return SMUGRI
     else:
         return lang_def
+
+
+def smugri_back(lang_list):
+    sll = sorted(lang_list)
+
+    sll_str = ",".join(sll)
+
+    if sll_str == SMUGRI_LOW:
+        return "smugri-low"
+    elif sll_str == SMUGRI_HIGH:
+        return "smugri-high"
+    elif sll_str == SMUGRI:
+        return "smugri-full"
+    else:
+        return sll_str
 
 
 def prepare_for_translation(inputs, tokenizer, input_language, output_language=None):
