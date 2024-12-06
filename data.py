@@ -62,12 +62,17 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
     if raw_data is None:
         raise ValueError("Neither file nor data are provided")
 
+    i = 0
+
     for tup in raw_data:
         for l1 in tup:
             for l2 in tup:
                 if l1 != l2:
                     if leave_out is None or f"{l1}-{l2}" not in leave_out:
                         if leave_only is None or f"{l1}-{l2}" in leave_only:
+                            i += 1
+                            if not i % 100000:
+                                log(f"Loaded {i} pairs")
                             yield TrPair(l1, l2, tup[l1], tup[l2])
 
 
@@ -223,10 +228,14 @@ class MultilingualBatchingDataset(IterableDataset):
         return split_prep_batch
 
     def _bins_to_tokenized_batches(self, bins):
+        i = 0
         for src_k in bins:
             for tgt_k in bins[src_k]:
                 if src_k == 0 or tgt_k == 0:
                     for raw_batch in do_list_in_batches(bins[src_k][tgt_k], self.batch_size):
+                        i += 1
+                        if not i % 100000:
+                            log(f"Tokenized {i} pairs")
                         yield self.tokenize_and_pad(raw_batch, src_k, tgt_k)
 
     def group_and_tokenize_data(self, raw_data):
