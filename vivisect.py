@@ -8,10 +8,8 @@ from collections import namedtuple
 
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from torch import reshape
-from data import mix_and_sample_idxs_carefully
 from aux import debug
 
-# CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "model", "tokenizer", "model_id"])
 CouplingSpecTuple = namedtuple("CouplingSpecPair",
                                ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer", "model_id"])
 

@@ -7,7 +7,7 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
 from translate import hf_tok, maybe_smugri
-from data import get_tr_pairs, MultilingualBatchingDataset
+from data import MultilingualBatchingDataset
 from aux import log
 from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
@@ -181,16 +181,12 @@ def do_main():
         coupling_specs += to_cpl_spec(args.anchor_langs, anchor_model, anchor_tokenizer, args.anchor_mdl_id)
 
     lp_set = set(get_lps_from_specs(coupling_specs))
-    log(f"loading training data {str(lp_set)[:50]}")
-    # lp_set = { "en-fi" }
-
-    train_set_pairs = list(get_tr_pairs(filename=args.train_data_file, leave_only=lp_set))
-    val_set_pairs = list(get_tr_pairs(filename=args.dev_data_file, leave_only=lp_set))
-
     batch_size = 16
 
-    train_set = MultilingualBatchingDataset(train_set_pairs, coupling_specs, batch_size=batch_size, tracing_msg="TRAIN", verbose=True)
-    val_set = MultilingualBatchingDataset(val_set_pairs, coupling_specs, batch_size=batch_size, tracing_msg="VAL", verbose=True)
+    train_set = MultilingualBatchingDataset(args.train_data_file, coupling_specs, batch_size,
+                                            tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
+    val_set = MultilingualBatchingDataset(args.dev_data_file, coupling_specs, batch_size,
+                                          tracing_msg="VAL", verbose=True, leave_only=lp_set)
 
     do_training(coupled_model, args.save_location, train_set, val_set, batch_size, coupling_specs)
 

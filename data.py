@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import os
 import sys
 
 from torch import tensor
@@ -72,7 +73,7 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
                         if leave_only is None or f"{l1}-{l2}" in leave_only:
                             i += 1
                             if not i % 1000000:
-                                log(f"Loaded {i} pairs")
+                                log(f"Loaded {i/1000000}M pairs")
                             yield TrPair(l1, l2, tup[l1], tup[l2])
 
 
@@ -145,10 +146,10 @@ class MultilingualBatchingDataset(IterableDataset):
 
         return mix_and_sample_idxs_carefully(src_idxs, tgt_idxs)
 
-    def _fill_bins(self, input_data):
+    def _fill_bins(self, filename):
         bins = defaultdict(lambda: defaultdict(list))
 
-        for tr_pair in input_data:
+        for tr_pair in get_tr_pairs(filename=filename):
             src_bin_idx, tgt_bin_idx = self._get_idxs(tr_pair)
 
             if src_bin_idx is not None and tgt_bin_idx is not None:
@@ -234,22 +235,63 @@ class MultilingualBatchingDataset(IterableDataset):
                 if src_k == 0 or tgt_k == 0:
                     for raw_batch in do_list_in_batches(bins[src_k][tgt_k], self.batch_size):
                         i += 1
-                        if not i % 100000:
+                        if not i % 10000:
                             log(f"Tokenized {i} pairs")
                         yield self.tokenize_and_pad(raw_batch, src_k, tgt_k)
 
-    def group_and_tokenize_data(self, raw_data):
-        bins = self._fill_bins(raw_data)
+    def _prepare_new_data(self, filename):
+        bins = self._fill_bins(filename)
 
         self.report_update_stats(bins)
 
         batches = list(self._bins_to_tokenized_batches(bins))
+
         shuffle(batches)
 
         self.data = [elem for batch in batches for elem in batch]
 
-    def __init__(self, tr_pair_list, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256,
-                 max_tgt_len=256, verbose=False):
+    def _get_data_cache_location(self, filename):
+        # from filename and self.coupling_specs
+        # filename-cache-langset-tok-langset-tok
+        # CouplingSpecTuple = namedtuple("CouplingSpecPair",
+        #                               ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer",
+        #                                "model_id"])
+
+        name = filename + "-cache"
+
+        for spec_tuple in sorted(self.coupling_specs, key=lambda x: x.model_id):
+            sorted_lang_set = sorted(spec_tuple.lang_set)
+
+            name += f"-{sorted_lang_set}-{spec_tuple.model_id}"
+
+        return name
+
+    def _load_data_from_cache(self, filename):
+        cache_location = self._get_data_cache_location(filename)
+
+        there_is_a_cache = os.path.exists(cache_location)
+
+        if there_is_a_cache:
+            with open(cache_location, "r") as fh:
+                self.data = json.load(fh)
+
+        return there_is_a_cache
+
+    def _save_cache(self, filename):
+        cache_location = self._get_data_cache_location(filename)
+
+        with open(cache_location, "w") as fh:
+            json.dump(self.data, fh)
+
+    def load_group_and_tokenize_data(self, filename):
+        did_it_work = self._load_data_from_cache(filename)
+
+        if not did_it_work:
+            self._prepare_new_data(filename)
+            self._save_cache(filename)
+
+    def __init__(self, tr_file, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256,
+                 max_tgt_len=256, verbose=False, leave_only=None):
         self.data = list()
         self.text_data = list()
         self.msg = tracing_msg
@@ -261,7 +303,7 @@ class MultilingualBatchingDataset(IterableDataset):
         self._lang_to_idx = lang_bin_mapping(coupling_specs)
 
         # collect data into bins and fill self.data:
-        self.group_and_tokenize_data(tr_pair_list)
+        self.load_group_and_tokenize_data(tr_file)
 
         if verbose:
             self.check_out_of_bounds()
