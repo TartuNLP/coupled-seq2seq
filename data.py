@@ -16,6 +16,9 @@ TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 DataEntry = namedtuple('DataEntry', ["tr_pair", "prepared", "src_bin_idx", "tgt_bin_idx"])
 
 
+def make_path_compatible(filename):
+    return filename.replace("/", "_").replace(":", "-")
+
 def do_list_in_batches(data, batch_size):
     i = 0
 
@@ -258,7 +261,7 @@ class MultilingualBatchingDataset(IterableDataset):
 
             lang_set_str = ",".join(sorted_lang_set)
 
-            name += f"-{lang_set_str}-{spec_tuple.model_id}"
+            name += f"-{lang_set_str}-{make_path_compatible(spec_tuple.model_id)}"
 
         return name
 

@@ -7,7 +7,7 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
 from translate import hf_tok, maybe_smugri
-from data import MultilingualBatchingDataset
+from data import MultilingualBatchingDataset, make_path_compatible
 from aux import log
 from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
@@ -95,7 +95,7 @@ def cmdline_args():
             if "bigmix" in train_data_file:
                 mdl_name_suff += "big"
 
-            mdl_name_suff += "-" + anchor_mdl_id.replace("/", "_").replace(":", "-")
+            mdl_name_suff += "-" + make_path_compatible(anchor_mdl_id)
         else:
             anchor_mdl_id = None
             anchor_langs = None
