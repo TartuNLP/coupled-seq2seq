@@ -280,6 +280,9 @@ class MultilingualBatchingDataset(IterableDataset):
     def _save_cache(self, filename):
         cache_location = self._get_data_cache_location(filename)
 
+        if os.path.exists(cache_location):
+            raise Exception("Cache already exists")
+
         with open(cache_location, "w") as fh:
             json.dump(self.data, fh)
 
