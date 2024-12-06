@@ -6,9 +6,9 @@ import os
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
-from translate import hf_tok, maybe_smugri
+from translate import hf_tok
 from data import MultilingualBatchingDataset, make_path_compatible
-from aux import log
+from aux import log, maybe_smugri
 from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
     to_cpl_spec, save_all_models

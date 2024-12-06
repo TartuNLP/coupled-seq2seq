@@ -3,10 +3,11 @@
 import sys
 
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer
-from translate import hf_tok, maybe_smugri
+from translate import hf_tok
 from traintok import learn_spm_tokenizer, get_stupid_correction, get_unk_toks, extend_tok_langs
 
-from aux import log
+from aux import log, maybe_smugri
+
 
 def maybe_convert(value):
     try:

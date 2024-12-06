@@ -8,9 +8,8 @@ import torch
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
 from random import randrange, shuffle
-from translate import smugri_back
 
-from aux import log, log_2dict
+from aux import log, log_2dict, smugri_back
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
