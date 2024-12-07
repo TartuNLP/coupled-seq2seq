@@ -28,15 +28,15 @@ def train_args(name, batch_size):
     return Seq2SeqTrainingArguments(
         name,
         eval_strategy="steps",
-        eval_steps=100000,
+        eval_steps=10000,
         learning_rate=1.5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         gradient_accumulation_steps=1,
         weight_decay=0.01,
         save_strategy="steps",
-        save_steps=100000,
-        logging_steps=100000,
+        save_steps=10000,
+        logging_steps=10000,
         max_steps=500000,
         # num_train_epochs=3,
         # predict_with_generate=True
