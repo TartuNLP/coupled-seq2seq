@@ -256,7 +256,11 @@ class MultilingualBatchingDataset(IterableDataset):
         self.data = [elem for batch in batches for elem in batch]
 
     def _get_data_cache_location(self, filename):
-        name = filename + "-cache"
+        dirname = filename + "-tokcache"
+        if not os.path.isdir(dirname):
+            os.mkdir(dirname)
+
+        name = dirname + "/"
 
         for spec_tuple in self.coupling_specs:
             lang_set_str = smugri_back(spec_tuple.lang_set)
