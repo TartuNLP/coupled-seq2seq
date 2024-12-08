@@ -13,18 +13,18 @@ hf_tok = "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"
 host_remote = True
 
 
-def prepare_for_translation(inputs, tokenizer, input_language, output_language=None):
+def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None):
     if is_nllb(tokenizer):
         tokenizer.src_lang = any_to_nllb(input_language)
-        inputs_to_process = inputs
+        inputs_to_process = provided_inputs
     elif is_madlad(tokenizer):
         madlad_tgt_lang = any_to_madlad(output_language)
-        inputs_to_process = [f"{madlad_tgt_lang} {inp}" for inp in inputs]
+        inputs_to_process = [f"{madlad_tgt_lang} {inp}" for inp in provided_inputs]
 
     prepared_inputs = tokenizer(inputs_to_process, return_tensors="pt", padding=True, truncation=True, max_length=512)
 
     if host_remote:
-        inputs.to("cuda:0")
+        prepared_inputs.to("cuda:0")
 
     frc_bos = tokenizer.get_lang_id(output_language) if output_language is not None else None
 
