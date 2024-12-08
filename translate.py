@@ -20,6 +20,8 @@ def prepare_for_translation(provided_inputs, tokenizer, input_language, output_l
     elif is_madlad(tokenizer):
         madlad_tgt_lang = any_to_madlad(output_language)
         inputs_to_process = [f"{madlad_tgt_lang} {inp}" for inp in provided_inputs]
+    else:
+        raise NotImplementedError("Model type not supported")
 
     prepared_inputs = tokenizer(inputs_to_process, return_tensors="pt", padding=True, truncation=True, max_length=512)
 
