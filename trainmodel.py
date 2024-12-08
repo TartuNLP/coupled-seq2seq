@@ -92,8 +92,6 @@ def cmdline_args():
             anchor_langs = set(raw_anchor_langs.split(","))
 
             mdl_name_suff = "-mix" if (coupled_langs & anchor_langs) else "-cpl"
-            if "bigmix" in train_data_file:
-                mdl_name_suff += "big"
 
             mdl_name_suff += "-" + make_path_compatible(anchor_mdl_id)
         else:
@@ -101,6 +99,10 @@ def cmdline_args():
             anchor_langs = None
 
             mdl_name_suff = "-indtrained"
+
+        if "bigmix" in train_data_file:
+            mdl_name_suff += "big"
+
 
         result = CmdlineArgs(coupled_mdl_id, train_data_file, dev_data_file, coupled_langs, anchor_mdl_id, anchor_langs,
                              coupled_mdl_id + mdl_name_suff)
