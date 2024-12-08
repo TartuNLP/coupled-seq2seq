@@ -70,7 +70,7 @@ def coupled_generate(model, coupling_specs, lang_to_bin, output_language, encode
     tokenizer = coupling_specs[dec_idx].tokenizer
 
     # 2. encoder vectors --> output token IDs
-    frc_bos = tokenizer.get_lang_id(output_language)
+    frc_bos = tokenizer.convert_tokens_to_ids(output_language)
     raw_outputs = model.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings)
 
     # 3. output token IDs --> output text
