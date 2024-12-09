@@ -53,13 +53,13 @@ if __name__ == '__main__':
     mdl_id = sys.argv[1]
     corpus = sys.argv[2]
 
+    lp_test_sets = split_by_lang(filename=corpus)
+
     metric_bleu = load_metric("sacrebleu")
     metric_chrf = load_metric("chrf")
 
     log("Loading model")
     main_model, module_config = load_and_init_module_config(mdl_id)
-
-    lp_test_sets = split_by_lang(filename=corpus)
 
     scores = dict()
 
