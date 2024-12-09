@@ -4,7 +4,7 @@ import sys
 import os
 import json
 
-from data import split_by_lang
+from data import split_by_lang, make_path_compatible
 from translate import coupled_translate, load_and_init_module_config
 from evaluate import load as load_metric
 
@@ -57,8 +57,9 @@ if __name__ == '__main__':
     lp_test_sets = split_by_lang(filename=corpus)
 
     log("Loading metrics")
-    metric_bleu = load_metric("sacrebleu")
-    metric_chrf = load_metric("chrf")
+    exp_id = make_path_compatible(mdl_id) + "---" + make_path_compatible(corpus)
+    metric_bleu = load_metric("sacrebleu", experiment_id=exp_id)
+    metric_chrf = load_metric("chrf", experiment_id=exp_id)
 
     log("Loading model")
     main_model, module_config = load_and_init_module_config(mdl_id)
