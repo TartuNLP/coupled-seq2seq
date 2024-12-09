@@ -136,9 +136,15 @@ if __name__ == "__main__":
     run_test(MADLAD_CODES, MADLAD_CODES, any_to_madlad, "MADLAD TO MADLAD")
 
 
-def is_nllb(tokenizer):
-    return "nllb" in tokenizer.__class__.__name__.lower()
+def is_nllb(object):
+    """
+    Check if the object is an NLLB model or tokenizer
+    """
+    return "nllb" in object.__class__.__name__.lower()
 
 
-def is_madlad(tokenizer):
-    return "t5" in tokenizer.__class__.__name__.lower()
+def is_madlad(object):
+    """
+    Check if the object is a MADLAD model or tokenizer
+    """
+    return "t5" in object.__class__.__name__.lower()

@@ -9,6 +9,7 @@ from collections import namedtuple
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from torch import reshape
 from aux import debug
+from langconv import is_nllb, is_madlad
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair",
                                ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer", "model_id"])
@@ -47,10 +48,21 @@ def switch_modules(tgt_mdl, coupling_spec, input_index, output_index):
         raise ValueError("Dud!")
 
     if input_index is not None:
-        tgt_mdl.model.encoder = coupling_spec[input_index].encoder
+        if is_nllb(tgt_mdl):
+            tgt_mdl.model.encoder = coupling_spec[input_index].encoder
+        elif is_madlad(tgt_mdl):
+            tgt_mdl.base_model.encoder = coupling_spec[input_index].encoder
+        else:
+            raise NotImplementedError(f"Model {tgt_mdl} is not supported yet.")
 
     if output_index is not None:
-        tgt_mdl.model.decoder = coupling_spec[output_index].decoder
+        if is_nllb(tgt_mdl):
+            tgt_mdl.model.decoder = coupling_spec[output_index].decoder
+        elif is_madlad(tgt_mdl):
+            tgt_mdl.base_model.decoder = coupling_spec[output_index].decoder
+        else:
+            raise NotImplementedError(f"Model {tgt_mdl} is not supported yet.")
+
         tgt_mdl.lm_head = coupling_spec[output_index].lm_head
         tgt_mdl.config.vocab_size = coupling_spec[output_index].voc_size
 
@@ -158,7 +170,16 @@ def save_module_config(model_dir, coupling_specs):
 
 
 def to_cpl_spec(langs, model, tokenizer, location):
-    return [CouplingSpecTuple(langs, model.config.vocab_size, model.model.encoder, model.model.decoder, model.lm_head, tokenizer, location)]
+    if is_nllb(model):
+        enc = model.model.encoder
+        dec = model.model.decoder
+    elif is_madlad(model):
+        enc = model.base_model.encoder
+        dec = model.base_model.decoder
+    else:
+        raise NotImplementedError(f"Model {model} is not supported yet.")
+
+    return [CouplingSpecTuple(langs, model.config.vocab_size, enc, dec, model.lm_head, tokenizer, location)]
 
 
 def load_module_config(model_dir):
