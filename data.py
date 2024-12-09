@@ -277,10 +277,10 @@ class MultilingualBatchingDataset(IterableDataset):
         there_is_a_cache = os.path.exists(cache_location)
 
         if there_is_a_cache:
-            #with open(cache_location, "r") as fh:
-            #    self.data = json.load(fh)
             self.data = torch.load(cache_location)
-            log("Loaded data from cache")
+            log(f"Loaded data from cache ({cache_location})")
+        else:
+            log(f"Cache not found ({cache_location}), tokenizing anew")
 
         return there_is_a_cache
 
@@ -290,8 +290,6 @@ class MultilingualBatchingDataset(IterableDataset):
         if os.path.exists(cache_location):
             raise Exception("Cache already exists")
 
-        #with open(cache_location, "w") as fh:
-        #    json.dump(self.data, fh)
         torch.save(self.data, cache_location)
         log("Saved data into cache")
 
