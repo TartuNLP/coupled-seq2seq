@@ -53,8 +53,10 @@ if __name__ == '__main__':
     mdl_id = sys.argv[1]
     corpus = sys.argv[2]
 
+    log("Loading data")
     lp_test_sets = split_by_lang(filename=corpus)
 
+    log("Loading metrics")
     metric_bleu = load_metric("sacrebleu")
     metric_chrf = load_metric("chrf")
 
