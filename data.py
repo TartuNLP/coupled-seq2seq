@@ -141,6 +141,8 @@ class MultilingualBatchingDataset(IterableDataset):
                     rnd_elem_idx = randrange(len(bins[src_k][tgt_k]))
                     rnd_elem = bins[src_k][tgt_k][rnd_elem_idx]
                     bins[src_k][tgt_k].append(rnd_elem)
+
+                shuffle(bins[src_k][tgt_k])
         return bins
 
     def _get_idxs(self, tr_pair):
