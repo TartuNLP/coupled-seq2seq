@@ -53,10 +53,11 @@ if __name__ == '__main__':
     mdl_id = sys.argv[1]
     corpus = sys.argv[2]
 
+    metric_bleu = load_metric("sacrebleu")
+    metric_chrf = load_metric("chrf")
+
     log("Loading model")
     main_model, module_config = load_and_init_module_config(mdl_id)
-
-    metric = load_metric("sacrebleu")
 
     lp_test_sets = split_by_lang(filename=corpus)
 
@@ -72,15 +73,17 @@ if __name__ == '__main__':
 
         hyps = load_or_translate(main_model, module_config, inputs, from_lang, to_lang, mdl_id, corpus)
 
-        result = metric.compute(predictions=hyps, references=outputs)
+        result1 = metric_bleu.compute(predictions=hyps, references=outputs)
+        result2 = metric_chrf.compute(predictions=hyps, references=outputs, word_order=2)
 
-        scores[lp + "-bleu"] = result['score']
+        scores[lp + "-bleu"] = result1['score']
+        scores[lp + "-chrf"] = result2['score']
 
         end_time = datetime.now()
 
         time_per_sample = (end_time - start_time) / len(hyps)
 
-        log(f"LP: {lp}, BLEU: {result['score']}, num translated: {len(hyps)}, time per sample: {time_per_sample}")
+        log(f"LP: {lp}, BLEU: {result1['score']}, chrf++: {result2['score']}, num translated: {len(hyps)}, time per sample: {time_per_sample}")
 
     filename = get_benchmark_filename(mdl_id, corpus)
     with open(filename, "w") as ofh:

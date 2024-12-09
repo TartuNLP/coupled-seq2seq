@@ -39,7 +39,7 @@ def _post_proc(text, lang):
 
 
 def clean_entry(entry, leave_out):
-    return {k: _post_proc(entry[k], k) for k in entry if entry[k].strip() and k not in leave_out}
+    return {k: _post_proc(entry[k], k) for k in entry if entry[k].strip() and k not in leave_out and "dia" not in k}
 
 
 def load_json_data(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
