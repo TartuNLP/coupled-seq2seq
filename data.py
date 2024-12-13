@@ -27,6 +27,19 @@ def do_list_in_batches(data, batch_size):
         i += batch_size
 
 
+def do_bins_in_shuffled_batches(bins, batch_size):
+    result_list = []
+
+    for src_k in bins:
+        for tgt_k in bins[src_k]:
+            if src_k == 0 or tgt_k == 0:
+                result_list += [(e, src_k, tgt_k) for e in do_list_in_batches(bins[src_k][tgt_k], batch_size)]
+
+    shuffle(result_list)
+
+    return result_list
+
+
 #def _tmp_repl(lang):
 #    return 'fi' if lang == 'liv' else lang
 
@@ -237,25 +250,29 @@ class MultilingualBatchingDataset(IterableDataset):
         i = 0
         log("Tokenizing data")
 
-        for src_k in bins:
-            for tgt_k in bins[src_k]:
-                if src_k == 0 or tgt_k == 0:
-                    for raw_batch in do_list_in_batches(bins[src_k][tgt_k], self.batch_size):
-                        i += 1
-                        if not i % 10000:
-                            log(f"Tokenized {i} pairs")
-                        yield self.tokenize_and_pad(raw_batch, src_k, tgt_k)
+        #for src_k in bins:
+        #    for tgt_k in bins[src_k]:
+        #        if src_k == 0 or tgt_k == 0:
+        #            for raw_batch in do_list_in_batches(bins[src_k][tgt_k], self.batch_size):
+
+        for raw_batch, src_k, tgt_k in do_bins_in_shuffled_batches(bins, self.batch_size):
+            i += 1
+            if not i % 10000:
+                log(f"Tokenized {i} batches")
+
+            prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
+
+            for elem in prepared_batch:
+                yield elem
 
     def _prepare_new_data(self, filename):
         bins = self._fill_bins(filename)
 
         self.report_update_stats(bins)
 
-        batches = list(self._bins_to_tokenized_batches(bins))
+        self.data = list(self._bins_to_tokenized_batches(bins))
 
-        shuffle(batches)
-
-        self.data = [elem for batch in batches for elem in batch]
+        #self.data = [elem for batch in batches for elem in batch]
 
     def _get_data_cache_location(self, filename):
         dirname = filename + "-tokcache"
