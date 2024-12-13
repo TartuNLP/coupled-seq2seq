@@ -140,7 +140,8 @@ def is_nllb(object):
     """
     Check if the object is an NLLB model or tokenizer
     """
-    return "m2m100" in object.__class__.__name__.lower()
+    name = object.__class__.__name__.lower()
+    return "m2m100" in name or "nllb" in name
 
 
 def is_madlad(object):
