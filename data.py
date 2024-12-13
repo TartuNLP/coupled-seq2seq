@@ -13,7 +13,7 @@ from aux import log, log_2dict, smugri_back
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
-DataEntry = namedtuple('DataEntry', ["tr_pair", "prepared", "src_bin_idx", "tgt_bin_idx"])
+#DataEntry = namedtuple('DataEntry', ["tr_pair", "prepared", "src_bin_idx", "tgt_bin_idx"])
 
 
 def make_path_compatible(filename):
@@ -241,7 +241,7 @@ class MultilingualBatchingDataset(IterableDataset):
 
         inject_bin_indices(prep_batch_grouped, src_k, tgt_k)
 
-        split_prep_batch = [DataEntry(trp, {k: prep_batch_grouped[k][i] for k in prep_batch_grouped}, src_k, tgt_k)
+        split_prep_batch = [{k: prep_batch_grouped[k][i] for k in prep_batch_grouped}
                             for i, trp in enumerate(raw_batch)]
 
         return split_prep_batch
@@ -332,25 +332,25 @@ class MultilingualBatchingDataset(IterableDataset):
         # collect data into bins and fill self.data:
         self.load_group_and_tokenize_data(tr_file)
 
-        if verbose:
-            self.check_out_of_bounds()
+        #if verbose:
+        #    self.check_out_of_bounds()
 
-    def check_out_of_bounds(self):
-        max_dict = defaultdict(lambda: defaultdict(int))
-        count_dict = defaultdict(lambda: defaultdict(int))
-
-        log(f"doing reporting, please hold, {len(self.data)} samples to check ({self.msg})")
-
-        for trp in self.data:
-            l = trp.prepared['input_ids'].tolist()
-            m = max(l)
-            max_dict[trp.src_bin_idx][trp.tgt_bin_idx] = max(max_dict[trp.src_bin_idx][trp.tgt_bin_idx], m)
-            count_dict[trp.src_bin_idx][trp.tgt_bin_idx] += 1
-            #print("DEBUG", l, m, trp.src_bin_idx, trp.tgt_bin_idx, max_dict[trp.src_bin_idx][trp.tgt_bin_idx])
-            #raise NotImplementedError
-
-        # log_2dict(max_dict, f"MAX ({self.msg})")
-        # log_2dict(count_dict, f"COUNT ({self.msg})")
+    #def check_out_of_bounds(self):
+    #    max_dict = defaultdict(lambda: defaultdict(int))
+    #    count_dict = defaultdict(lambda: defaultdict(int))
+    #
+    #    log(f"doing reporting, please hold, {len(self.data)} samples to check ({self.msg})")
+    #
+    #    for trp in self.data:
+    #        l = trp.prepared['input_ids'].tolist()
+    #        m = max(l)
+    #        max_dict[trp.src_bin_idx][trp.tgt_bin_idx] = max(max_dict[trp.src_bin_idx][trp.tgt_bin_idx], m)
+    #        count_dict[trp.src_bin_idx][trp.tgt_bin_idx] += 1
+    #        #print("DEBUG", l, m, trp.src_bin_idx, trp.tgt_bin_idx, max_dict[trp.src_bin_idx][trp.tgt_bin_idx])
+    #        #raise NotImplementedError
+    #
+    #    # log_2dict(max_dict, f"MAX ({self.msg})")
+    #    # log_2dict(count_dict, f"COUNT ({self.msg})")
 
     def __iter__(self):
         self.i = 0
@@ -362,38 +362,9 @@ class MultilingualBatchingDataset(IterableDataset):
             res = self.data[self.i]
             self.i += 1
 
-            return res.prepared
+            return res
         else:
             raise StopIteration
-
-            # if self.i % self.batch_size == 0:
-            #    curr = (res.src_bin_idx, res.tgt_bin_idx)
-
-            #    if curr != self.prev:
-            # log(f"!!! Prev batch (e/d): {self.prev}, curr batch: {curr} ({self.msg})")
-
-            # tl0 = self.coupling_specs[0].model.model.encoder.embed_tokens.weight.size()[0]
-            # ty0 = self.coupling_specs[0].model.model.decoder.embed_tokens.weight.size()[0]
-
-            # self.switch_modules(*curr)
-            #        self.prev = curr
-
-            # tl1 = self.coupling_specs[0].model.model.encoder.embed_tokens.weight.size()[0]
-            # ty1 = self.coupling_specs[0].model.model.decoder.embed_tokens.weight.size()[0]
-
-            # log(f"Enc: {tl0} -> {tl1}, Dec: {ty0} -> {ty1}")
-
-            # tl = self.coupling_specs[0].model.model.encoder.embed_tokens.weight.size()[0]
-            # ty = self.coupling_specs[0].model.model.decoder.embed_tokens.weight.size()[0]
-            # mx = max(res.prepared['input_ids'].tolist())
-            # my = max(res.prepared['labels'].tolist())
-
-            # log(f"AAANNNDDD {mx} / {tl} // {my} / {ty} // {self.modules}")
-
-    #
-    #           # return res.prepared
-    #        else:
-    #            raise StopIteration
 
     def __len__(self):
         return len(self.data)
