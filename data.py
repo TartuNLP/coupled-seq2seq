@@ -277,10 +277,10 @@ class MultilingualBatchingDataset(IterableDataset):
         there_is_a_cache = os.path.exists(cache_location)
 
         if there_is_a_cache:
+            log(f"Loading data from cache ({cache_location})")
             self.data = torch.load(cache_location)
-            log(f"Loaded data from cache ({cache_location})")
         else:
-            log(f"Cache not found ({cache_location}), tokenizing anew")
+            log(f"Cache not found ({cache_location}), need to tokenize anew")
 
         return there_is_a_cache
 
