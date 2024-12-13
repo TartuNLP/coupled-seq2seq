@@ -61,7 +61,7 @@ def switch_modules(tgt_mdl, coupling_spec, input_index, output_index):
         elif is_madlad(tgt_mdl):
             tgt_mdl.base_model.decoder = coupling_spec[output_index].decoder
         else:
-            raise NotImplementedError(f"Model {tgt_mdl} is not supported yet.")
+            raise NotImplementedError(f"Model {tgt_mdl.__class__.__name__} is not supported yet.")
 
         tgt_mdl.lm_head = coupling_spec[output_index].lm_head
         tgt_mdl.config.vocab_size = coupling_spec[output_index].voc_size
