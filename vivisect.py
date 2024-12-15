@@ -17,30 +17,6 @@ CouplingSpecTuple = namedtuple("CouplingSpecPair",
 MODULE_CONFIG_FILE = "coupled_module_config.json"
 
 
-def inject_enc_dec_tracing(model, msg, prefx):
-    old_fwd = model.forward
-
-    def new_func(self, *args, **kwargs):
-        input_ids = kwargs['input_ids']
-
-        langs = set(input_ids[:, 0].tolist())
-        max_val = max(reshape(input_ids, (-1,)).tolist())
-
-        #if max_val >= self.config.vocab_size:
-        #    sys.stderr.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")
-        #    sys.stderr.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")
-        #    sys.stderr.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")
-        #    sys.stderr.write(
-        #        f"\nDEBUG: {msg}, max input val: {max_val}, langs: {langs} / #L: {len(self.layers)}, #V: {self.config.vocab_size}, D: {self.config.d_model}, FFN: {self.config.__dict__[prefx + '_ffn_dim']};\n")
-        #    sys.stderr.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")
-        #    sys.stderr.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")
-        #    sys.stderr.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")
-
-        return old_fwd(*args, **kwargs)
-
-    model.forward = types.MethodType(new_func, model)
-
-
 def switch_modules(tgt_mdl, coupling_spec, input_index, output_index):
     debug(f"Switching modules to {input_index} / {output_index}")
 
@@ -65,32 +41,6 @@ def switch_modules(tgt_mdl, coupling_spec, input_index, output_index):
 
         tgt_mdl.lm_head = coupling_spec[output_index].lm_head
         tgt_mdl.config.vocab_size = coupling_spec[output_index].voc_size
-
-
-#def get_idxs_from_tensor(input_tensor, tok_cpl_lang_dict):
-#    language_ids = set(input_tensor[:, 0].tolist())
-#
-#    result = { 0, 1 }
-#
-#    for lang_id in language_ids:
-#        result &= tok_cpl_lang_dict[lang_id]
-#
-#    if len(result) == 0:
-#        raise ValueError("Batch includes languages from multiple bins/modules, not kosher!")
-#    else:
-#        return result
-
-
-#def get_indeces_from_tensors(tok_cpl_lang_dict, input_tensor, output_tensor):
-#    src_idxs = get_idxs_from_tensor(input_tensor, tok_cpl_lang_dict)
-#    tgt_idxs = get_idxs_from_tensor(output_tensor, tok_cpl_lang_dict)
-#
-#    result = mix_and_sample_idxs_carefully(src_idxs, tgt_idxs)
-#
-#    if result[0] is None:
-#        raise ValueError("Batch is bad, very bad!")
-#    else:
-#        return result
 
 
 def extract_index_from_tensor(tensor):
