@@ -8,7 +8,7 @@ from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
 from translate import hf_tok
 from data import MultilingualBatchingDataset, make_path_compatible
-from aux import log, maybe_smugri
+from aux import log, maybe_smugri, to_kwargs, get_changed_config
 from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
     to_cpl_spec, save_all_models
@@ -24,23 +24,25 @@ def freeze_model(model):
         p.requires_grad = False
 
 
-def train_args(name, batch_size):
-    return Seq2SeqTrainingArguments(
+def train_args(name, batch_size, **kw):
+    prelim_result = Seq2SeqTrainingArguments(
         name,
         eval_strategy="steps",
-        eval_steps=10000,
+        eval_steps=25000,
         learning_rate=1.5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         gradient_accumulation_steps=1,
         weight_decay=0.01,
         save_strategy="steps",
-        save_steps=10000,
-        logging_steps=10000,
-        max_steps=500000,
+        save_steps=100000,
+        logging_steps=100000,
+        max_steps=1500000,
         # num_train_epochs=3,
         # predict_with_generate=True
     )
+
+    result = get_changed_config(prelim_result, ["skip_training"], **kw)
 
 
 def train_args_tmpx(name, batch_size):
@@ -78,16 +80,18 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
 
 def cmdline_args():
     try:
-        coupled_mdl_id = sys.argv[1]
-        train_data_file = sys.argv[2]
-        dev_data_file = sys.argv[3]
-        raw_coupled_langs = maybe_smugri(sys.argv[4])
+        kwargs, filt_args = to_kwargs(sys.argv)
+
+        coupled_mdl_id = filt_args[1]
+        train_data_file = filt_args[2]
+        dev_data_file = filt_args[3]
+        raw_coupled_langs = maybe_smugri(filt_args[4])
 
         coupled_langs = set(raw_coupled_langs.split(","))
 
-        if len(sys.argv) > 5:
-            anchor_mdl_id = sys.argv[5]
-            raw_anchor_langs = maybe_smugri(sys.argv[6])
+        if len(filt_args) > 5:
+            anchor_mdl_id = filt_args[5]
+            raw_anchor_langs = maybe_smugri(filt_args[6])
 
             anchor_langs = set(raw_anchor_langs.split(","))
 
@@ -101,13 +105,13 @@ def cmdline_args():
             mdl_name_suff = "-indtrained"
 
         if "bigmix" in train_data_file:
-            mdl_name_suff += "big"
+            mdl_name_suff += "-big"
 
 
         result = CmdlineArgs(coupled_mdl_id, train_data_file, dev_data_file, coupled_langs, anchor_mdl_id, anchor_langs,
                              coupled_mdl_id + mdl_name_suff)
 
-        return result
+        return result, kwargs
 
     except IndexError:
         sys.stderr.write(f"Usage: {sys.argv[0]}  coupled_mdl_id  train_data_file  dev_data_file  coupled_langs  [anchor_mdl_id  anchor_langs]\n")
@@ -128,8 +132,8 @@ def get_lps_from_specs(coupling_specs):
                 yield f"{src_lang}-{tgt_lang}"
 
 
-def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
-    args = train_args(model_name, batch_size=batch_size)
+def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
+    args = train_args(model_name, batch_size=batch_size, **train_kwargs)
 
     trainer = Seq2SeqTrainer(
         model,
@@ -157,11 +161,14 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs):
 
 
 def dud():
-    return CmdlineArgs("models/smol", "data/liv_train.json", "data/liv_train.json", {"liv", "et", "lv", "en"}, None, None, "-indtmp")
+    return (CmdlineArgs("models/smol",
+                       "data/liv_train.json", "data/liv_train.json",
+                       {"liv", "et", "lv", "en"}, None, None, "-indtmp"),
+            {})
 
 
 def do_main():
-    args = cmdline_args() if host_remote else dud()
+    args, train_kwargs = cmdline_args() if host_remote else dud()
 
     log(f"Launched as {args}")
 
@@ -182,16 +189,19 @@ def do_main():
         coupling_specs += to_cpl_spec(args.anchor_langs, anchor_model, anchor_tokenizer, args.anchor_mdl_id)
 
     lp_set = set(get_lps_from_specs(coupling_specs))
-    batch_size = 8
+
+    batch_size = train_kwargs['batch'] if 'batch' in train_kwargs else 8
 
     train_set = MultilingualBatchingDataset(args.train_data_file, coupling_specs, batch_size,
                                             tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
     val_set = MultilingualBatchingDataset(args.dev_data_file, coupling_specs, batch_size,
                                           tracing_msg="VAL", verbose=True, leave_only=lp_set)
 
-    do_training(coupled_model, args.save_location, train_set, val_set, batch_size, coupling_specs)
+    if 'skip_training' not in train_kwargs:
+        do_training(coupled_model, args.save_location, train_set, val_set, batch_size, coupling_specs, train_kwargs)
 
-    save_all_models(args.save_location, coupled_model, coupled_tokenizer, coupling_specs)
+        save_all_models(args.save_location, coupled_model, coupled_tokenizer, coupling_specs)
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

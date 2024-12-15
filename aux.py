@@ -1,9 +1,6 @@
 import sys
 from datetime import datetime
 
-from initmodel import kwargs
-
-
 SMUGRI_LOW = "fkv,izh,kca,koi,kpv,krl,liv,lud,mdf,mhr,mns,mrj,myv,olo,sjd,sje,sju,sma,sme,smj,smn,sms,udm,vep,vot,vro"
 SMUGRI_HIGH = "deu,eng,est,fin,hun,lvs,nor,rus,swe"
 SMUGRI = "deu,eng,est,fin,fkv,hun,izh,kca,koi,kpv,krl,liv,lud,lvs,mdf,mhr,mns,mrj,myv,nor,olo,rus,sjd,sje,sju,sma,sme,smj,smn,sms,swe,udm,vep,vot,vro"
@@ -50,8 +47,11 @@ def smugri_back(lang_list):
         return sll_str
 
 
-def to_kwargs(raw_kwargs):
-    return dict(raw_entry.split("=") for raw_entry in raw_kwargs)
+def to_kwargs(arg_list):
+    key_args = dict(raw_entry.split("=") for raw_entry in arg_list if "=" in raw_entry)
+    filtered_arg_list = [arg for arg in arg_list if "=" not in arg]
+
+    return key_args, filtered_arg_list
 
 
 def maybe_convert(value):
@@ -71,7 +71,7 @@ def get_changed_config(conf, extra_keys=[], **kw):
 
     for kwarg in kw:
         if kwarg in conf.__dict__:
-            conf.__dict__[kwarg] = maybe_convert(kwargs[kwarg])
+            conf.__dict__[kwarg] = maybe_convert(kw[kwarg])
         else:
             raise KeyError(f'key "{kwarg}" is not in model config')
 

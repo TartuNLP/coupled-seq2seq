@@ -279,7 +279,7 @@ class MultilingualBatchingDataset(IterableDataset):
         if not os.path.isdir(dirname):
             os.mkdir(dirname)
 
-        name = dirname + "/"
+        name = dirname + "/batch-" + str(self.batch_size)
 
         for spec_tuple in self.coupling_specs:
             lang_set_str = smugri_back(spec_tuple.lang_set)

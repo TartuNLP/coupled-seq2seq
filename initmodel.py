@@ -68,7 +68,7 @@ if __name__ == '__main__':
     try:
         mdl_id = sys.argv[1]
         mdl_new_name = sys.argv[2]
-        kwargs = to_kwargs(sys.argv[3:])
+        kwargs, _ = to_kwargs(sys.argv[3:])
 
         tok, it_changed = handle_tokenizers(mdl_id, mdl_new_name, kwargs)
 
