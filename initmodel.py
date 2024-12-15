@@ -6,37 +6,7 @@ from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer
 from translate import hf_tok
 from traintok import learn_spm_tokenizer, get_stupid_correction, get_unk_toks, extend_tok_langs
 
-from aux import log, maybe_smugri
-
-
-def maybe_convert(value):
-    try:
-        return int(value)
-    except ValueError:
-        try:
-            return float(value)
-        except ValueError:
-            return value
-
-
-def get_changed_config(model_id, **kw):
-    conf = AutoConfig.from_pretrained(model_id)
-
-    for extra_key in "tok_train_set lang_set".split():
-        if extra_key in kw:
-            del kw[extra_key]
-
-    for kwarg in kw:
-        if kwarg in conf.__dict__:
-            conf.__dict__[kwarg] = maybe_convert(kwargs[kwarg])
-        else:
-            raise KeyError(f'key "{kwarg}" is not in model config')
-
-    return conf
-
-
-def to_kwargs(raw_kwargs):
-    return dict(raw_entry.split("=") for raw_entry in raw_kwargs)
+from aux import maybe_smugri, to_kwargs, get_changed_config
 
 
 def mdl_param_count(model):
@@ -51,7 +21,9 @@ def mdl_param_count(model):
 
         result += this_count
 
-        if n == "model.shared.weight":
+        # if n == "model.shared.weight":
+
+        if "shared.weight" in n:
             embedding_size = this_count
 
     return result, embedding_size
@@ -100,7 +72,7 @@ if __name__ == '__main__':
 
         tok, it_changed = handle_tokenizers(mdl_id, mdl_new_name, kwargs)
 
-        config = get_changed_config(mdl_id, **kwargs)
+        config = get_changed_config(AutoConfig.from_pretrained(mdl_id), "tok_train_set lang_set".split(), **kwargs)
 
         model = AutoModelForSeq2SeqLM.from_config(config)
         if it_changed:
