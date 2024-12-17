@@ -44,6 +44,8 @@ def train_args(name, batch_size, **kw):
 
     result = get_changed_config(prelim_result, ["skip_training", "batch"], **kw)
 
+    return result
+
 
 def train_args_tmpx(name, batch_size):
     return Seq2SeqTrainingArguments(
