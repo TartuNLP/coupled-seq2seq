@@ -190,7 +190,7 @@ def do_main():
 
     lp_set = set(get_lps_from_specs(coupling_specs))
 
-    batch_size = train_kwargs['batch'] if 'batch' in train_kwargs else 8
+    batch_size = int(train_kwargs['batch']) if 'batch' in train_kwargs else 8
 
     train_set = MultilingualBatchingDataset(args.train_data_file, coupling_specs, batch_size,
                                             tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
