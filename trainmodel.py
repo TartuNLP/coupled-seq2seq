@@ -42,7 +42,7 @@ def train_args(name, batch_size, **kw):
         # predict_with_generate=True
     )
 
-    result = get_changed_config(prelim_result, ["skip_training"], **kw)
+    result = get_changed_config(prelim_result, ["skip_training", "batch"], **kw)
 
 
 def train_args_tmpx(name, batch_size):
