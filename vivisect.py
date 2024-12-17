@@ -79,10 +79,10 @@ def vivisect_eval_step(trainer_obj, coupling_spec):
 def vivisect_train_step(trainer_obj, coupling_spec):
     old_func = trainer_obj.training_step
 
-    def new_training_step(self, model, inputs):
+    def new_training_step(self, model, inputs, num_items_in_batch):
         upd_inputs = switch_modules_according_to_input(model, coupling_spec, inputs)
 
-        return old_func(model, upd_inputs)
+        return old_func(model, upd_inputs, num_items_in_batch)
 
     trainer_obj.training_step = types.MethodType(new_training_step, trainer_obj)
 
