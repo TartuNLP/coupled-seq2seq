@@ -188,6 +188,7 @@ def do_accelerated_training(model, save_location, train_set, cpl_specs, save_ste
     logger.line_break()
     accelerator.wait_for_everyone()
 
+
 def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
     args = train_args(model_name, batch_size=batch_size, **train_kwargs)
 
