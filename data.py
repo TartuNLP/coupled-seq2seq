@@ -250,10 +250,7 @@ class MultilingualBatchingDataset(IterableDataset):
         i = 0
         log("Tokenizing data")
 
-        #for src_k in bins:
-        #    for tgt_k in bins[src_k]:
-        #        if src_k == 0 or tgt_k == 0:
-        #            for raw_batch in do_list_in_batches(bins[src_k][tgt_k], self.batch_size):
+        result = []
 
         for raw_batch, src_k, tgt_k in do_bins_in_shuffled_batches(bins, self.batch_size):
             i += 1
@@ -261,18 +258,16 @@ class MultilingualBatchingDataset(IterableDataset):
                 log(f"Tokenized {i} batches")
 
             prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
+            result.append(prepared_batch)
 
-            for elem in prepared_batch:
-                yield elem
+        return result
 
     def _prepare_new_data(self, filename):
         bins = self._fill_bins(filename)
 
         self.report_update_stats(bins)
 
-        self.data = list(self._bins_to_tokenized_batches(bins))
-
-        #self.data = [elem for batch in batches for elem in batch]
+        self.data = self._bins_to_tokenized_batches(bins)
 
     def _get_data_cache_location(self, filename):
         dirname = filename + "-tokcache"
@@ -320,7 +315,6 @@ class MultilingualBatchingDataset(IterableDataset):
     def __init__(self, tr_file, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256,
                  max_tgt_len=256, verbose=False, leave_only=None):
         self.data = list()
-        self.text_data = list()
         self.msg = tracing_msg
         self.batch_size = batch_size
 
@@ -331,26 +325,6 @@ class MultilingualBatchingDataset(IterableDataset):
 
         # collect data into bins and fill self.data:
         self.load_group_and_tokenize_data(tr_file)
-
-        #if verbose:
-        #    self.check_out_of_bounds()
-
-    #def check_out_of_bounds(self):
-    #    max_dict = defaultdict(lambda: defaultdict(int))
-    #    count_dict = defaultdict(lambda: defaultdict(int))
-    #
-    #    log(f"doing reporting, please hold, {len(self.data)} samples to check ({self.msg})")
-    #
-    #    for trp in self.data:
-    #        l = trp.prepared['input_ids'].tolist()
-    #        m = max(l)
-    #        max_dict[trp.src_bin_idx][trp.tgt_bin_idx] = max(max_dict[trp.src_bin_idx][trp.tgt_bin_idx], m)
-    #        count_dict[trp.src_bin_idx][trp.tgt_bin_idx] += 1
-    #        #print("DEBUG", l, m, trp.src_bin_idx, trp.tgt_bin_idx, max_dict[trp.src_bin_idx][trp.tgt_bin_idx])
-    #        #raise NotImplementedError
-    #
-    #    # log_2dict(max_dict, f"MAX ({self.msg})")
-    #    # log_2dict(count_dict, f"COUNT ({self.msg})")
 
     def __iter__(self):
         self.i = 0

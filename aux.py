@@ -10,6 +10,18 @@ def log(msg):
     sys.stderr.write(str(datetime.now()) + ": " + msg + '\n')
 
 
+def same_line_log(msg, len_to_del=0):
+    if len_to_del > 0:
+        sys.stderr.write("\b" * len_to_del)
+
+    new_len = len(msg)
+
+    sys.stderr.write(msg)
+    sys.stderr.flush()
+
+    return new_len
+
+
 def debug(msg):
     pass
     ### log("\n(DEBUG) " + msg)

@@ -2,13 +2,16 @@
 
 import sys
 import os
+import torch
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, get_scheduler
 from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
+from accelerate import Accelerator
+from datetime import datetime
 
 from translate import hf_tok
 from data import MultilingualBatchingDataset, make_path_compatible
-from aux import log, maybe_smugri, to_kwargs, get_changed_config
+from aux import log, maybe_smugri, to_kwargs, get_changed_config, same_line_log
 from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
     to_cpl_spec, save_all_models
@@ -45,23 +48,6 @@ def train_args(name, batch_size, **kw):
     result = get_changed_config(prelim_result, ["skip_training", "batch"], **kw)
 
     return result
-
-
-def train_args_tmpx(name, batch_size):
-    return Seq2SeqTrainingArguments(
-        name,
-        eval_strategy="steps",
-        eval_steps=10000,
-        learning_rate=1.5e-5,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
-        gradient_accumulation_steps=1,
-        weight_decay=0.01,
-        save_strategy="steps",
-        save_steps=10000,
-        logging_steps=10000,
-        max_steps=10000,
-    )
 
 
 def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
@@ -134,6 +120,74 @@ def get_lps_from_specs(coupling_specs):
                 yield f"{src_lang}-{tgt_lang}"
 
 
+class SameLineLogger:
+    def __init__(self, train_set):
+        self.total = len(train_set)
+        self.log_after = []
+        self.log_len = 0
+
+        self.start_time = datetime.now()
+
+    def line_start(self):
+        same_line_log(str(datetime.now()) + ": training batches ")
+
+    def step(self, i, loss):
+        passed_time = datetime.now() - self.start_time
+
+        time_per_batch = passed_time / (i + 1)
+
+        prediction = time_per_batch * (self.total - i - 1)
+
+        msg = f"{i + 1} / {self.total}, loss={loss}, {time_per_batch}/iter, {prediction} to finish"
+
+        new_len = same_line_log(msg, self.log_len)
+
+        self.log_len = new_len
+
+    def line_break(self):
+        same_line_log("")
+
+
+def do_accelerated_training(model, save_location, train_set, cpl_specs, save_steps = 10000):
+    accelerator = Accelerator()
+
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1.5e-5)
+    lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=500, num_training_steps=10000)
+
+    # Step 5: Prepare with Accelerator
+    model, optimizer, train_set = accelerator.prepare(model, optimizer, train_set)
+
+    logger = SameLineLogger(train_set)
+    logger.line_start()
+
+    for i, batch in enumerate(train_set):
+        inputs = batch.to(accelerator.device)
+        outputs = model(**inputs)
+        loss = outputs.loss
+        accelerator.backward(loss)
+
+        optimizer.step()
+        lr_scheduler.step()
+        optimizer.zero_grad()
+
+        logger.step(i, loss)
+
+        if not i % save_steps:
+            logger.line_break()
+
+            log(f"saving at {i+1} steps")
+
+            this_location = os.path.join(save_location, f"checkpoint-{i+1}")
+            if os.path.exists(this_location):
+                raise FileExistsError("Cannot overwrite existing checkpoint")
+
+            save_all_models(this_location, model, cpl_specs[0].tokenizer, cpl_specs)
+
+            logger.line_start()
+
+    logger.line_break()
+    accelerator.wait_for_everyone()
+
 def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
     args = train_args(model_name, batch_size=batch_size, **train_kwargs)
 
@@ -196,11 +250,8 @@ def do_main():
 
     train_set = MultilingualBatchingDataset(args.train_data_file, coupling_specs, batch_size,
                                             tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
-    val_set = MultilingualBatchingDataset(args.dev_data_file, coupling_specs, batch_size,
-                                          tracing_msg="VAL", verbose=True, leave_only=lp_set)
-
     if 'skip_training' not in train_kwargs:
-        do_training(coupled_model, args.save_location, train_set, val_set, batch_size, coupling_specs, train_kwargs)
+        do_accelerated_training(coupled_model, args.save_location, train_set, coupling_specs)
 
         save_all_models(args.save_location, coupled_model, coupled_tokenizer, coupling_specs)
 
