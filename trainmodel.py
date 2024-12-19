@@ -145,7 +145,7 @@ class SameLineLogger:
         self.log_len = new_len
 
     def line_break(self):
-        same_line_log("")
+        sys.stderr.write("\n")
 
 
 def do_accelerated_training(model, save_location, train_set, cpl_specs, kwargs):
@@ -165,6 +165,8 @@ def do_accelerated_training(model, save_location, train_set, cpl_specs, kwargs):
 
     for i, batch in enumerate(train_set):
         inputs = batch.to(accelerator.device)
+        print(accelerator.device)
+
         outputs = model(**inputs)
         loss = outputs.loss
         accelerator.backward(loss)
