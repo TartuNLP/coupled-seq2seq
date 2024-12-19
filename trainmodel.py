@@ -138,7 +138,7 @@ class SameLineLogger:
 
         prediction = time_per_batch * (self.total - i - 1)
 
-        msg = f"{i + 1} / {self.total}, loss={loss}, {time_per_batch}/iter, {prediction} to finish"
+        msg = f"{i + 1} / {self.total}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
 
         new_len = same_line_log(msg, self.log_len)
 
@@ -148,11 +148,14 @@ class SameLineLogger:
         same_line_log("")
 
 
-def do_accelerated_training(model, save_location, train_set, cpl_specs, save_steps = 10000):
+def do_accelerated_training(model, save_location, train_set, cpl_specs, kwargs):
+    save_steps = 10000 if "save_steps" not in kwargs else int(kwargs["save_steps"])
+    l_rate = 1.5e-5 if "lr" not in kwargs else float(kwargs["lr"])
+
     accelerator = Accelerator()
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1.5e-5)
-    lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=500, num_training_steps=10000)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=l_rate)
+    lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=200, num_training_steps=len(train_set))
 
     # Step 5: Prepare with Accelerator
     model, optimizer, train_set = accelerator.prepare(model, optimizer, train_set)
@@ -166,9 +169,10 @@ def do_accelerated_training(model, save_location, train_set, cpl_specs, save_ste
         loss = outputs.loss
         accelerator.backward(loss)
 
-        optimizer.step()
-        lr_scheduler.step()
-        optimizer.zero_grad()
+        if accelerator.accumulate(model):
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
 
         logger.step(i, loss)
 
@@ -177,11 +181,12 @@ def do_accelerated_training(model, save_location, train_set, cpl_specs, save_ste
 
             log(f"Saving at {i+1} steps")
 
-            this_location = os.path.join(save_location, f"checkpoint-{i+1}")
-            if os.path.exists(this_location):
-                raise FileExistsError("Cannot overwrite existing checkpoint")
+            if accelerator.is_main_process:
+                this_location = os.path.join(save_location, f"checkpoint-{i+1}")
+                if os.path.exists(this_location):
+                    raise FileExistsError("Cannot overwrite existing checkpoint")
 
-            save_all_models(this_location, model, cpl_specs[0].tokenizer, cpl_specs)
+                save_all_models(this_location, model, cpl_specs[0].tokenizer, cpl_specs)
 
             logger.line_start()
 
@@ -251,8 +256,9 @@ def do_main():
 
     train_set = MultilingualBatchingDataset(args.train_data_file, coupling_specs, batch_size,
                                             tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
+
     if 'skip_training' not in train_kwargs:
-        do_accelerated_training(coupled_model, args.save_location, train_set, coupling_specs)
+        do_accelerated_training(coupled_model, args.save_location, train_set, coupling_specs, train_kwargs)
 
         save_all_models(args.save_location, coupled_model, coupled_tokenizer, coupling_specs)
 
