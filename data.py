@@ -241,16 +241,16 @@ class MultilingualBatchingDataset(IterableDataset):
 
         inject_bin_indices(prep_batch_grouped, src_k, tgt_k)
 
-        split_prep_batch = [{k: prep_batch_grouped[k][i] for k in prep_batch_grouped}
-                            for i, trp in enumerate(raw_batch)]
+        #split_prep_batch = [{k: prep_batch_grouped[k][i] for k in prep_batch_grouped}
+        #                    for i, trp in enumerate(raw_batch)]
 
-        return split_prep_batch
+        return prep_batch_grouped
 
-    def _bins_to_tokenized_batches(self, bins):
+    def _bins_to_tokenized_batched_data(self, bins):
         i = 0
         log("Tokenizing data")
 
-        result = []
+        self.data = []
 
         for raw_batch, src_k, tgt_k in do_bins_in_shuffled_batches(bins, self.batch_size):
             i += 1
@@ -258,16 +258,14 @@ class MultilingualBatchingDataset(IterableDataset):
                 log(f"Tokenized {i} batches")
 
             prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
-            result.append(prepared_batch)
-
-        return result
+            self.data.append(prepared_batch)
 
     def _prepare_new_data(self, filename):
         bins = self._fill_bins(filename)
 
         self.report_update_stats(bins)
 
-        self.data = self._bins_to_tokenized_batches(bins)
+        self._bins_to_tokenized_batched_data(bins)
 
     def _get_data_cache_location(self, filename):
         dirname = filename + "-tokcache"
@@ -314,7 +312,6 @@ class MultilingualBatchingDataset(IterableDataset):
 
     def __init__(self, tr_file, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256,
                  max_tgt_len=256, verbose=False, leave_only=None):
-        self.data = list()
         self.msg = tracing_msg
         self.batch_size = batch_size
 
