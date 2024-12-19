@@ -172,10 +172,10 @@ def do_accelerated_training(model, save_location, train_set, cpl_specs, save_ste
 
         logger.step(i, loss)
 
-        if not i % save_steps:
+        if not ((i+1) % save_steps):
             logger.line_break()
 
-            log(f"saving at {i+1} steps")
+            log(f"Saving at {i+1} steps")
 
             this_location = os.path.join(save_location, f"checkpoint-{i+1}")
             if os.path.exists(this_location):
