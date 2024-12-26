@@ -16,6 +16,7 @@ from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
     to_cpl_spec, save_all_models, switch_modules
 from langconv import is_nllb, is_madlad
+from initmodel import mdl_param_count
 
 CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
 
@@ -55,13 +56,11 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
         tok_id = mdl_id
 
     tokenizer = AutoTokenizer.from_pretrained(tok_id, token=hf_tok)
-    if host_remote:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, device_map="auto")
-    else:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok)
+    model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, device_map="auto")
 
     if verbose:
-        log(f"Loaded {mdl_id}, tokenizer voc size {len(tokenizer)}, model voc size {model.config.vocab_size}")
+        mdl_size, _ = mdl_param_count(model)
+        log(f"Loaded {mdl_id} with {mdl_size} params, voc size {model.config.vocab_size}")
 
     return model, tokenizer
 
@@ -165,6 +164,8 @@ class SwitchingAccelerator:
         self.save_location = save_location
         self.kwargs = self.read_kwargs(train_kwargs)
 
+        self.train_loss_list = []
+
         self.accelerator = Accelerator()
 
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=self.kwargs.lr)
@@ -195,6 +196,8 @@ class SwitchingAccelerator:
 
             outputs = models[tgt_k](**inputs, encoder_outputs=encoder_vecs)
             loss = outputs.loss
+
+            self.train_loss_list.append((loss.item(), src_k, tgt_k))
 
             self.accelerator.backward(loss)
 
@@ -231,11 +234,13 @@ class SwitchingAccelerator:
         optimizer_acc = self.accelerator.prepare(self.optimizer)
         train_set_acc = self.accelerator.prepare(self.train_set)
 
+        self.train_loss_list = []
+
         self._main_loop(logger, models_acc, optimizer_acc, train_set_acc)
 
         logger.line_break()
         self.accelerator.wait_for_everyone()
-
+        self.accelerator.end_training()
 
 def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
     args = train_args(model_name, batch_size=batch_size, **train_kwargs)
@@ -266,7 +271,7 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, tr
 
 
 def dud():
-    return (CmdlineArgs("models/smol",
+    return (CmdlineArgs("models/smoler",
                        "data/liv_train.json", "data/liv_train.json",
                        {"liv", "et", "lv", "en"}, None, None, "models/smol-indtmp"),
             {"batch": 4})
