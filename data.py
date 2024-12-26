@@ -239,7 +239,7 @@ class MultilingualBatchingDataset(IterableDataset):
         labels = self.tokenize_output(tgt_tokenizer, raw_batch)
         prep_batch_grouped['labels'] = labels['input_ids']
 
-        inject_bin_indices(prep_batch_grouped, src_k, tgt_k)
+        # inject_bin_indices(prep_batch_grouped, src_k, tgt_k)
 
         #split_prep_batch = [{k: prep_batch_grouped[k][i] for k in prep_batch_grouped}
         #                    for i, trp in enumerate(raw_batch)]
@@ -258,7 +258,7 @@ class MultilingualBatchingDataset(IterableDataset):
                 log(f"Tokenized {i} batches")
 
             prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
-            self.data.append(prepared_batch)
+            self.data.append((prepared_batch, src_k, tgt_k))
 
     def _prepare_new_data(self, filename):
         bins = self._fill_bins(filename)

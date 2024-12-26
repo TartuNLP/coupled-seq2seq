@@ -14,8 +14,8 @@ from data import MultilingualBatchingDataset, make_path_compatible
 from aux import log, maybe_smugri, to_kwargs, get_changed_config, same_line_log
 from collections import namedtuple
 from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
-    to_cpl_spec, save_all_models
-
+    to_cpl_spec, save_all_models, switch_modules
+from langconv import is_nllb, is_madlad
 
 CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
 
@@ -148,52 +148,90 @@ class SameLineLogger:
         sys.stderr.write("\n")
 
 
-def do_accelerated_training(model, save_location, train_set, cpl_specs, kwargs):
-    save_steps = 10000 if "save_steps" not in kwargs else int(kwargs["save_steps"])
-    l_rate = 1.5e-5 if "lr" not in kwargs else float(kwargs["lr"])
+class SwitchingAccelerator:
+    def read_kwargs(self, kwargs):
+        type_list = [int, float]
+        kw_names = ["save_steps", "lr"]
+        default_values = [10000, 1.5e-5]
 
-    accelerator = Accelerator()
+        kw_with_dv = { kn: (dv if kn not in kwargs else typ(kwargs[kn])) for kn, dv, typ in zip(kw_names, default_values, type_list)}
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=l_rate)
-    lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=200, num_training_steps=len(train_set))
+        return namedtuple("kwargs", kw_names)(*[kw_with_dv[k] for k in kw_names])
 
-    # Step 5: Prepare with Accelerator
-    model, optimizer, train_set = accelerator.prepare(model, optimizer, train_set)
+    def __init__(self, model, coupling_specs, train_set, save_location, train_kwargs):
+        self.model_to_train = model
+        self.coupling_specs = coupling_specs
+        self.train_set = train_set
+        self.save_location = save_location
+        self.kwargs = self.read_kwargs(train_kwargs)
 
-    logger = SameLineLogger(train_set)
-    logger.line_start()
+        self.accelerator = Accelerator()
 
-    for i, batch in enumerate(train_set):
-        inputs = batch.to(accelerator.device)
-        print(accelerator.device)
+        self.optimizer = torch.optim.AdamW(model.parameters(), lr=self.kwargs.lr)
+        self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
+                                          num_training_steps=len(train_set))
 
-        outputs = model(**inputs)
-        loss = outputs.loss
-        accelerator.backward(loss)
+    def _encode(self, model, inputs):
+        if is_nllb(model):
+            enc = model.model.encoder
+        elif is_madlad(model):
+            enc = model.base_model.encoder
+        else:
+            raise NotImplementedError(f"Model {model} is not supported yet.")
 
-        if accelerator.accumulate(model):
+        return enc()
+
+    def _main_loop(self, logger, models, optimizer, train_set):
+        for m in models:
+            m.train()
+
+        for i, batch_with_idxs in enumerate(train_set):
+            batch, src_k, tgt_k = batch_with_idxs
+            inputs = batch.to(self.accelerator.device)
+
+            encoder_vecs = self._encode(models[src_k], inputs)
+
+            outputs = models[tgt_k](**inputs, encoder_outputs=encoder_vecs)
+            loss = outputs.loss
+
+            self.accelerator.backward(loss)
+
             optimizer.step()
-            lr_scheduler.step()
+            self.lr_scheduler.step()
             optimizer.zero_grad()
 
+            self._step_and_perhaps_save(logger, i, loss, models[0])
+
+    def _step_and_perhaps_save(self, logger, i, loss, model):
         logger.step(i, loss)
 
-        if not ((i+1) % save_steps):
+        if not ((i + 1) % self.kwargs.save_steps):
             logger.line_break()
 
-            log(f"Saving at {i+1} steps")
+            log(f"Saving at {i + 1} steps")
 
-            if accelerator.is_main_process:
-                this_location = os.path.join(save_location, f"checkpoint-{i+1}")
+            if self.accelerator.is_main_process:
+                this_location = os.path.join(self.save_location, f"checkpoint-{i + 1}")
                 if os.path.exists(this_location):
                     raise FileExistsError("Cannot overwrite existing checkpoint")
 
-                save_all_models(this_location, model, cpl_specs[0].tokenizer, cpl_specs)
+                model_to_save = self.accelerator.unwrap_model(model)
+                save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer, self.coupling_specs)
 
             logger.line_start()
 
-    logger.line_break()
-    accelerator.wait_for_everyone()
+    def train(self):
+        logger = SameLineLogger(self.train_set)
+        logger.line_start()
+
+        models_acc = self.accelerator.prepare(*[s.model for s in self.coupling_specs])
+        optimizer_acc = self.accelerator.prepare(self.optimizer)
+        train_set_acc = self.accelerator.prepare(self.train_set)
+
+        self._main_loop(logger, models_acc, optimizer_acc, train_set_acc)
+
+        logger.line_break()
+        self.accelerator.wait_for_everyone()
 
 
 def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
@@ -227,7 +265,7 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, tr
 def dud():
     return (CmdlineArgs("models/smol",
                        "data/liv_train.json", "data/liv_train.json",
-                       {"liv", "et", "lv", "en"}, None, None, "-indtmp"),
+                       {"liv", "et", "lv", "en"}, None, None, "models/smol-indtmp"),
             {})
 
 
@@ -260,7 +298,9 @@ def do_main():
                                             tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
 
     if 'skip_training' not in train_kwargs:
-        do_accelerated_training(coupled_model, args.save_location, train_set, coupling_specs, train_kwargs)
+        acc_trainer = SwitchingAccelerator(coupled_model, coupling_specs, train_set, args.save_location, train_kwargs)
+
+        acc_trainer.train()
 
         save_all_models(args.save_location, coupled_model, coupled_tokenizer, coupling_specs)
 

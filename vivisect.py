@@ -12,7 +12,7 @@ from aux import debug
 from langconv import is_nllb, is_madlad
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair",
-                               ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer", "model_id"])
+                               ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer", "model_id", "model"])
 
 MODULE_CONFIG_FILE = "coupled_module_config.json"
 
@@ -129,7 +129,7 @@ def to_cpl_spec(langs, model, tokenizer, location):
     else:
         raise NotImplementedError(f"Model {model} is not supported yet.")
 
-    return [CouplingSpecTuple(langs, model.config.vocab_size, enc, dec, model.lm_head, tokenizer, location)]
+    return [CouplingSpecTuple(langs, model.config.vocab_size, enc, dec, model.lm_head, tokenizer, location, model)]
 
 
 def load_module_config(model_dir):
