@@ -205,7 +205,10 @@ class SwitchingAccelerator:
             self.lr_scheduler.step()
             optimizer.zero_grad()
 
-            self._step_and_perhaps_save(logger, i, loss, models[0])
+            avg_loss_vals = [i[0] for i in self.train_loss_list[-10:]]
+            avg_loss = sum(avg_loss_vals)/len(avg_loss_vals)
+
+            self._step_and_perhaps_save(logger, i, avg_loss, models[0])
 
     def _step_and_perhaps_save(self, logger, i, loss, model):
         logger.step(i, loss)
