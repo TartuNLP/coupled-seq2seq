@@ -179,7 +179,9 @@ class SwitchingAccelerator:
         else:
             raise NotImplementedError(f"Model {model} is not supported yet.")
 
-        return enc()
+        inputs_without_labels = { k: inputs[k] for k in inputs if k != "labels" }
+
+        return enc(**inputs_without_labels)
 
     def _main_loop(self, logger, models, optimizer, train_set):
         for m in models:
@@ -224,7 +226,8 @@ class SwitchingAccelerator:
         logger = SameLineLogger(self.train_set)
         logger.line_start()
 
-        models_acc = self.accelerator.prepare(*[s.model for s in self.coupling_specs])
+        models_acc = [self.accelerator.prepare(s.model) for s in self.coupling_specs]
+
         optimizer_acc = self.accelerator.prepare(self.optimizer)
         train_set_acc = self.accelerator.prepare(self.train_set)
 
@@ -266,7 +269,7 @@ def dud():
     return (CmdlineArgs("models/smol",
                        "data/liv_train.json", "data/liv_train.json",
                        {"liv", "et", "lv", "en"}, None, None, "models/smol-indtmp"),
-            {})
+            {"batch": 4})
 
 
 def do_main():
