@@ -147,6 +147,21 @@ class SameLineLogger:
         sys.stderr.write("\n")
 
 
+def report_devices(accelerator):
+    if torch.cuda.is_available():
+        # Get the visible devices from CUDA
+        visible_devices = torch.cuda.device_count()
+        log(f"Number of visible GPUs: {visible_devices}")
+
+        # List the actual GPUs being used
+        gpu_names = [torch.cuda.get_device_name(i) for i in range(visible_devices)]
+        log("GPUs being used:")
+        for i, name in enumerate(gpu_names):
+            log(f"  GPU {i}: {name}")
+    else:
+        log(f"Device being used: {accelerator.device}")
+
+
 class SwitchingAccelerator:
     def read_kwargs(self, kwargs):
         type_list = [int, float]
@@ -167,6 +182,8 @@ class SwitchingAccelerator:
         self.train_loss_list = []
 
         self.accelerator = Accelerator()
+
+        report_devices(self.accelerator)
 
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=self.kwargs.lr)
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
