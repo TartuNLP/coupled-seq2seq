@@ -71,14 +71,13 @@ def cmdline_args():
 
         coupled_mdl_id = filt_args[1]
         train_data_file = filt_args[2]
-        dev_data_file = filt_args[3]
-        raw_coupled_langs = maybe_smugri(filt_args[4])
+        raw_coupled_langs = maybe_smugri(filt_args[3])
 
         coupled_langs = set(raw_coupled_langs.split(","))
 
-        if len(filt_args) > 5:
-            anchor_mdl_id = filt_args[5]
-            raw_anchor_langs = maybe_smugri(filt_args[6])
+        if len(filt_args) > 4:
+            anchor_mdl_id = filt_args[4]
+            raw_anchor_langs = maybe_smugri(filt_args[5])
 
             anchor_langs = set(raw_anchor_langs.split(","))
 
@@ -95,7 +94,7 @@ def cmdline_args():
             mdl_name_suff += "-big"
 
 
-        result = CmdlineArgs(coupled_mdl_id, train_data_file, dev_data_file, coupled_langs, anchor_mdl_id, anchor_langs,
+        result = CmdlineArgs(coupled_mdl_id, train_data_file, None, coupled_langs, anchor_mdl_id, anchor_langs,
                              coupled_mdl_id + mdl_name_suff)
 
         return result, kwargs
