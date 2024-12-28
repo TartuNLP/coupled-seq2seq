@@ -9,7 +9,7 @@ from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
 from random import randrange, shuffle
 
-from aux import log, log_2dict, smugri_back
+from aux import log, smugri_back, maybe_smugri
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
@@ -52,10 +52,11 @@ def _post_proc(text, lang):
 
 
 def clean_entry(entry, leave_out):
-    return {k: _post_proc(entry[k], k) for k in entry if entry[k].strip() and k not in leave_out and "dia" not in k}
+    result = {k: _post_proc(entry[k], k) for k in entry if entry[k].strip() and k not in leave_out}
+    return result
 
 
-def load_json_data(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
+def load_json_datax(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
     with open(path, 'r') as f:
         data = json.load(f)
 
@@ -65,16 +66,17 @@ def load_json_data(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
                     for cat in data for entry in cat['sentences']]
             res = [e for e in resx if e]
         else:
-            resx = {cat['source']: [clean_entry(entry, leave_out) for entry in cat['sentences']] for cat in data}
+            raise NotImplementedError
 
-            res = {k: resx[k] for k in resx if resx[k]}
+            # resx = {cat['source']: [clean_entry(entry, leave_out) for entry in cat['sentences']] for cat in data}
+            # res = {k: resx[k] for k in resx if resx[k]}
 
         return res
 
 
 def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
     if filename is not None:
-        raw_data = load_json_data(filename)
+        raw_data = load_json_datax(filename)
 
     if raw_data is None:
         raise ValueError("Neither file nor data are provided")
@@ -84,25 +86,31 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
     for tup in raw_data:
         for l1 in tup:
             for l2 in tup:
-                if l1 != l2:
+                if l1 != l2 and not "dia" in l1 and not "dia" in l2:
                     if leave_out is None or f"{l1}-{l2}" not in leave_out:
                         if leave_only is None or f"{l1}-{l2}" in leave_only:
                             i += 1
                             if not i % 1000000:
                                 log(f"Loaded {i/1000000}M pairs")
-                            yield TrPair(l1, l2, tup[l1], tup[l2])
+                            dia_key = f"{l2}-dia"
+
+                            input = tup[l1]
+                            if dia_key in tup:
+                                input = f"<{tup[dia_key]}> {input}"
+
+                            yield TrPair(l1, l2, input, tup[l2])
 
 
 def split_by_lang(tr_pairs=None, filename=None):
     result = defaultdict(list)
 
     if filename is not None:
-        tr_pairs = load_json_data(filename)
+        tr_pairs = load_json_datax(filename)
 
     for tup in tr_pairs:
         for l1 in tup:
             for l2 in tup:
-                if l1 != l2:
+                if l1 != l2 and not "dia" in l1 and not "dia" in l2:
                     lp = f"{l1}-{l2}"
                     result[lp].append((tup[l1], tup[l2]))
 
@@ -354,9 +362,9 @@ def dump_to_stdout(filename=None, lang_or_lp=None):
             i += 1
             print(tr_pair.input + "\t" + tr_pair.output)
     else:
-        langs = lang_or_lp
+        langs = maybe_smugri(lang_or_lp)
         lang_set = set(langs.split(","))
-        raw_data = load_json_data(filename)
+        raw_data = load_json_datax(filename)
         data_iter = data_iter_for_tok_train(raw_data, lang_set)
         i = 0
         for snt in data_iter:
@@ -366,7 +374,7 @@ def dump_to_stdout(filename=None, lang_or_lp=None):
 
 def do_stats(filename):
     stats = defaultdict(int)
-    raw_data = load_json_data(filename)
+    raw_data = load_json_datax(filename)
 
     for data in raw_data:
         langs = sorted([k for k in data.keys() if data[k].strip() != ""])
@@ -434,8 +442,8 @@ def combine_jsons(filelist):
 
 if __name__ == "__main__":
     # dump_to_stdout(filename="data/train.json", lang_or_lp="fi")
-    # dump_to_stdout()
-    multi_moses_to_json(sys.argv[1], sys.argv[2], group_tuples(sys.argv[3:]))
+    dump_to_stdout()
+    # multi_moses_to_json(sys.argv[1], sys.argv[2], group_tuples(sys.argv[3:]))
 
     # combine_jsons(sys.argv[1:])
 
