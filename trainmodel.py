@@ -247,8 +247,8 @@ class SwitchingAccelerator:
     def train(self):
         logger = SameLineLogger(self.train_set)
         logger.line_start()
-
-        models_acc = [self.accelerator.prepare(s.model) for s in self.coupling_specs]
+        torch.distributed.init_process_group("nccl", rank=0, world_size=8)
+        models_acc = self.accelerator.prepare(*[torch.nn.parallel.DistributedDataParallel(s.model) for s in self.coupling_specs])
 
         optimizer_acc = self.accelerator.prepare(self.optimizer)
         train_set_acc = self.accelerator.prepare(self.train_set)
@@ -289,15 +289,11 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, tr
     trainer.save_state()
 
 
-def dud():
-    return (CmdlineArgs("models/smoler",
-                       "data/liv_train.json", "data/liv_train.json",
-                       {"liv", "et", "lv", "en"}, None, None, "models/smol-indtmp"),
-            {"batch": 4})
-
-
 def do_main():
-    args, train_kwargs = cmdline_args() if host_remote else dud()
+    if not host_remote:
+        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri"]
+
+    args, train_kwargs = cmdline_args()
 
     log(f"Launched as {args}")
 
@@ -333,9 +329,6 @@ def do_main():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        host_remote = True
-    else:
-        host_remote = False
+    host_remote = len(sys.argv) > 1
 
     do_main()
