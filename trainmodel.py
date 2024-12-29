@@ -154,15 +154,11 @@ def report_devices(accelerator):
 
         # List the actual GPUs being used
         gpu_names = [torch.cuda.get_device_name(i) for i in range(visible_devices)]
-        log("GPUs being used:")
         for i, name in enumerate(gpu_names):
             mem_alloc = torch.cuda.memory_allocated(i) / 1024**2
             mem_res = torch.cuda.memory_reserved(i) / 1024**2
 
-            max_mem_alloc = torch.cuda.max_memory_allocated(i) / 1024**2
-            max_mem_res = torch.cuda.max_memory_reserved(i) / 1024**2
-
-            log(f"  GPU {i}: {name}, alloc: {mem_alloc}/{max_mem_alloc} Mb, reserved: {mem_res}/{max_mem_res} Mb")
+            log(f"  GPU {i}: {name}, alloc: {mem_alloc:.2f} Mb (reserved: {mem_res:.2f} Mb)")
     elif accelerator.device.type == "mps":
         mem_alloc = torch.mps.current_allocated_memory() / 1024**2
         log(f"Device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
