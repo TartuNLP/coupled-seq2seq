@@ -156,9 +156,16 @@ def report_devices(accelerator):
         gpu_names = [torch.cuda.get_device_name(i) for i in range(visible_devices)]
         log("GPUs being used:")
         for i, name in enumerate(gpu_names):
-            log(f"  GPU {i}: {name}")
-    else:
-        log(f"Device being used: {accelerator.device}")
+            mem_alloc = torch.cuda.memory_allocated(i) / 1024**2
+            mem_res = torch.cuda.memory_reserved(i) / 1024**2
+
+            max_mem_alloc = torch.cuda.max_memory_allocated(i) / 1024**2
+            max_mem_res = torch.cuda.max_memory_reserved(i) / 1024**2
+
+            log(f"  GPU {i}: {name}, alloc: {mem_alloc}/{max_mem_alloc} Mb, reserved: {mem_res}/{max_mem_res} Mb")
+    elif accelerator.device.type == "mps":
+        mem_alloc = torch.mps.current_allocated_memory() / 1024**2
+        log(f"Device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
 
 
 class SwitchingAccelerator:
@@ -201,6 +208,8 @@ class SwitchingAccelerator:
         return enc(**inputs_without_labels)
 
     def _main_loop(self, logger, models, optimizer, train_set):
+        report_devices(self.accelerator)
+
         for m in models:
             m.train()
 
@@ -225,6 +234,7 @@ class SwitchingAccelerator:
             avg_loss = sum(avg_loss_vals)/len(avg_loss_vals)
 
             self._step_and_perhaps_save(logger, i, avg_loss, models[0])
+            report_devices(self.accelerator)
 
     def _step_and_perhaps_save(self, logger, i, loss, model):
         logger.step(i, loss)
@@ -247,8 +257,10 @@ class SwitchingAccelerator:
     def train(self):
         logger = SameLineLogger(self.train_set)
         logger.line_start()
-        torch.distributed.init_process_group("nccl", rank=0, world_size=8)
-        models_acc = self.accelerator.prepare(*[torch.nn.parallel.DistributedDataParallel(s.model) for s in self.coupling_specs])
+
+        # torch.distributed.init_process_group("nccl", rank=0, world_size=8)
+        # models_acc = self.accelerator.prepare(*[torch.nn.parallel.DistributedDataParallel(s.model) for s in self.coupling_specs])
+        models_acc = [self.accelerator.prepare(s.model) for s in self.coupling_specs]
 
         optimizer_acc = self.accelerator.prepare(self.optimizer)
         train_set_acc = self.accelerator.prepare(self.train_set)
