@@ -146,7 +146,7 @@ class SameLineLogger:
         sys.stderr.write("\n")
 
 
-def report_devices(accelerator):
+def report_devices(accelerator = None):
     if torch.cuda.is_available():
         # Get the visible devices from CUDA
         visible_devices = torch.cuda.device_count()
@@ -165,9 +165,11 @@ def report_devices(accelerator):
             #log(f"  GPU {i}: {name}, alloc: {mem_alloc:.2f} Mb (reserved: {mem_res:.2f} Mb)")
 
         log(msg)
-    elif accelerator.device.type == "mps":
+    elif accelerator is not None and accelerator.device.type == "mps":
         mem_alloc = torch.mps.current_allocated_memory() / 1024**2
         log(f"Device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
+    else:
+        log(f"No acceleration")
 
 
 class SwitchingAccelerator:
@@ -335,6 +337,7 @@ def do_main():
                                             tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
 
     if 'skip_training' not in train_kwargs:
+        report_devices()
         acc_trainer = SwitchingAccelerator(coupled_model, coupling_specs, train_set, args.save_location, train_kwargs)
 
         acc_trainer.train()
