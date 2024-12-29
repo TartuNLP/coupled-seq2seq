@@ -56,7 +56,8 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
         tok_id = mdl_id
 
     tokenizer = AutoTokenizer.from_pretrained(tok_id, token=hf_tok)
-    model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, device_map="auto")
+    model_raw = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, device_map="auto")
+    model = torch.nn.DataParallel(model_raw)
 
     if verbose:
         mdl_size, _ = mdl_param_count(model)
@@ -219,7 +220,9 @@ class SwitchingAccelerator:
 
         for i, batch_with_idxs in enumerate(train_set):
             batch, src_k, tgt_k = batch_with_idxs
-            inputs = batch.to(self.accelerator.device)
+
+            #inputs = self.accelerator.prepare(batch)
+            inputs = self.accelerator.prepare(batch)
 
             encoder_vecs = self._encode(models[src_k], inputs)
 
@@ -262,9 +265,8 @@ class SwitchingAccelerator:
         logger = SameLineLogger(self.train_set)
         logger.line_start()
 
-        # torch.distributed.init_process_group("nccl", rank=0, world_size=8)
-        # models_acc = self.accelerator.prepare(*[torch.nn.parallel.DistributedDataParallel(s.model) for s in self.coupling_specs])
-        models_acc = [self.accelerator.prepare(s.model) for s in self.coupling_specs]
+        models_acc = self.accelerator.prepare([s.model for s in self.coupling_specs])
+        # models_acc = [self.accelerator.prepare(s.model) for s in self.coupling_specs]
 
         optimizer_acc = self.accelerator.prepare(self.optimizer)
         train_set_acc = self.accelerator.prepare(self.train_set)
