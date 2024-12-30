@@ -220,7 +220,8 @@ class SwitchingAccelerator:
             batch, src_k, tgt_k = batch_with_idxs
 
             # inputs = self.accelerator.prepare(batch)
-            inputs = self.accelerator.prepare(batch)
+            inputs = self.accelerator.prepare(torch.nn.DataParallel(batch))
+            inputs = inputs.to(self.accelerator.device)
 
             encoder_vecs = self._encode(models[src_k], inputs)
 
