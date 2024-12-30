@@ -2,6 +2,7 @@ import sys
 import types
 import pdb
 import os
+import torch
 import json
 
 from collections import namedtuple
@@ -11,8 +12,10 @@ from torch import reshape
 from aux import debug
 from langconv import is_nllb, is_madlad
 
-CouplingSpecTuple = namedtuple("CouplingSpecPair",
-                               ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer", "model_id", "model"])
+#CouplingSpecTuple = namedtuple("CouplingSpecPair",
+#                               ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer", "model_id", "model"])
+
+CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "model_id", "model"])
 
 MODULE_CONFIG_FILE = "coupled_module_config.json"
 
@@ -120,6 +123,7 @@ def save_module_config(model_dir, coupling_specs):
 
 
 def to_cpl_spec(langs, model, tokenizer, location):
+    """
     if is_nllb(model):
         enc = model.model.encoder
         dec = model.model.decoder
@@ -128,8 +132,9 @@ def to_cpl_spec(langs, model, tokenizer, location):
         dec = model.base_model.decoder
     else:
         raise NotImplementedError(f"Model {model} is not supported yet.")
+    """
 
-    return [CouplingSpecTuple(langs, model.config.vocab_size, enc, dec, model.lm_head, tokenizer, location, model)]
+    return [CouplingSpecTuple(langs, tokenizer, location, torch.nn.DataParallel(model))]
 
 
 def load_module_config(model_dir):

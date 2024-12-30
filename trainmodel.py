@@ -56,8 +56,7 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
         tok_id = mdl_id
 
     tokenizer = AutoTokenizer.from_pretrained(tok_id, token=hf_tok)
-    model_raw = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, device_map="auto")
-    model = torch.nn.DataParallel(model_raw)
+    model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, device_map="auto")
 
     if verbose:
         mdl_size, _ = mdl_param_count(model)
@@ -93,7 +92,6 @@ def cmdline_args():
 
         if "bigmix" in train_data_file:
             mdl_name_suff += "-big"
-
 
         result = CmdlineArgs(coupled_mdl_id, train_data_file, None, coupled_langs, anchor_mdl_id, anchor_langs,
                              coupled_mdl_id + mdl_name_suff)
@@ -183,9 +181,9 @@ class SwitchingAccelerator:
 
         return namedtuple("kwargs", kw_names)(*[kw_with_dv[k] for k in kw_names])
 
-    def __init__(self, model, coupling_specs, train_set, save_location, train_kwargs):
-        self.model_to_train = model
+    def __init__(self, coupling_specs, train_set, save_location, train_kwargs):
         self.coupling_specs = coupling_specs
+
         self.train_set = train_set
         self.save_location = save_location
         self.kwargs = self.read_kwargs(train_kwargs)
@@ -196,17 +194,17 @@ class SwitchingAccelerator:
 
         report_devices(self.accelerator)
 
-        self.optimizer = torch.optim.AdamW(model.parameters(), lr=self.kwargs.lr)
+        self.optimizer = torch.optim.AdamW(coupling_specs[0].model.parameters(), lr=self.kwargs.lr)
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
                                           num_training_steps=len(train_set))
 
     def _encode(self, model, inputs):
-        if is_nllb(model):
-            enc = model.model.encoder
-        elif is_madlad(model):
-            enc = model.base_model.encoder
+        if is_nllb(model.module):
+            enc = model.module.model.encoder
+        elif is_madlad(model.module):
+            enc = model.module.base_model.encoder
         else:
-            raise NotImplementedError(f"Model {model} is not supported yet.")
+            raise NotImplementedError(f"Model {model.module} is not supported yet.")
 
         inputs_without_labels = { k: inputs[k] for k in inputs if k != "labels" }
 
@@ -221,7 +219,7 @@ class SwitchingAccelerator:
         for i, batch_with_idxs in enumerate(train_set):
             batch, src_k, tgt_k = batch_with_idxs
 
-            #inputs = self.accelerator.prepare(batch)
+            # inputs = self.accelerator.prepare(batch)
             inputs = self.accelerator.prepare(batch)
 
             encoder_vecs = self._encode(models[src_k], inputs)
@@ -340,7 +338,7 @@ def do_main():
 
     if 'skip_training' not in train_kwargs:
         report_devices()
-        acc_trainer = SwitchingAccelerator(coupled_model, coupling_specs, train_set, args.save_location, train_kwargs)
+        acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, train_kwargs)
 
         acc_trainer.train()
 

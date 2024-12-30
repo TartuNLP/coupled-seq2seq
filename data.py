@@ -40,10 +40,6 @@ def do_bins_in_shuffled_batches(bins, batch_size):
     return result_list
 
 
-#def _tmp_repl(lang):
-#    return 'fi' if lang == 'liv' else lang
-
-
 def _post_proc(text, lang):
     if lang == 'liv' and "’" in text and "O’R" not in text:
         return text.replace("’", "")
