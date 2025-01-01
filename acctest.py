@@ -5,7 +5,7 @@ import os
 import torch
 
 from datetime import datetime
-from accelerate import Accelerator
+from accelerate import Accelerator, DataLoaderConfiguration
 from trainmodel import report_devices
 
 
@@ -19,7 +19,8 @@ def main():
 
     report_devices()
 
-    acc = Accelerator()
+    acc = Accelerator(mixed_precision="bf16", gradient_accumulation_steps=1, cpu=False,
+                      dataloader_config=DataLoaderConfiguration(split_batches=True, dispatch_batches=True))
 
     log(acc.state)
 
