@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 
 import sys
-import os
 import torch
 
 from datetime import datetime
 from accelerate import Accelerator, DataLoaderConfiguration
-from trainmodel import report_devices
 
 
 def log(msg):
@@ -17,12 +15,12 @@ def log(msg):
 def main():
     log(f"Cuda available: {torch.cuda.is_available()}")
 
-    report_devices()
+    log(f"Nr. of Cuda devices: {torch.cuda.device_count()}")
 
-    acc = Accelerator(mixed_precision="bf16", gradient_accumulation_steps=1, cpu=False,
-                      dataloader_config=DataLoaderConfiguration(split_batches=True, dispatch_batches=True))
+    acc = Accelerator()
+    #acc = Accelerator(mixed_precision="bf16", gradient_accumulation_steps=1, cpu=False, dataloader_config=DataLoaderConfiguration(split_batches=True, dispatch_batches=True))
 
-    log(acc.state)
+    log(f"Accelerator state: {str(acc.state)}")
 
 
 if __name__ == '__main__':
