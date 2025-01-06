@@ -10,7 +10,7 @@ from collections import namedtuple, defaultdict
 from random import randrange, shuffle
 
 from aux import log, smugri_back, maybe_smugri
-from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
+from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 #DataEntry = namedtuple('DataEntry', ["tr_pair", "prepared", "src_bin_idx", "tgt_bin_idx"])
@@ -70,7 +70,7 @@ def load_json_datax(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
         return res
 
 
-def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
+def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, model_type=None):
     if filename is not None:
         raw_data = load_json_datax(filename)
 
@@ -94,7 +94,10 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None):
                             if dia_key in tup:
                                 input = f"<{tup[dia_key]}> {input}"
 
-                            yield TrPair(l1, l2, input, tup[l2])
+                            conv_l1 = any_to_mdl_type(model_type, l2)
+                            conv_l2 = any_to_mdl_type(model_type, l1)
+
+                            yield TrPair(conv_l1, conv_l2, input, tup[l2])
 
 
 def split_by_lang(tr_pairs=None, filename=None):
@@ -121,11 +124,14 @@ def data_iter_for_tok_train(raw_data, langs_to_include):
 
 
 def lang_bin_mapping(coupling_specs):
-    lang_to_idx = defaultdict(set)
+    lang_to_idx = dict()
 
     for i, spec_pair in enumerate(coupling_specs):
         for lang in spec_pair.lang_set:
-            lang_to_idx[lang].add(i)
+            if lang not in lang_to_idx:
+                lang_to_idx[lang] = {i}
+            else:
+                lang_to_idx[lang].add(i)
 
     return lang_to_idx
 
@@ -171,7 +177,7 @@ class MultilingualBatchingDataset(IterableDataset):
     def _fill_bins(self, filename):
         bins = defaultdict(lambda: defaultdict(list))
 
-        for tr_pair in get_tr_pairs(filename=filename):
+        for tr_pair in get_tr_pairs(filename=filename, model_type=self.model_type):
             src_bin_idx, tgt_bin_idx = self._get_idxs(tr_pair)
 
             if src_bin_idx is not None and tgt_bin_idx is not None:
@@ -202,6 +208,7 @@ class MultilingualBatchingDataset(IterableDataset):
 
                 if src_k == 1 and tgt_k == 1:
                     duds += 1
+        log(str(self._lang_to_idx))
 
         log(f"### Ratio of coupled model updates: {100 * updates / total:.2f}% ({100 * updates / totalx:.2f}%); " + \
             f"frozen meaningless updates: {100 * duds / total:.2f}%; " + \
@@ -314,12 +321,26 @@ class MultilingualBatchingDataset(IterableDataset):
             self._prepare_new_data(filename)
             self._save_cache(filename)
 
+    def set_model_type(self):
+        result = None
+
+        for spec_tuple in self.coupling_specs:
+            this_type = get_mdl_type(spec_tuple.model)
+            if result is None:
+                result = this_type
+            else:
+                assert result == this_type
+
+        return result
+
+
     def __init__(self, tr_file, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256,
                  max_tgt_len=256, verbose=False, leave_only=None):
         self.msg = tracing_msg
         self.batch_size = batch_size
 
         self.coupling_specs = coupling_specs
+        self.model_type = self.set_model_type()
 
         # init lang to idx
         self._lang_to_idx = lang_bin_mapping(coupling_specs)
