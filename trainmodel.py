@@ -11,10 +11,9 @@ from datetime import datetime
 
 from translate import hf_tok
 from data import MultilingualBatchingDataset, make_path_compatible
-from aux import log, maybe_smugri, to_kwargs, get_changed_config, same_line_log
+from aux import log, maybe_smugri, to_kwargs, SameLineLogger
 from collections import namedtuple
-from vivisect import vivisect_save_chkpt, vivisect_train_step, vivisect_eval_step, \
-    to_cpl_spec, save_all_models, switch_modules
+from vivisect import to_cpl_spec, save_all_models
 from langconv import is_nllb, is_madlad
 from initmodel import mdl_param_count
 
@@ -28,7 +27,7 @@ def freeze_model(model):
         p.requires_grad = False
 
 
-def train_args(name, batch_size, **kw):
+"""def train_args(name, batch_size, **kw):
     prelim_result = Seq2SeqTrainingArguments(
         name,
         eval_strategy="steps",
@@ -49,6 +48,7 @@ def train_args(name, batch_size, **kw):
     result = get_changed_config(prelim_result, ["skip_training", "batch"], **kw)
 
     return result
+    """
 
 
 def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
@@ -56,7 +56,7 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
         tok_id = mdl_id
 
     tokenizer = AutoTokenizer.from_pretrained(tok_id, token=hf_tok)
-    model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, device_map="auto")
+    model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok)
 
     if verbose:
         mdl_size, _ = mdl_param_count(model)
@@ -117,35 +117,7 @@ def get_lps_from_specs(coupling_specs):
                 yield f"{src_lang}-{tgt_lang}"
 
 
-class SameLineLogger:
-    def __init__(self, train_set):
-        self.total = len(train_set)
-        self.log_after = []
-        self.log_len = 0
-
-        self.start_time = datetime.now()
-
-    def line_start(self):
-        same_line_log(str(datetime.now()) + ": training batches ")
-
-    def step(self, i, loss):
-        passed_time = datetime.now() - self.start_time
-
-        time_per_batch = passed_time / (i + 1)
-
-        prediction = time_per_batch * (self.total - i - 1)
-
-        msg = f"{i + 1} / {self.total}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
-
-        new_len = same_line_log(msg, self.log_len)
-
-        self.log_len = new_len
-
-    def line_break(self):
-        sys.stderr.write("\n")
-
-
-def report_devices(accelerator = None):
+def report_devices(accelerator = None, mdl = None):
     if torch.cuda.is_available():
         # Get the visible devices from CUDA
         visible_devices = torch.cuda.device_count()
@@ -169,6 +141,9 @@ def report_devices(accelerator = None):
         log(f"Device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
     else:
         log(f"No acceleration")
+
+    if mdl is not None:
+        log(f"Model device: {mdl.device}")
 
 
 class SwitchingAccelerator:
@@ -199,22 +174,23 @@ class SwitchingAccelerator:
                                           num_training_steps=len(train_set))
 
     def _encode(self, model, inputs):
-        if is_nllb(model.module):
-            enc = model.module.model.encoder
-        elif is_madlad(model.module):
-            enc = model.module.base_model.encoder
+        if is_nllb(model):
+            enc = model.model.encoder
+        elif is_madlad(model):
+            enc = model.base_model.encoder
         else:
-            raise NotImplementedError(f"Model {model.module} is not supported yet.")
+            raise NotImplementedError(f"Model {model} is not supported yet.")
 
         inputs_without_labels = { k: inputs[k] for k in inputs if k != "labels" }
 
         return enc(**inputs_without_labels)
 
     def _main_loop(self, logger, models, optimizer, train_set):
-        report_devices(self.accelerator)
+        #for m in models:
+        #    m.train()
+        models[0].train()
 
-        for m in models:
-            m.train()
+        report_devices(self.accelerator, models[0])
 
         for i, batch_with_idxs in enumerate(train_set):
             batch, src_k, tgt_k = batch_with_idxs
@@ -239,7 +215,8 @@ class SwitchingAccelerator:
             avg_loss = sum(avg_loss_vals)/len(avg_loss_vals)
 
             self._step_and_perhaps_save(logger, i, avg_loss, models[0])
-            report_devices(self.accelerator)
+            # report_devices(self.accelerator)
+            log(f"Indices: {src_k} / {tgt_k}")
 
     def _step_and_perhaps_save(self, logger, i, loss, model):
         logger.step(i, loss)
@@ -263,7 +240,7 @@ class SwitchingAccelerator:
         logger = SameLineLogger(self.train_set)
         logger.line_start()
 
-        models_acc = self.accelerator.prepare([s.model for s in self.coupling_specs])
+        models_acc = self.accelerator.prepare([s.model.to(self.accelerator.device) for s in self.coupling_specs])
         # models_acc = [self.accelerator.prepare(s.model) for s in self.coupling_specs]
 
         optimizer_acc = self.accelerator.prepare(self.optimizer)
@@ -277,7 +254,7 @@ class SwitchingAccelerator:
         self.accelerator.wait_for_everyone()
         self.accelerator.end_training()
 
-def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
+"""def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
     args = train_args(model_name, batch_size=batch_size, **train_kwargs)
 
     trainer = Seq2SeqTrainer(
@@ -302,12 +279,12 @@ def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, tr
 
     log("Finished training, saving models")
 
-    trainer.save_state()
+    trainer.save_state()"""
 
 
 def do_main():
     if not host_remote:
-        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri"]
+        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "facebook/nllb-200-distilled-600m", "smugri-high"]
 
     args, train_kwargs = cmdline_args()
 
