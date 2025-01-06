@@ -91,3 +91,32 @@ def get_changed_config(conf, extra_keys=[], **kw):
             raise KeyError(f'key "{kwarg}" is not in model config')
 
     return conf
+
+
+class SameLineLogger:
+    def __init__(self, train_set):
+        self.total = len(train_set)
+        self.log_after = []
+        self.log_len = 0
+
+        self.start_time = datetime.now()
+
+    def line_start(self):
+        same_line_log(str(datetime.now()) + ": training batches ")
+
+    def step(self, i, loss):
+        passed_time = datetime.now() - self.start_time
+
+        time_per_batch = passed_time / (i + 1)
+
+        prediction = time_per_batch * (self.total - i - 1)
+
+        msg = f"{i + 1} / {self.total}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
+
+        new_len = same_line_log(msg, self.log_len)
+
+        self.log_len = new_len
+
+    def line_break(self):
+        sys.stderr.write("\n")
+
