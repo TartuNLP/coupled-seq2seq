@@ -1,19 +1,10 @@
-import sys
-import types
-import pdb
 import os
-import torch
 import json
 
 from collections import namedtuple
 
-from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
-from torch import reshape
 from aux import debug
-from langconv import is_nllb, is_madlad
-
-#CouplingSpecTuple = namedtuple("CouplingSpecPair",
-#                               ["lang_set", "voc_size", "encoder", "decoder", "lm_head", "tokenizer", "model_id", "model"])
+from langconv import is_nllb, is_madlad, langs_to_mdl_type, get_mdl_type
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "model_id", "model"])
 
@@ -46,15 +37,7 @@ def switch_modules(tgt_mdl, coupling_spec, input_index, output_index):
         tgt_mdl.config.vocab_size = coupling_spec[output_index].voc_size
 
 
-def extract_index_from_tensor(tensor):
-    if tensor[0,0] >= 1e9:
-        tensor[0,0] -= 1 << 30
-        return 1, tensor
-    else:
-        return 0, tensor
-
-
-def switch_modules_according_to_input(model, coupling_spec, inputs):
+"""def switch_modules_according_to_input(model, coupling_spec, inputs):
     input_index, new_input_ids = extract_index_from_tensor(inputs['input_ids'])
     output_index, new_labels = extract_index_from_tensor(inputs['labels'])
 
@@ -66,9 +49,9 @@ def switch_modules_according_to_input(model, coupling_spec, inputs):
     inputs['labels'] = new_labels
 
     return inputs
+"""
 
-
-def vivisect_eval_step(trainer_obj, coupling_spec):
+"""def vivisect_eval_step(trainer_obj, coupling_spec):
     old_func = trainer_obj.prediction_step
 
     def new_prediction_step(self, model, inputs, prediction_loss_only, ignore_keys):
@@ -88,13 +71,13 @@ def vivisect_train_step(trainer_obj, coupling_spec):
         return old_func(model, upd_inputs, num_items_in_batch)
 
     trainer_obj.training_step = types.MethodType(new_training_step, trainer_obj)
+"""
 
-
-def restore_base_model(model, cpl_specs):
+"""def restore_base_model(model, cpl_specs):
     switch_modules(model, cpl_specs, 0, 0)
+"""
 
-
-def vivisect_save_chkpt(trainer_obj, cpl_specs, tokenizer):
+"""def vivisect_save_chkpt(trainer_obj, cpl_specs, tokenizer):
     old_func = trainer_obj._save_checkpoint
 
     def new_func(self, model, trial, metrics=None):
@@ -112,7 +95,7 @@ def vivisect_save_chkpt(trainer_obj, cpl_specs, tokenizer):
         save_module_config(output_dir, cpl_specs)
 
     trainer_obj._save_checkpoint = types.MethodType(new_func, trainer_obj)
-
+"""
 
 def save_module_config(model_dir, coupling_specs):
     config = [{'lang_set': list(spec.lang_set), 'model_id': spec.model_id if i > 0 else model_dir} for i, spec in enumerate(coupling_specs)]
@@ -123,18 +106,10 @@ def save_module_config(model_dir, coupling_specs):
 
 
 def to_cpl_spec(langs, model, tokenizer, location):
-    """
-    if is_nllb(model):
-        enc = model.model.encoder
-        dec = model.model.decoder
-    elif is_madlad(model):
-        enc = model.base_model.encoder
-        dec = model.base_model.decoder
-    else:
-        raise NotImplementedError(f"Model {model} is not supported yet.")
-    """
+    mdl_type = get_mdl_type(model)
+    cpl_langs = langs_to_mdl_type(mdl_type, langs)
 
-    return [CouplingSpecTuple(langs, tokenizer, location, torch.nn.DataParallel(model))]
+    return [CouplingSpecTuple(cpl_langs, tokenizer, location, model)]
 
 
 def load_module_config(model_dir):
@@ -148,8 +123,6 @@ def load_module_config(model_dir):
 
 
 def save_all_models(location, model, tokenizer, cpl_specs):
-    restore_base_model(model, cpl_specs)
-
     model.save_pretrained(location)
     tokenizer.save_pretrained(location)
     save_module_config(location, cpl_specs)
