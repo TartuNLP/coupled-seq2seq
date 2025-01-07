@@ -13,7 +13,7 @@ hf_tok = "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"
 host_remote = True
 
 
-def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None):
+def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None, device=None):
     if is_nllb(tokenizer):
         tokenizer.src_lang = input_language
         inputs_to_process = provided_inputs
@@ -25,8 +25,8 @@ def prepare_for_translation(provided_inputs, tokenizer, input_language, output_l
 
     prepared_inputs = tokenizer(inputs_to_process, return_tensors="pt", padding=True, truncation=True, max_length=512)
 
-    if host_remote:
-        prepared_inputs.to("cuda:0")
+    if host_remote and device is not None:
+        prepared_inputs.to(device)
 
     frc_bos = tokenizer.get_lang_id(output_language) if output_language is not None else None
 
@@ -73,7 +73,7 @@ def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts):
     this = coupling_specs[lang_to_bin[conv_input_lang]]
 
     # 0. input text --> input token IDs
-    these_inputs, _ = prepare_for_translation(input_texts, this.tokenizer, conv_input_lang)
+    these_inputs, _ = prepare_for_translation(input_texts, this.tokenizer, conv_input_lang, device=this.model.device)
 
     # 1. input token IDs --> encoder vectors
     #embeddings = this.model.model.encoder(**these_inputs)
