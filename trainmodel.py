@@ -216,7 +216,7 @@ class SwitchingAccelerator:
 
             self._step_and_perhaps_save(logger, i, avg_loss, models[0])
             # report_devices(self.accelerator)
-            log(f"Indices: {src_k} / {tgt_k}")
+            # log(f"Indices: {src_k} / {tgt_k}")
 
     def _step_and_perhaps_save(self, logger, i, loss, model):
         logger.step(i, loss)
