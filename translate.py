@@ -4,7 +4,7 @@ import sys
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from data import do_list_in_batches, lang_bin_mapping
-from vivisect import load_module_config, to_cpl_spec, switch_modules
+from vivisect import load_module_config, to_cpl_spec
 from collections import defaultdict
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
 
@@ -52,6 +52,19 @@ def loadmodel(mdlname="facebook/m2m100_418M"):
     return model
 
 
+def encode(model, input_batch):
+    if is_nllb(model):
+        enc = model.model.encoder
+    elif is_madlad(model):
+        enc = model.base_model.encoder
+    else:
+        raise NotImplementedError(f"Model {model} is not supported yet.")
+
+    inputs_without_labels = { k: input_batch[k] for k in input_batch if k != "labels" }
+
+    return enc(**inputs_without_labels)
+
+
 def coupled_encode(coupling_specs, lang_to_bin, input_language, input_texts):
     this = coupling_specs[lang_to_bin[input_language]]
 
@@ -59,21 +72,18 @@ def coupled_encode(coupling_specs, lang_to_bin, input_language, input_texts):
     these_inputs, _ = prepare_for_translation(input_texts, this.tokenizer, input_language)
 
     # 1. input token IDs --> encoder vectors
-    embeddings = this.encoder(**these_inputs)
-
-    return embeddings
+    #embeddings = this.model.model.encoder(**these_inputs)
+    return encode(this.model, these_inputs)
 
 
 def coupled_generate(model, coupling_specs, lang_to_bin, output_language, encoder_embeddings):
     dec_idx = lang_to_bin[output_language]
 
-    switch_modules(model, coupling_specs, None, dec_idx)
-
     tokenizer = coupling_specs[dec_idx].tokenizer
 
     # 2. encoder vectors --> output token IDs
     frc_bos = tokenizer.convert_tokens_to_ids(output_language)
-    raw_outputs = model.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings)
+    raw_outputs = coupling_specs[dec_idx].model.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings)
 
     # 3. output token IDs --> output text
     result = finalize_translation(raw_outputs, tokenizer, output_language)
@@ -153,3 +163,4 @@ if __name__ == "__main__":
     outputs = coupled_translate(main_model, module_config, inputs, from_lang, to_lang)
 
     print("\n".join(outputs))
+

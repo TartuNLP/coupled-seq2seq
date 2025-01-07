@@ -5,16 +5,13 @@ import os
 import torch
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, get_scheduler
-from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 from accelerate import Accelerator
-from datetime import datetime
 
-from translate import hf_tok
+from translate import hf_tok, encode
 from data import MultilingualBatchingDataset, make_path_compatible
 from aux import log, maybe_smugri, to_kwargs, SameLineLogger
 from collections import namedtuple
 from vivisect import to_cpl_spec, save_all_models
-from langconv import is_nllb, is_madlad
 from initmodel import mdl_param_count
 
 CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
@@ -173,18 +170,6 @@ class SwitchingAccelerator:
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
                                           num_training_steps=len(train_set))
 
-    def _encode(self, model, inputs):
-        if is_nllb(model):
-            enc = model.model.encoder
-        elif is_madlad(model):
-            enc = model.base_model.encoder
-        else:
-            raise NotImplementedError(f"Model {model} is not supported yet.")
-
-        inputs_without_labels = { k: inputs[k] for k in inputs if k != "labels" }
-
-        return enc(**inputs_without_labels)
-
     def _main_loop(self, logger, models, optimizer, train_set):
         #for m in models:
         #    m.train()
@@ -198,7 +183,7 @@ class SwitchingAccelerator:
             # inputs = self.accelerator.prepare(batch)
             inputs = batch.to(self.accelerator.device)
 
-            encoder_vecs = self._encode(models[src_k], inputs)
+            encoder_vecs = encode(models[src_k], inputs)
 
             outputs = models[tgt_k](**inputs, encoder_outputs=encoder_vecs)
             loss = outputs.loss
