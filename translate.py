@@ -6,7 +6,7 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from data import do_list_in_batches, lang_bin_mapping
 from coupling import load_module_config, to_cpl_spec
 from collections import defaultdict
-from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
+from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type
 
 hf_tok = "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"
 
@@ -15,10 +15,10 @@ host_remote = True
 
 def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None):
     if is_nllb(tokenizer):
-        tokenizer.src_lang = any_to_nllb(input_language)
+        tokenizer.src_lang = input_language
         inputs_to_process = provided_inputs
     elif is_madlad(tokenizer):
-        madlad_tgt_lang = any_to_madlad(output_language)
+        madlad_tgt_lang = output_language
         inputs_to_process = [f"{madlad_tgt_lang} {inp}" for inp in provided_inputs]
     else:
         raise NotImplementedError("Model type not supported")
@@ -65,28 +65,35 @@ def encode(model, input_batch):
     return enc(**inputs_without_labels)
 
 
-def coupled_encode(coupling_specs, lang_to_bin, input_language, input_texts):
-    this = coupling_specs[lang_to_bin[input_language]]
+def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts):
+
+    mdl_type = get_mdl_type(coupling_specs[0].model)
+    conv_input_lang = any_to_mdl_type(mdl_type, input_lang)
+
+    this = coupling_specs[lang_to_bin[conv_input_lang]]
 
     # 0. input text --> input token IDs
-    these_inputs, _ = prepare_for_translation(input_texts, this.tokenizer, input_language)
+    these_inputs, _ = prepare_for_translation(input_texts, this.tokenizer, conv_input_lang)
 
     # 1. input token IDs --> encoder vectors
     #embeddings = this.model.model.encoder(**these_inputs)
     return encode(this.model, these_inputs)
 
 
-def coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings):
-    dec_idx = lang_to_bin[output_language]
+def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embeddings):
+    mdl_type = get_mdl_type(coupling_specs[0].model)
+    conv_output_lang = any_to_mdl_type(mdl_type, output_lang)
+
+    dec_idx = lang_to_bin[conv_output_lang]
 
     tokenizer = coupling_specs[dec_idx].tokenizer
 
     # 2. encoder vectors --> output token IDs
-    frc_bos = tokenizer.convert_tokens_to_ids(output_language)
+    frc_bos = tokenizer.convert_tokens_to_ids(conv_output_lang)
     raw_outputs = coupling_specs[dec_idx].model.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings)
 
     # 3. output token IDs --> output text
-    result = finalize_translation(raw_outputs, tokenizer, output_language)
+    result = finalize_translation(raw_outputs, tokenizer, conv_output_lang)
 
     return result
 
