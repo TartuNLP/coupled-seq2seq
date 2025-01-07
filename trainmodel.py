@@ -11,7 +11,7 @@ from translate import hf_tok, encode
 from data import MultilingualBatchingDataset, make_path_compatible
 from aux import log, maybe_smugri, to_kwargs, SameLineLogger
 from collections import namedtuple
-from vivisect import to_cpl_spec, save_all_models
+from coupling import to_cpl_spec, save_all_models
 from initmodel import mdl_param_count
 
 CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())

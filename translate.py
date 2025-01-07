@@ -4,7 +4,7 @@ import sys
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from data import do_list_in_batches, lang_bin_mapping
-from vivisect import load_module_config, to_cpl_spec
+from coupling import load_module_config, to_cpl_spec
 from collections import defaultdict
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad
 

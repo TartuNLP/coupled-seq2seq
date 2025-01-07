@@ -3,14 +3,13 @@ import json
 
 from collections import namedtuple
 
-from aux import debug
 from langconv import is_nllb, is_madlad, langs_to_mdl_type, get_mdl_type
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "model_id", "model"])
 
 MODULE_CONFIG_FILE = "coupled_module_config.json"
 
-
+"""
 def switch_modules(tgt_mdl, coupling_spec, input_index, output_index):
     debug(f"Switching modules to {input_index} / {output_index}")
 
@@ -35,7 +34,7 @@ def switch_modules(tgt_mdl, coupling_spec, input_index, output_index):
 
         tgt_mdl.lm_head = coupling_spec[output_index].lm_head
         tgt_mdl.config.vocab_size = coupling_spec[output_index].voc_size
-
+"""
 
 """def switch_modules_according_to_input(model, coupling_spec, inputs):
     input_index, new_input_ids = extract_index_from_tensor(inputs['input_ids'])
