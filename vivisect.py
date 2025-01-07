@@ -122,7 +122,17 @@ def load_module_config(model_dir):
     #    return [{"model_id": model_dir, "lang_set": {}}]
 
 
-def save_all_models(location, model, tokenizer, cpl_specs):
+def save_loss_list(location, loss_list):
+    if loss_list is not None:
+        with open(os.path.join(location, "loss_list.json"), "w") as f:
+            json.dump(loss_list, f, indent=2, sort_keys=True)
+            f.write("\n")
+    else:
+        raise Exception("No loss list to save")
+
+def save_all_models(location, model, tokenizer, cpl_specs, loss_list=None):
     model.save_pretrained(location)
     tokenizer.save_pretrained(location)
     save_module_config(location, cpl_specs)
+
+    save_loss_list(location, loss_list)

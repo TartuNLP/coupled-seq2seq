@@ -232,7 +232,7 @@ class SwitchingAccelerator:
                     raise FileExistsError("Cannot overwrite existing checkpoint")
 
                 model_to_save = self.accelerator.unwrap_model(model)
-                save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer, self.coupling_specs)
+                save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer, self.coupling_specs, loss_list=self.train_loss_list)
 
             logger.line_start()
 
@@ -253,6 +253,8 @@ class SwitchingAccelerator:
         logger.line_break()
         self.accelerator.wait_for_everyone()
         self.accelerator.end_training()
+
+        return self.train_loss_list
 
 """def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
     args = train_args(model_name, batch_size=batch_size, **train_kwargs)
@@ -317,9 +319,9 @@ def do_main():
         report_devices()
         acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, train_kwargs)
 
-        acc_trainer.train()
+        loss_list = acc_trainer.train()
 
-        save_all_models(args.save_location, coupled_model, coupled_tokenizer, coupling_specs)
+        save_all_models(args.save_location, coupled_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
 
 
 if __name__ == "__main__":
