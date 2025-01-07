@@ -76,7 +76,7 @@ def coupled_encode(coupling_specs, lang_to_bin, input_language, input_texts):
     return encode(this.model, these_inputs)
 
 
-def coupled_generate(model, coupling_specs, lang_to_bin, output_language, encoder_embeddings):
+def coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings):
     dec_idx = lang_to_bin[output_language]
 
     tokenizer = coupling_specs[dec_idx].tokenizer
@@ -101,7 +101,7 @@ def make_uniq(lang_to_bin):
     return result
 
 
-def coupled_translate(model, coupling_specs, input_texts, input_language, output_language):
+def coupled_translate(coupling_specs, input_texts, input_language, output_language):
     lang_to_bin = make_uniq(lang_bin_mapping(coupling_specs))
 
     all_outputs = list()
@@ -109,7 +109,7 @@ def coupled_translate(model, coupling_specs, input_texts, input_language, output
     for inp_batch in do_list_in_batches(input_texts, 16):
         encoder_embeddings = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch)
 
-        these_outputs = coupled_generate(model, coupling_specs, lang_to_bin, output_language, encoder_embeddings)
+        these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings)
 
         all_outputs += these_outputs
 
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     else:
         inputs = ["See on ikka tore uudis."]
 
-    outputs = coupled_translate(main_model, module_config, inputs, from_lang, to_lang)
+    outputs = coupled_translate(module_config, inputs, from_lang, to_lang)
 
     print("\n".join(outputs))
 

@@ -42,7 +42,7 @@ def load_or_translate(model, mod_config, input_list, src_lang, tgt_lang, model_l
     try:
         hypos = load_hyps_from_file(cache_filename)
     except FileNotFoundError:
-        hypos = coupled_translate(model, mod_config, input_list, src_lang, tgt_lang)
+        hypos = coupled_translate(mod_config, input_list, src_lang, tgt_lang)
 
         save_hyps_to_file(hypos, cache_filename)
 
