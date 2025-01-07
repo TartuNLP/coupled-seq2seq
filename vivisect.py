@@ -107,7 +107,7 @@ def save_module_config(model_dir, coupling_specs):
 
 def to_cpl_spec(langs, model, tokenizer, location):
     mdl_type = get_mdl_type(model)
-    cpl_langs = langs_to_mdl_type(mdl_type, langs)
+    cpl_langs = set(langs_to_mdl_type(mdl_type, langs))
 
     return [CouplingSpecTuple(cpl_langs, tokenizer, location, model)]
 
