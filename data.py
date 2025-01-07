@@ -283,13 +283,8 @@ class MultilingualBatchingDataset(IterableDataset):
         if not os.path.isdir(dirname):
             os.mkdir(dirname)
 
-        name = dirname + "/batch-" + str(self.batch_size)
-
-        for spec_tuple in self.coupling_specs:
-            lang_set_str = smugri_back(spec_tuple.lang_set)
-
-            #name += f"-{lang_set_str}-{make_path_compatible(spec_tuple.model_id)}"
-            name += f"-{make_path_compatible(spec_tuple.model_id)}"
+        name = (dirname + "/batch-" + str(self.batch_size) + "-" +
+                make_path_compatible(self.coupling_specs[0].model_id))
 
         return name + ".pt"
 
