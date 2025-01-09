@@ -74,13 +74,14 @@ def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts):
 
     # 0. input text --> input token IDs
     these_inputs, _ = prepare_for_translation(input_texts, this.tokenizer, conv_input_lang, device=this.model.device)
+    attention_mask = these_inputs["attention_mask"]
 
     # 1. input token IDs --> encoder vectors
     #embeddings = this.model.model.encoder(**these_inputs)
-    return encode(this.model, these_inputs)
+    return encode(this.model, these_inputs), attention_mask
 
 
-def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embeddings):
+def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embeddings, att_mask):
     mdl_type = get_mdl_type(coupling_specs[0].model)
     conv_output_lang = any_to_mdl_type(mdl_type, output_lang)
 
@@ -90,7 +91,7 @@ def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embedding
 
     # 2. encoder vectors --> output token IDs
     frc_bos = tokenizer.convert_tokens_to_ids(conv_output_lang)
-    raw_outputs = coupling_specs[dec_idx].model.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings)
+    raw_outputs = coupling_specs[dec_idx].model.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings, attention_mask=att_mask)
 
     # 3. output token IDs --> output text
     result = finalize_translation(raw_outputs, tokenizer, conv_output_lang)
@@ -114,9 +115,9 @@ def coupled_translate(coupling_specs, input_texts, input_language, output_langua
     all_outputs = list()
 
     for inp_batch in do_list_in_batches(input_texts, 16):
-        encoder_embeddings = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch)
+        encoder_embeddings, att_mask = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch)
 
-        these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings)
+        these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings, att_mask)
 
         all_outputs += these_outputs
 
@@ -153,7 +154,7 @@ if __name__ == "__main__":
         host_remote = False
 
     if not host_remote:
-        sys.argv = ("X", "models/m2m_orig", "et", "de")
+        sys.argv = ("X", "models/nllb", "et", "en")
 
     mdl_id = sys.argv[1]
 
