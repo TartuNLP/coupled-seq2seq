@@ -132,7 +132,7 @@ def save_loss_list(location, loss_list):
 
 def save_training_state(location, trainer):
     if trainer is not None:
-        trainer.state.save_to_json(os.path.join(location, "trainer_state.json"))
+        trainer.save_state(location)
 
 
 def save_all_models(location, model, tokenizer, cpl_specs, loss_list=None, trainer=None):

@@ -208,7 +208,7 @@ class MultilingualBatchingDataset(IterableDataset):
 
                 if src_k == 1 and tgt_k == 1:
                     duds += 1
-        log(str(self._lang_to_idx))
+        # log(str(self._lang_to_idx))
 
         log(f"### Ratio of coupled model updates: {100 * updates / total:.2f}% ({100 * updates / totalx:.2f}%); " + \
             f"frozen meaningless updates: {100 * duds / total:.2f}%; " + \

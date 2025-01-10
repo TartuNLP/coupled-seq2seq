@@ -164,8 +164,6 @@ class SwitchingAccelerator:
 
         self.accelerator = Accelerator()
 
-        report_devices(self.accelerator)
-
         self.optimizer = torch.optim.AdamW(coupling_specs[0].model.parameters(), lr=self.kwargs.lr)
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
                                           num_training_steps=len(train_set))
@@ -174,8 +172,6 @@ class SwitchingAccelerator:
         #for m in models:
         #    m.train()
         models[0].train()
-
-        report_devices(self.accelerator, models[0])
 
         for i, batch_with_idxs in enumerate(train_set):
             batch, src_k, tgt_k = batch_with_idxs
@@ -200,8 +196,6 @@ class SwitchingAccelerator:
             avg_loss = sum(avg_loss_vals)/len(avg_loss_vals)
 
             self._step_and_perhaps_save(logger, i, avg_loss, models[0])
-            # report_devices(self.accelerator)
-            # log(f"Indices: {src_k} / {tgt_k}")
 
     def _step_and_perhaps_save(self, logger, i, loss, model):
         logger.step(i, loss)
@@ -217,7 +211,7 @@ class SwitchingAccelerator:
                     raise FileExistsError("Cannot overwrite existing checkpoint")
 
                 model_to_save = self.accelerator.unwrap_model(model)
-                save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer, self.coupling_specs, loss_list=self.train_loss_list)
+                save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer, self.coupling_specs, loss_list=self.train_loss_list, trainer=self.accelerator)
 
             logger.line_start()
 
@@ -236,10 +230,12 @@ class SwitchingAccelerator:
         self._main_loop(logger, models_acc, optimizer_acc, train_set_acc)
 
         logger.line_break()
-        self.accelerator.wait_for_everyone()
-        self.accelerator.end_training()
 
-        return self.train_loss_list
+        self.accelerator.wait_for_everyone()
+
+        unwr_coupled_model = self.accelerator.unwrap_model(models_acc[0])
+
+        return unwr_coupled_model, self.train_loss_list
 
 """def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
     args = train_args(model_name, batch_size=batch_size, **train_kwargs)
@@ -304,9 +300,9 @@ def do_main():
         report_devices()
         acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, train_kwargs)
 
-        loss_list = acc_trainer.train()
+        upd_model, loss_list = acc_trainer.train()
 
-        save_all_models(args.save_location, coupled_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
+        save_all_models(args.save_location, upd_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
 
 
 if __name__ == "__main__":
