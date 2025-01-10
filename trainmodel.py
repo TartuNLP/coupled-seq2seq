@@ -180,8 +180,8 @@ class SwitchingAccelerator:
             inputs = batch.to(self.accelerator.device)
 
             encoder_vecs = encode(models[src_k], inputs)
+            outputs = models[tgt_k](attention_mask=inputs['attention_mask'], labels=inputs['labels'], encoder_outputs=encoder_vecs)
 
-            outputs = models[tgt_k](**inputs, encoder_outputs=encoder_vecs)
             loss = outputs.loss
 
             self.train_loss_list.append((loss.item(), src_k, tgt_k))
