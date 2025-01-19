@@ -114,7 +114,7 @@ def coupled_translate(coupling_specs, input_texts, input_language, output_langua
 
     all_outputs = list()
 
-    for inp_batch in do_list_in_batches(input_texts, 16):
+    for inp_batch in do_list_in_batches(input_texts, 64):
         encoder_embeddings, att_mask = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch)
 
         these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings, att_mask)
