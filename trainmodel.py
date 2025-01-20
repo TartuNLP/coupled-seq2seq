@@ -143,6 +143,11 @@ def report_devices(accelerator = None, mdl = None):
         log(f"Model device: {mdl.device}")
 
 
+def chain_params(coupling_specs):
+    for spec in coupling_specs:
+        yield from spec.model.parameters()
+
+
 class SwitchingAccelerator:
     def read_kwargs(self, kwargs):
         type_list = [int, float]
@@ -164,7 +169,7 @@ class SwitchingAccelerator:
 
         self.accelerator = Accelerator()
 
-        self.optimizer = torch.optim.AdamW(coupling_specs[0].model.parameters(), lr=self.kwargs.lr)
+        self.optimizer = torch.optim.AdamW(chain_params(coupling_specs), lr=self.kwargs.lr)
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
                                           num_training_steps=len(train_set))
 
