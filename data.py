@@ -94,8 +94,8 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, 
                             if dia_key in tup:
                                 input = f"<{tup[dia_key]}> {input}"
 
-                            conv_l1 = any_to_mdl_type(model_type, l2)
-                            conv_l2 = any_to_mdl_type(model_type, l1)
+                            conv_l1 = any_to_mdl_type(model_type, l1)
+                            conv_l2 = any_to_mdl_type(model_type, l2)
 
                             yield TrPair(conv_l1, conv_l2, input, tup[l2])
 
