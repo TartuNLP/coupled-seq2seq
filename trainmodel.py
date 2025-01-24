@@ -6,6 +6,7 @@ import torch
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, get_scheduler
 from accelerate import Accelerator
+from torch.utils.data import DataLoader, DistributedSampler
 
 from translate import hf_tok, encode
 from data import MultilingualBatchingDataset, make_path_compatible
@@ -272,7 +273,8 @@ class SwitchingAccelerator:
 
 def do_main():
     if not host_remote:
-        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "facebook/nllb-200-distilled-600m", "smugri-high"]
+        #sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "facebook/nllb-200-distilled-600m", "smugri-high"]
+        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "skip_training=yes"]
 
     args, train_kwargs = cmdline_args()
 
@@ -302,13 +304,22 @@ def do_main():
                                             tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
 
     if 'skip_training' not in train_kwargs:
-        report_devices()
         acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, train_kwargs)
 
         upd_model, loss_list = acc_trainer.train()
 
         save_all_models(args.save_location, upd_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
+    else:
+        # testing for debugging purposes
+        train_dataloader = DataLoader(
+            train_set,
+            sampler=DistributedSampler(train_set)
+        )
 
+        for raw_batch in train_dataloader:
+            batch, _, _ = raw_batch
+            print(batch)
+            raise Exception("OK!")
 
 if __name__ == "__main__":
     host_remote = len(sys.argv) > 1
