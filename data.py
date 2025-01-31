@@ -393,7 +393,6 @@ class MultilingualDatasetIterator(IterableDataset):
     def __next__(self):
         try:
             result = self.curr_shard_data[self.curr_elem_idx]
-            print("DEBUG", self.curr_shard_idx, self.curr_elem_idx)
             self.curr_elem_idx += 1
         except IndexError:
             self.curr_shard_idx += 1
@@ -404,7 +403,6 @@ class MultilingualDatasetIterator(IterableDataset):
                 self._init_curr_shard()
                 self.curr_elem_idx = 0
                 result = self.curr_shard_data[self.curr_elem_idx]
-                print("DEBUGX", self.curr_shard_idx, self.curr_elem_idx)
                 self.curr_elem_idx += 1
 
         return result
