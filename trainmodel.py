@@ -9,7 +9,7 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader, DistributedSampler
 
 from translate import hf_tok, encode
-from data import MultilingualBatchingDataset, make_path_compatible
+from data import MultilingualDatasetIterator, make_path_compatible
 from aux import log, maybe_smugri, to_kwargs, SameLineLogger
 from collections import namedtuple
 from coupling import to_cpl_spec, save_all_models
@@ -151,9 +151,9 @@ def chain_params(coupling_specs):
 
 class SwitchingAccelerator:
     def read_kwargs(self, kwargs):
-        type_list = [int, float]
-        kw_names = ["save_steps", "lr"]
-        default_values = [10000, 1.5e-5]
+        type_list = [int, float, int, int, int]
+        kw_names = ["save_steps", "lr", "accum_steps", "log_steps", "epochs"]
+        default_values = [50, 1.5e-5, 1, 100, 4]
 
         kw_with_dv = { kn: (dv if kn not in kwargs else typ(kwargs[kn])) for kn, dv, typ in zip(kw_names, default_values, type_list)}
 
@@ -179,7 +179,7 @@ class SwitchingAccelerator:
         #    m.train()
         models[0].train()
 
-        for i, batch_with_idxs in enumerate(train_set):
+        for batch_idx, batch_with_idxs in enumerate(train_set):
             batch, src_k, tgt_k = batch_with_idxs
 
             # inputs = self.accelerator.prepare(batch)
@@ -198,10 +198,7 @@ class SwitchingAccelerator:
             self.lr_scheduler.step()
             optimizer.zero_grad()
 
-            avg_loss_vals = [i[0] for i in self.train_loss_list[-10:]]
-            avg_loss = sum(avg_loss_vals)/len(avg_loss_vals)
-
-            self._step_and_perhaps_save(logger, i, avg_loss, models[0])
+            self._step_and_perhaps_save(logger, batch_idx, float(loss.item()), models[0])
 
     def _step_and_perhaps_save(self, logger, i, loss, model):
         logger.step(i, loss)
@@ -225,15 +222,14 @@ class SwitchingAccelerator:
         logger = SameLineLogger(self.train_set)
         logger.line_start()
 
-        models_acc = self.accelerator.prepare([s.model.to(self.accelerator.device) for s in self.coupling_specs])
-        # models_acc = [self.accelerator.prepare(s.model) for s in self.coupling_specs]
+        train_dataloader = DataLoader(self.train_set)
+        models = [s.model for s in self.coupling_specs]
 
-        optimizer_acc = self.accelerator.prepare(self.optimizer)
-        train_set_acc = self.accelerator.prepare(self.train_set)
+        train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
 
         self.train_loss_list = []
 
-        self._main_loop(logger, models_acc, optimizer_acc, train_set_acc)
+        self._main_loop(logger, models_acc, optimizer_acc, train_dl_acc)
 
         logger.line_break()
 
@@ -300,8 +296,7 @@ def do_main():
 
     batch_size = int(train_kwargs['batch']) if 'batch' in train_kwargs else 16
 
-    train_set = MultilingualBatchingDataset(args.train_data_file, coupling_specs, batch_size,
-                                            tracing_msg="TRAIN", verbose=True, leave_only=lp_set)
+    train_set = MultilingualDatasetIterator(args.train_data_file, batch_size)
 
     if 'skip_training' not in train_kwargs:
         acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, train_kwargs)
@@ -309,17 +304,6 @@ def do_main():
         upd_model, loss_list = acc_trainer.train()
 
         save_all_models(args.save_location, upd_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
-    else:
-        # testing for debugging purposes
-        train_dataloader = DataLoader(
-            train_set,
-            sampler=DistributedSampler(train_set)
-        )
-
-        for raw_batch in train_dataloader:
-            batch, _, _ = raw_batch
-            print(batch)
-            raise Exception("OK!")
 
 if __name__ == "__main__":
     host_remote = len(sys.argv) > 1

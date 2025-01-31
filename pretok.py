@@ -9,7 +9,7 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader, DistributedSampler
 
 from translate import hf_tok, encode
-from data import MultilingualBatchingCachingDataset, MultilingualDatasetIterator
+from data import MultilingualBatchingCachingDataset
 from aux import log, maybe_smugri, to_kwargs, SameLineLogger
 from collections import namedtuple
 from coupling import to_cpl_spec, save_all_models
