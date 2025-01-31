@@ -375,6 +375,7 @@ class MultilingualDatasetIterator(IterableDataset):
 
     def _init_curr_shard(self):
         cache_location = self.metainfo[self.curr_shard_idx]['shard_filename']
+        print(f"LOADING HSART {cache_location}")
         self.curr_shard_data = torch.load(cache_location)
 
     def __init__(self, filename, batch_size):
