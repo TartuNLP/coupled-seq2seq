@@ -155,8 +155,20 @@ def inject_bin_indices(batch, src_k, tgt_k):
 
     batch['labels'][0,0] += tgt_k << 30
 
+def get_data_cache_location(filename, batch_size, idx = None):
+    dirname = filename + "-tokcache"
+    if not os.path.isdir(dirname):
+        os.mkdir(dirname)
 
-class MultilingualBatchingDataset(IterableDataset):
+    name = (dirname + "/batch-" + str(batch_size))
+
+    name += r"-meta.json" if idx is None else f"-{idx:04}.pt"
+
+    return name
+
+
+
+class MultilingualBatchingCachingDataset:
     def _post_proc_bins(self, bins):
         for src_k in bins:
             for tgt_k in bins[src_k]:
@@ -174,10 +186,10 @@ class MultilingualBatchingDataset(IterableDataset):
 
         return mix_and_sample_idxs_carefully(src_idxs, tgt_idxs)
 
-    def _fill_bins(self, filename):
+    def _fill_bins(self):
         bins = defaultdict(lambda: defaultdict(list))
 
-        for tr_pair in get_tr_pairs(filename=filename, model_type=self.model_type):
+        for tr_pair in get_tr_pairs(filename=self.filename, model_type=self.model_type):
             src_bin_idx, tgt_bin_idx = self._get_idxs(tr_pair)
 
             if src_bin_idx is not None and tgt_bin_idx is not None:
@@ -257,38 +269,46 @@ class MultilingualBatchingDataset(IterableDataset):
 
         return prep_batch_grouped
 
-    def _bins_to_tokenized_batched_data(self, bins):
-        i = 0
+    def _bins_to_tokenized_batched_cached_data(self, bins):
+        shard_i = 0
+        batch_i = 0
+
+        metainfo = []
+        data = []
+
         log("Tokenizing data")
 
-        self.data = []
-
         for raw_batch, src_k, tgt_k in do_bins_in_shuffled_batches(bins, self.batch_size):
-            i += 1
-            if not i % 10000:
-                log(f"Tokenized {i} batches")
+            batch_i += 1
+            if not batch_i % 10000:
+                log(f"Tokenized {batch_i + shard_i * self.shard_size} batches (shard {shard_i})")
 
             prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
-            self.data.append((prepared_batch, src_k, tgt_k))
+            data.append((prepared_batch, src_k, tgt_k))
 
-    def _prepare_new_data(self, filename):
-        bins = self._fill_bins(filename)
+            if batch_i >= self.shard_size:
+                shard_i += 1
+                batch_i = 0
+                fn = self._save_cache_file(data, self.filename, shard_i)
+                metainfo.append({'shard_filename': fn, 'shard_size': len(data)})
 
-        self.report_update_stats(bins)
+                del data
 
-        self._bins_to_tokenized_batched_data(bins)
+                data = []
 
-    def _get_data_cache_location(self, filename):
-        dirname = filename + "-tokcache"
-        if not os.path.isdir(dirname):
-            os.mkdir(dirname)
+        if len(data) > 0:
+            log(f"Tokenized {batch_i} batches (shard {shard_i})")
+            shard_i += 1
+            fn = self._save_cache_file(data, self.filename, shard_i)
+            metainfo.append({'shard_filename': fn, 'shard_size': len(data)})
 
-        name = (dirname + "/batch-" + str(self.batch_size) + "-" +
-                make_path_compatible(self.coupling_specs[0].model_id))
+        meta_fn = get_data_cache_location(self.filename, self.batch_size)
+        with open(meta_fn, 'w') as f:
+            json.dump(metainfo, f)
 
-        return name + ".pt"
+        del data
 
-    def _load_data_from_cache(self, filename):
+    """def _load_data_from_cache(self, filename):
         cache_location = self._get_data_cache_location(filename)
 
         there_is_a_cache = os.path.exists(cache_location)
@@ -299,29 +319,23 @@ class MultilingualBatchingDataset(IterableDataset):
         else:
             log(f"Cache not found ({cache_location}), need to tokenize anew")
 
-        return there_is_a_cache
+        return there_is_a_cache"""
 
-    def _save_cache(self, filename):
-        cache_location = self._get_data_cache_location(filename)
+    def _save_cache_file(self, data, filename, idx):
+        cache_location = get_data_cache_location(filename, self.batch_size, idx)
 
         if os.path.exists(cache_location):
             raise Exception("Cache already exists")
 
-        torch.save(self.data, cache_location)
+        torch.save(data, cache_location)
         log("Saved data into cache")
-
-    def load_group_and_tokenize_data(self, filename):
-        did_it_work = self._load_data_from_cache(filename)
-
-        if not did_it_work:
-            self._prepare_new_data(filename)
-            self._save_cache(filename)
+        return cache_location
 
     def set_model_type(self):
         result = None
 
         for spec_tuple in self.coupling_specs:
-            this_type = get_mdl_type(spec_tuple.model)
+            this_type = get_mdl_type(spec_tuple.tokenizer)
             if result is None:
                 result = this_type
             else:
@@ -331,9 +345,12 @@ class MultilingualBatchingDataset(IterableDataset):
 
 
     def __init__(self, tr_file, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256,
-                 max_tgt_len=256, verbose=False, leave_only=None):
+                 max_tgt_len=256, verbose=False, leave_only=None, shard_size=1000000):
         self.msg = tracing_msg
         self.batch_size = batch_size
+        self.shard_size = shard_size
+
+        self.filename = tr_file
 
         self.coupling_specs = coupling_specs
         self.model_type = self.set_model_type()
@@ -341,25 +358,59 @@ class MultilingualBatchingDataset(IterableDataset):
         # init lang to idx
         self._lang_to_idx = lang_bin_mapping(coupling_specs)
 
-        # collect data into bins and fill self.data:
-        self.load_group_and_tokenize_data(tr_file)
+    def cache_data(self):
+        # collect data into bins and cache it
+        bins = self._fill_bins()
+
+        self.report_update_stats(bins)
+
+        self._bins_to_tokenized_batched_cached_data(bins)
+
+class MultilingualDatasetIterator(IterableDataset):
+    def _load_metafile(self, filename, batch_size):
+        cache_metafile = get_data_cache_location(filename, batch_size)
+
+        with open(cache_metafile, 'r') as f:
+            self.metainfo = json.load(f)
+
+    def _init_curr_shard(self):
+        cache_location = self.metainfo[self.curr_shard_idx]['shard_filename']
+        self.curr_shard_data = torch.load(cache_location)
+
+    def __init__(self, filename, batch_size):
+        self._load_metafile(filename, batch_size)
+
+        self.data_len = sum([e['shard_size'] for e in self.metainfo])
+
+        self.curr_shard_idx = 0
+        self._init_curr_shard()
+
+        self.curr_elem_idx = 0
 
     def __iter__(self):
-        self.i = 0
-        self.prev = None
         return self
 
     def __next__(self):
-        if self.i < len(self.data):
-            res = self.data[self.i]
-            self.i += 1
+        try:
+            result = self.curr_shard_data[self.curr_elem_idx]
+            print("DEBUG", self.curr_shard_idx, self.curr_elem_idx)
+            self.curr_elem_idx += 1
+        except IndexError:
+            self.curr_shard_idx += 1
 
-            return res
-        else:
-            raise StopIteration
+            if self.curr_shard_idx >= len(self.metainfo):
+                raise StopIteration
+            else:
+                self._init_curr_shard()
+                self.curr_elem_idx = 0
+                result = self.curr_shard_data[self.curr_elem_idx]
+                print("DEBUGX", self.curr_shard_idx, self.curr_elem_idx)
+                self.curr_elem_idx += 1
+
+        return result
 
     def __len__(self):
-        return len(self.data)
+        return self.data_len
 
 
 def dump_to_stdout(filename=None, lang_or_lp=None):
@@ -461,17 +512,3 @@ if __name__ == "__main__":
     # combine_jsons(sys.argv[1:])
 
     # do_stats("data/train.json")
-
-"""
-en-et-liv-lv 382
-en-liv-lv 128
-liv 41596
-liv-lv 56
-en-et-liv 1
-et-liv 2778
-en-liv 89
-en 7
-et 16
-et-liv-lv 11431
-et-lv 1
-"""
