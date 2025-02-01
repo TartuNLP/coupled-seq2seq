@@ -272,6 +272,7 @@ class MultilingualBatchingCachingDataset:
     def _bins_to_tokenized_batched_cached_data(self, bins):
         shard_i = 0
         batch_i = 0
+        total_i = 0
 
         metainfo = []
         data = []
@@ -284,7 +285,7 @@ class MultilingualBatchingCachingDataset:
                 log(f"Tokenized {batch_i + shard_i * self.shard_size} batches (shard {shard_i})")
 
             prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
-            data.append((prepared_batch, src_k, tgt_k))
+            data.append((prepared_batch, src_k, tgt_k, total_i))
 
             if batch_i >= self.shard_size:
                 shard_i += 1
@@ -295,6 +296,8 @@ class MultilingualBatchingCachingDataset:
                 del data
 
                 data = []
+
+            total_i += 1
 
         if len(data) > 0:
             log(f"Tokenized {batch_i} batches (shard {shard_i})")
@@ -375,7 +378,7 @@ class MultilingualDatasetIterator(IterableDataset):
 
     def _init_curr_shard(self):
         cache_location = self.metainfo[self.curr_shard_idx]['shard_filename']
-        print(f"LOADING HSART {cache_location}")
+
         self.curr_shard_data = torch.load(cache_location)
 
     def __init__(self, filename, batch_size):

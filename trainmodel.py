@@ -3,6 +3,7 @@
 import sys
 import os
 import torch
+import time
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, get_scheduler
 from accelerate import Accelerator
@@ -23,30 +24,6 @@ host_remote = True
 def freeze_model(model):
     for n, p in model.named_parameters():
         p.requires_grad = False
-
-
-"""def train_args(name, batch_size, **kw):
-    prelim_result = Seq2SeqTrainingArguments(
-        name,
-        eval_strategy="steps",
-        eval_steps=25000,
-        learning_rate=1.5e-5,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
-        gradient_accumulation_steps=1,
-        weight_decay=0.01,
-        save_strategy="steps",
-        save_steps=100000,
-        logging_steps=100000,
-        max_steps=1500000,
-        # num_train_epochs=3,
-        # predict_with_generate=True
-    )
-
-    result = get_changed_config(prelim_result, ["skip_training", "batch"], **kw)
-
-    return result
-    """
 
 
 def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
@@ -218,6 +195,15 @@ class SwitchingAccelerator:
 
             logger.line_start()
 
+    def debug_accelerator(self):
+        train_dataloader = DataLoader(self.train_set)
+
+        train_dl_acc = self.accelerator.prepare(train_dataloader)
+
+        for batch, src_k, tgt_k, batch_idx in train_dl_acc:
+            sys.stderr.write(f"Handling batch nr {batch_idx} on {self.accelerator.process_index} / {self.accelerator.local_process_index}\n")
+            time.sleep(1)
+
     def train(self):
         logger = SameLineLogger(self.train_set)
         logger.line_start()
@@ -238,33 +224,6 @@ class SwitchingAccelerator:
         unwr_coupled_model = self.accelerator.unwrap_model(models_acc[0])
 
         return unwr_coupled_model, self.train_loss_list
-
-"""def do_training(model, model_name, train_set, val_set, batch_size, cpl_specs, train_kwargs):
-    args = train_args(model_name, batch_size=batch_size, **train_kwargs)
-
-    trainer = Seq2SeqTrainer(
-        model,
-        args,
-        train_dataset=train_set,
-        eval_dataset=val_set,
-        # data_collator=data_collator,
-        # tokenizer=tokenizer,
-        # compute_metrics=prep_metric_func(tokenizer),
-    )
-
-    vivisect_save_chkpt(trainer, cpl_specs, cpl_specs[0].tokenizer)
-
-    # tok_cpl_specs = integrate_tokenizer_with_cpl_specs(cpl_specs)
-    vivisect_train_step(trainer, cpl_specs)
-    vivisect_eval_step(trainer, cpl_specs)
-
-    log("Started training")
-
-    trainer.train()
-
-    log("Finished training, saving models")
-
-    trainer.save_state()"""
 
 
 def do_main():
@@ -298,9 +257,11 @@ def do_main():
 
     train_set = MultilingualDatasetIterator(args.train_data_file, batch_size)
 
-    if 'skip_training' not in train_kwargs:
-        acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, train_kwargs)
+    acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, train_kwargs)
 
+    if 'debugging' in train_kwargs:
+        acc_trainer.debug_accelerator()
+    else:
         upd_model, loss_list = acc_trainer.train()
 
         save_all_models(args.save_location, upd_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
