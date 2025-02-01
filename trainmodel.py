@@ -146,7 +146,7 @@ class SwitchingAccelerator:
 
         self.train_loss_list = []
 
-        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps)
+        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, split_batches=True)
 
         self.optimizer = torch.optim.AdamW(chain_params(coupling_specs), lr=self.kwargs.lr)
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
@@ -203,7 +203,7 @@ class SwitchingAccelerator:
 
         for epoch_idx in range(self.kwargs.epochs):
             for batch, src_k, tgt_k, batch_idx in train_dl_acc:
-                sys.stderr.write(f"Handling batch nr {batch_idx.item()}, epoch {epoch_idx}, on {self.accelerator.process_index} / {self.accelerator.local_process_index}\n")
+                sys.stderr.write(f"Handling batch nr {batch_idx.item()}: {batch['input_ids'].size()}; epoch {epoch_idx}, on {self.accelerator.process_index} / {self.accelerator.local_process_index}\n")
                 time.sleep(0.5 + random()/2)
 
     def train(self):
@@ -231,7 +231,7 @@ class SwitchingAccelerator:
 def do_main():
     if not host_remote:
         #sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "facebook/nllb-200-distilled-600m", "smugri-high"]
-        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri"]
+        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "debugging=yes"]
 
     args, train_kwargs = cmdline_args()
 
