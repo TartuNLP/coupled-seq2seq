@@ -131,7 +131,7 @@ class SwitchingAccelerator:
     def read_kwargs(self, kwargs):
         type_list = [int, float, int, int, int]
         kw_names = ["save_steps", "lr", "accum_steps", "log_steps", "epochs"]
-        default_values = [20, 1.5e-5, 1, 100, 4]
+        default_values = [10000, 1.5e-5, 1, 100, 4]
 
         kw_with_dv = { kn: (dv if kn not in kwargs else typ(kwargs[kn])) for kn, dv, typ in zip(kw_names, default_values, type_list)}
 
@@ -158,7 +158,7 @@ class SwitchingAccelerator:
 
         for epoch_idx in range(self.kwargs.epochs):
             for batch_with_bin_idxs in train_set:
-                weird_inputs, src_k, tgt_k = batch_with_bin_idxs
+                weird_inputs, src_k, tgt_k, _ = batch_with_bin_idxs
 
                 unweird_inputs = {k: weird_inputs[k][0] for k in weird_inputs}
 
@@ -231,7 +231,7 @@ class SwitchingAccelerator:
 def do_main():
     if not host_remote:
         #sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "facebook/nllb-200-distilled-600m", "smugri-high"]
-        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "debugging=hellyeah"]
+        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri"]
 
     args, train_kwargs = cmdline_args()
 
