@@ -15,6 +15,7 @@ from aux import log, maybe_smugri, to_kwargs, SameLineLogger
 from collections import namedtuple
 from coupling import to_cpl_spec, save_all_models
 from initmodel import mdl_param_count
+from random import random
 
 CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
 
@@ -145,48 +146,48 @@ class SwitchingAccelerator:
 
         self.train_loss_list = []
 
-        self.accelerator = Accelerator()
+        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps)
 
         self.optimizer = torch.optim.AdamW(chain_params(coupling_specs), lr=self.kwargs.lr)
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
                                           num_training_steps=len(train_set))
 
     def _main_loop(self, logger, models, optimizer, train_set):
-        #for m in models:
-        #    m.train()
         models[0].train()
         batch_idx = 0
-        for batch_with_bin_idxs in train_set:
-            weird_inputs, src_k, tgt_k = batch_with_bin_idxs
 
-            unweird_inputs = {k: weird_inputs[k][0] for k in weird_inputs}
+        for epoch_idx in range(self.kwargs.epochs):
+            for batch_with_bin_idxs in train_set:
+                weird_inputs, src_k, tgt_k = batch_with_bin_idxs
 
-            encoder_vecs = encode(models[src_k], unweird_inputs)
-            outputs = models[tgt_k](attention_mask=unweird_inputs['attention_mask'], labels=unweird_inputs['labels'], encoder_outputs=encoder_vecs)
+                unweird_inputs = {k: weird_inputs[k][0] for k in weird_inputs}
 
-            loss = outputs.loss
+                encoder_vecs = encode(models[src_k], unweird_inputs)
+                outputs = models[tgt_k](attention_mask=unweird_inputs['attention_mask'], labels=unweird_inputs['labels'], encoder_outputs=encoder_vecs)
 
-            self.train_loss_list.append((loss.item(), src_k.item(), tgt_k.item()))
+                loss = outputs.loss
 
-            self.accelerator.backward(loss)
+                self.train_loss_list.append((loss.item(), src_k.item(), tgt_k.item()))
 
-            optimizer.step()
-            self.lr_scheduler.step()
-            optimizer.zero_grad()
+                self.accelerator.backward(loss)
 
-            self._step_and_perhaps_save(logger, batch_idx, float(loss.item()), models[0])
-            batch_idx += 1
+                optimizer.step()
+                self.lr_scheduler.step()
+                optimizer.zero_grad()
 
-    def _step_and_perhaps_save(self, logger, i, loss, model):
-        logger.step(i, loss)
+                self._step_and_perhaps_save(logger, batch_idx, epoch_idx, float(loss.item()), models[0])
+                batch_idx += 1
 
-        if not ((i + 1) % self.kwargs.save_steps):
+    def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss, model):
+        logger.step(batch_i, loss)
+
+        if not ((batch_i + 1) % self.kwargs.save_steps):
             logger.line_break()
 
-            log(f"Saving at {i + 1} steps")
+            log(f"Saving at {batch_i + 1} steps")
 
             if self.accelerator.is_main_process:
-                this_location = os.path.join(self.save_location, f"checkpoint-{i + 1}")
+                this_location = os.path.join(self.save_location, f"checkpoint-{batch_i + 1}")
                 if os.path.exists(this_location):
                     raise FileExistsError("Cannot overwrite existing checkpoint")
 
@@ -200,9 +201,10 @@ class SwitchingAccelerator:
 
         train_dl_acc = self.accelerator.prepare(train_dataloader)
 
-        for batch, src_k, tgt_k, batch_idx in train_dl_acc:
-            sys.stderr.write(f"Handling batch nr {batch_idx.item()} on {self.accelerator.process_index} / {self.accelerator.local_process_index}\n")
-            time.sleep(1)
+        for epoch_idx in range(self.kwargs.epochs):
+            for batch, src_k, tgt_k, batch_idx in train_dl_acc:
+                sys.stderr.write(f"Handling batch nr {batch_idx.item()} on {self.accelerator.process_index} / {self.accelerator.local_process_index}\n")
+                time.sleep(0.5 + random()/2)
 
     def train(self):
         logger = SameLineLogger(self.train_set)

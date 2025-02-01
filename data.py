@@ -381,15 +381,18 @@ class MultilingualDatasetIterator(IterableDataset):
 
         self.curr_shard_data = torch.load(cache_location)
 
-    def __init__(self, filename, batch_size):
-        self._load_metafile(filename, batch_size)
-
+    def _reset(self):
         self.data_len = sum([e['shard_size'] for e in self.metainfo])
 
         self.curr_shard_idx = 0
         self._init_curr_shard()
 
         self.curr_elem_idx = 0
+
+    def __init__(self, filename, batch_size):
+        self._load_metafile(filename, batch_size)
+
+        self._reset()
 
     def __iter__(self):
         return self
@@ -402,6 +405,7 @@ class MultilingualDatasetIterator(IterableDataset):
             self.curr_shard_idx += 1
 
             if self.curr_shard_idx >= len(self.metainfo):
+                self._reset()
                 raise StopIteration
             else:
                 self._init_curr_shard()
