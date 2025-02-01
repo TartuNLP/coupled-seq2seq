@@ -104,14 +104,14 @@ class SameLineLogger:
     def line_start(self):
         same_line_log(str(datetime.now()) + ": training batches ")
 
-    def step(self, i, loss):
+    def step(self, batch_i, epoch_i, loss):
         passed_time = datetime.now() - self.start_time
 
-        time_per_batch = passed_time / (i + 1)
+        time_per_batch = passed_time / (batch_i + 1)
 
-        prediction = time_per_batch * (self.total - i - 1)
+        prediction = time_per_batch * (self.total - batch_i - 1)
 
-        msg = f"{i + 1} / {self.total}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
+        msg = f"{batch_i + 1} / {self.total}, epoch {epoch_i+1}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
 
         new_len = same_line_log(msg, self.log_len)
 

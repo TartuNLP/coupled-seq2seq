@@ -179,15 +179,15 @@ class SwitchingAccelerator:
                 batch_idx += 1
 
     def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss, model):
-        logger.step(batch_i, loss)
+        logger.step(batch_i, epoch_i, loss)
 
         if not ((batch_i + 1) % self.kwargs.save_steps):
             logger.line_break()
 
-            log(f"Saving at {batch_i + 1} steps")
+            log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
 
             if self.accelerator.is_main_process:
-                this_location = os.path.join(self.save_location, f"checkpoint-{batch_i + 1}")
+                this_location = os.path.join(self.save_location, f"checkpoint-{epoch_i + 1}-{batch_i + 1}")
                 if os.path.exists(this_location):
                     raise FileExistsError("Cannot overwrite existing checkpoint")
 
@@ -203,7 +203,7 @@ class SwitchingAccelerator:
 
         for epoch_idx in range(self.kwargs.epochs):
             for batch, src_k, tgt_k, batch_idx in train_dl_acc:
-                sys.stderr.write(f"Handling batch nr {batch_idx.item()} on {self.accelerator.process_index} / {self.accelerator.local_process_index}\n")
+                sys.stderr.write(f"Handling batch nr {batch_idx.item()}, epoch {epoch_idx}, on {self.accelerator.process_index} / {self.accelerator.local_process_index}\n")
                 time.sleep(0.5 + random()/2)
 
     def train(self):
