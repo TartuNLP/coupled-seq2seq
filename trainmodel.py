@@ -229,7 +229,7 @@ class SwitchingAccelerator:
 def do_main():
     if not host_remote:
         #sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "facebook/nllb-200-distilled-600m", "smugri-high"]
-        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri"]
+        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "debugging=hellyeah"]
 
     args, train_kwargs = cmdline_args()
 
