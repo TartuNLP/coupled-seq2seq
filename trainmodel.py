@@ -225,7 +225,7 @@ class SwitchingAccelerator:
 
         for epoch_idx in range(self.kwargs.epochs):
             for batch, src_k, tgt_k, batch_idx in train_dl_acc:
-                sys.stderr.write(f"Handling batch nr {batch_idx}: {batch['input_ids'].size()}; epoch {epoch_idx}, on {self.accelerator.process_index} / {self.accelerator.local_process_index}/{self.accelerator.num_processes}\n")
+                sys.stderr.write(f"Handling batch nr {batch_idx.item()}: {batch['input_ids'].size()}; epoch {epoch_idx}, on {self.accelerator.process_index} / {self.accelerator.local_process_index}/{self.accelerator.num_processes}\n")
                 time.sleep(0.5 + random()/2)
 
 
