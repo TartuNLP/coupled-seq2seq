@@ -35,8 +35,6 @@ def do_main():
 
     args, train_kwargs = cmdline_args()
 
-    log(f"Launched as {args}")
-
     log("loading coupled model and tokenizer")
     coupled_tokenizer = load_hf_tok(args.coupled_mdl_id, verbose=True)
 
