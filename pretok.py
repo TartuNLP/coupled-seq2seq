@@ -37,10 +37,6 @@ def do_main():
 
     log(f"Launched as {args}")
 
-    # if the directory args.save_location already exists, raise an exception:
-    if os.path.exists(args.save_location):
-        raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
-
     log("loading coupled model and tokenizer")
     coupled_tokenizer = load_hf_tok(args.coupled_mdl_id, verbose=True)
 
