@@ -185,9 +185,7 @@ class SwitchingAccelerator:
         for epoch_idx in range(self.kwargs.epochs):
             for batch_with_bin_idxs in train_set:
                 weird_inputs, src_k, tgt_k, _ = batch_with_bin_idxs
-
-                #self.accelerator.num_processes: e.g. 4
-                #self.accelerator.process_index: e.g. between 0 and 3
+                print("DEBUGGGG", weird_inputs)
 
                 batch_size = weird_inputs['input_ids'].size()[1]
 
