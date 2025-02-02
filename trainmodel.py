@@ -157,6 +157,8 @@ class SwitchingAccelerator:
         if self.accelerator.is_main_process:
             logger = SameLineLogger(self.train_set)
             logger.line_start()
+        else:
+            logger = None
 
         train_dataloader = DataLoader(self.train_set)
         models = [s.model for s in self.coupling_specs]

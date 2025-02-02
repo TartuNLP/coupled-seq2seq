@@ -11,7 +11,7 @@ def log(msg):
 
 
 def same_line_log(msg, len_to_del=0):
-    if sys.stderr.isatty():
+    """if sys.stderr.isatty():
         if len_to_del > 0:
             sys.stderr.write("\b" * len_to_del)
 
@@ -21,8 +21,8 @@ def same_line_log(msg, len_to_del=0):
         sys.stderr.flush()
 
         return new_len
-    else:
-        sys.stderr.write(msg + "\n")
+    else:"""
+    sys.stderr.write(msg + "\n")
 
 
 def debug(msg):
