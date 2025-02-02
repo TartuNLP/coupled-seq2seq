@@ -211,7 +211,8 @@ class SwitchingAccelerator:
                 batch_idx += 1
 
     def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss, model):
-        logger.step(batch_i, epoch_i, loss)
+        if self.accelerator.is_main_process:
+            logger.step(batch_i, epoch_i, loss)
 
         if not ((batch_i + 1) % self.kwargs.save_steps):
             logger.line_break()
