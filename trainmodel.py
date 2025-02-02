@@ -6,7 +6,7 @@ import torch
 import time
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, get_scheduler
-from accelerate import Accelerator
+from accelerate import Accelerator, DataLoaderConfiguration
 from torch.utils.data import DataLoader, DistributedSampler
 
 from translate import hf_tok, encode
@@ -146,11 +146,33 @@ class SwitchingAccelerator:
 
         self.train_loss_list = []
 
-        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, split_batches=True)
+        dl_conf = DataLoaderConfiguration(split_batches=True)
+        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, dataloader_config=dl_conf)
 
         self.optimizer = torch.optim.AdamW(chain_params(coupling_specs), lr=self.kwargs.lr)
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
                                           num_training_steps=len(train_set))
+
+    def train(self):
+        logger = SameLineLogger(self.train_set)
+        logger.line_start()
+
+        train_dataloader = DataLoader(self.train_set)
+        models = [s.model for s in self.coupling_specs]
+
+        train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
+
+        self.train_loss_list = []
+
+        self._main_loop(logger, models_acc, optimizer_acc, train_dl_acc)
+
+        logger.line_break()
+
+        self.accelerator.wait_for_everyone()
+
+        unwr_coupled_model = self.accelerator.unwrap_model(models_acc[0])
+
+        return unwr_coupled_model, self.train_loss_list
 
     def _main_loop(self, logger, models, optimizer, train_set):
         models[0].train()
@@ -205,27 +227,6 @@ class SwitchingAccelerator:
             for batch, src_k, tgt_k, batch_idx in train_dl_acc:
                 sys.stderr.write(f"Handling batch nr {batch_idx.item()}: {batch['input_ids'].size()}; epoch {epoch_idx}, on {self.accelerator.process_index} / {self.accelerator.local_process_index}\n")
                 time.sleep(0.5 + random()/2)
-
-    def train(self):
-        logger = SameLineLogger(self.train_set)
-        logger.line_start()
-
-        train_dataloader = DataLoader(self.train_set)
-        models = [s.model for s in self.coupling_specs]
-
-        train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
-
-        self.train_loss_list = []
-
-        self._main_loop(logger, models_acc, optimizer_acc, train_dl_acc)
-
-        logger.line_break()
-
-        self.accelerator.wait_for_everyone()
-
-        unwr_coupled_model = self.accelerator.unwrap_model(models_acc[0])
-
-        return unwr_coupled_model, self.train_loss_list
 
 
 def do_main():

@@ -311,19 +311,6 @@ class MultilingualBatchingCachingDataset:
 
         del data
 
-    """def _load_data_from_cache(self, filename):
-        cache_location = self._get_data_cache_location(filename)
-
-        there_is_a_cache = os.path.exists(cache_location)
-
-        if there_is_a_cache:
-            log(f"Loading data from cache ({cache_location})")
-            self.data = torch.load(cache_location)
-        else:
-            log(f"Cache not found ({cache_location}), need to tokenize anew")
-
-        return there_is_a_cache"""
-
     def _save_cache_file(self, data, filename, idx):
         cache_location = get_data_cache_location(filename, self.batch_size, idx)
 
@@ -379,7 +366,7 @@ class MultilingualDatasetIterator(IterableDataset):
     def _init_curr_shard(self):
         cache_location = self.metainfo[self.curr_shard_idx]['shard_filename']
 
-        self.curr_shard_data = torch.load(cache_location)
+        self.curr_shard_data = torch.load(cache_location, weights_only=False)
 
     def _reset(self):
         self.data_len = sum([e['shard_size'] for e in self.metainfo])
