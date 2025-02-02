@@ -146,8 +146,8 @@ class SwitchingAccelerator:
 
         self.train_loss_list = []
 
-        dl_conf = DataLoaderConfiguration(split_batches=True)
-        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, dataloader_config=dl_conf)
+        #dl_conf = DataLoaderConfiguration(split_batches=True)
+        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps) #, dataloader_config=dl_conf)
 
         self.optimizer = torch.optim.AdamW(chain_params(coupling_specs), lr=self.kwargs.lr)
         self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
@@ -160,10 +160,11 @@ class SwitchingAccelerator:
         else:
             logger = None
 
-        train_dataloader = DataLoader(self.train_set)
+        #train_dataloader = DataLoader(self.train_set)
         models = [s.model for s in self.coupling_specs]
 
-        train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
+        #train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
+        train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(self.train_set, self.optimizer, *models)
 
         self.train_loss_list = []
 
@@ -188,14 +189,14 @@ class SwitchingAccelerator:
                 if self.accelerator.is_main_process:
                     print("DEBUGGGG", weird_inputs)
 
-                batch_size = weird_inputs['input_ids'].size()[1]
+                batch_size = weird_inputs['input_ids'].size()[0]
 
                 proc_batch_size = batch_size / self.accelerator.num_processes
 
                 from_proc_idx = int(self.accelerator.process_index * proc_batch_size)
                 to_proc_idx = int((self.accelerator.process_index + 1) * proc_batch_size)
 
-                unweird_inputs = {k: weird_inputs[k][0,from_proc_idx:to_proc_idx] for k in weird_inputs}
+                unweird_inputs = {k: weird_inputs[k][from_proc_idx:to_proc_idx] for k in weird_inputs}
 
                 encoder_vecs = encode(models[src_k], unweird_inputs)
                 outputs = models[tgt_k](attention_mask=unweird_inputs['attention_mask'], labels=unweird_inputs['labels'], encoder_outputs=encoder_vecs)
