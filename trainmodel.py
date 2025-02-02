@@ -182,7 +182,17 @@ class SwitchingAccelerator:
             for batch_with_bin_idxs in train_set:
                 weird_inputs, src_k, tgt_k, _ = batch_with_bin_idxs
 
-                unweird_inputs = {k: weird_inputs[k][0] for k in weird_inputs}
+                #self.accelerator.num_processes: e.g. 4
+                #self.accelerator.process_index: e.g. between 0 and 3
+
+                batch_size = weird_inputs['input_ids'].size()[1]
+
+                proc_batch_size = batch_size / self.accelerator.num_processes
+
+                from_proc_idx = int(self.accelerator.process_index * proc_batch_size)
+                to_proc_idx = int((self.accelerator.process_index + 1) * proc_batch_size)
+
+                unweird_inputs = {k: weird_inputs[k][0,from_proc_idx:to_proc_idx] for k in weird_inputs}
 
                 encoder_vecs = encode(models[src_k], unweird_inputs)
                 outputs = models[tgt_k](attention_mask=unweird_inputs['attention_mask'], labels=unweird_inputs['labels'], encoder_outputs=encoder_vecs)
@@ -232,7 +242,7 @@ class SwitchingAccelerator:
 def do_main():
     if not host_remote:
         #sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "facebook/nllb-200-distilled-600m", "smugri-high"]
-        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "debugging=yes"]
+        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri"]
 
     args, train_kwargs = cmdline_args()
 
