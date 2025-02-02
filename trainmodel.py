@@ -154,8 +154,9 @@ class SwitchingAccelerator:
                                           num_training_steps=len(train_set))
 
     def train(self):
-        logger = SameLineLogger(self.train_set)
-        logger.line_start()
+        if self.accelerator.is_main_process:
+            logger = SameLineLogger(self.train_set)
+            logger.line_start()
 
         train_dataloader = DataLoader(self.train_set)
         models = [s.model for s in self.coupling_specs]
@@ -166,7 +167,8 @@ class SwitchingAccelerator:
 
         self._main_loop(logger, models_acc, optimizer_acc, train_dl_acc)
 
-        logger.line_break()
+        if self.accelerator.is_main_process:
+            logger.line_break()
 
         self.accelerator.wait_for_everyone()
 
@@ -215,7 +217,8 @@ class SwitchingAccelerator:
             logger.step(batch_i, epoch_i, loss)
 
         if not ((batch_i + 1) % self.kwargs.save_steps):
-            logger.line_break()
+            if self.accelerator.is_main_process:
+                logger.line_break()
 
             log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
 
@@ -227,7 +230,8 @@ class SwitchingAccelerator:
                 model_to_save = self.accelerator.unwrap_model(model)
                 save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer, self.coupling_specs, loss_list=self.train_loss_list, trainer=self.accelerator)
 
-            logger.line_start()
+            if self.accelerator.is_main_process:
+                logger.line_start()
 
     def debug_accelerator(self):
         train_dataloader = DataLoader(self.train_set)
