@@ -171,10 +171,8 @@ class SwitchingAccelerator:
         return unwr_coupled_model, self.train_loss_list
 
     def _main_loop(self, models, optimizer, train_set):
-        epoch_len = len(self.train_set)
-
         if self.accelerator.is_main_process:
-            logger = SameLineLogger(epoch_len, self.kwargs.epochs)
+            logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
             logger.line_start()
         else:
             logger = None
@@ -210,15 +208,17 @@ class SwitchingAccelerator:
                 self.lr_scheduler.step()
                 optimizer.zero_grad()
 
-                self._step_and_perhaps_save(logger, batch_idx, epoch_idx, epoch_len, float(loss.item()), models[0])
+                self._step_and_perhaps_save(logger, batch_idx, epoch_idx, float(loss.item()), models[0])
                 batch_idx += 1
 
         if self.accelerator.is_main_process:
             logger.line_break()
 
 
-    def _step_and_perhaps_save(self, logger, batch_i, epoch_i, epoch_len, loss, model):
-        if self.accelerator.is_main_process:
+    def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss, model):
+        epoch_len = len(self.train_set)
+
+        if self.accelerator.is_main_process and not (batch_i + 1) % self.kwargs.log_steps:
             logger.step(batch_i, loss)
 
         if not ((batch_i + 1) % self.kwargs.save_steps) or not ((batch_i + 1) % epoch_len):
