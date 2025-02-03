@@ -181,6 +181,7 @@ class SwitchingAccelerator:
 
     def _main_loop(self, logger, models, optimizer, train_set):
         models[0].train()
+
         batch_idx = 0
 
         for epoch_idx in range(self.kwargs.epochs):
