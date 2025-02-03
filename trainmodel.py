@@ -186,8 +186,6 @@ class SwitchingAccelerator:
         for epoch_idx in range(self.kwargs.epochs):
             for batch_with_bin_idxs in train_set:
                 weird_inputs, src_k, tgt_k, _ = batch_with_bin_idxs
-                if self.accelerator.is_main_process:
-                    print("DEBUGGGG", weird_inputs)
 
                 batch_size = weird_inputs['input_ids'].size()[0]
 
@@ -196,7 +194,7 @@ class SwitchingAccelerator:
                 from_proc_idx = int(self.accelerator.process_index * proc_batch_size)
                 to_proc_idx = int((self.accelerator.process_index + 1) * proc_batch_size)
 
-                unweird_inputs = {k: weird_inputs[k][from_proc_idx:to_proc_idx] for k in weird_inputs}
+                unweird_inputs = {k: weird_inputs[k][from_proc_idx:to_proc_idx].to(self.accelerator.device) for k in weird_inputs}
 
                 encoder_vecs = encode(models[src_k], unweird_inputs)
                 outputs = models[tgt_k](attention_mask=unweird_inputs['attention_mask'], labels=unweird_inputs['labels'], encoder_outputs=encoder_vecs)
