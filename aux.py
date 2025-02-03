@@ -94,8 +94,12 @@ def get_changed_config(conf, extra_keys=[], **kw):
 
 
 class SameLineLogger:
-    def __init__(self, train_set):
-        self.total = len(train_set)
+    def __init__(self, epoch_len, epoch_num):
+        self.epoch_len = epoch_len
+        self.epoch_num = epoch_num
+
+        self.totalx = epoch_len * epoch_num
+
         self.log_after = []
         self.log_len = 0
 
@@ -104,14 +108,17 @@ class SameLineLogger:
     def line_start(self):
         same_line_log(str(datetime.now()) + ": training batches ")
 
-    def step(self, batch_i, epoch_i, loss):
+    def step(self, batch_i, loss):
         passed_time = datetime.now() - self.start_time
 
         time_per_batch = passed_time / (batch_i + 1)
 
-        prediction = time_per_batch * (self.total - batch_i - 1)
+        prediction = time_per_batch * (self.totalx - batch_i - 1)
 
-        msg = f"{batch_i + 1} / {self.total}, epoch {epoch_i+1}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
+        batch_i_in_epoch = batch_i % self.epoch_len
+        curr_epoch_i = batch_i // self.epoch_len
+
+        msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
 
         new_len = same_line_log(msg, self.log_len)
 

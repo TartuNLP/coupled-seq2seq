@@ -131,7 +131,7 @@ class SwitchingAccelerator:
     def read_kwargs(self, kwargs):
         type_list = [int, float, int, int, int]
         kw_names = ["save_steps", "lr", "accum_steps", "log_steps", "epochs"]
-        default_values = [10000, 1.5e-5, 1, 100, 4]
+        default_values = [1500, 1.5e-5, 1, 100, 2]
 
         kw_with_dv = { kn: (dv if kn not in kwargs else typ(kwargs[kn])) for kn, dv, typ in zip(kw_names, default_values, type_list)}
 
@@ -154,12 +154,6 @@ class SwitchingAccelerator:
                                           num_training_steps=len(train_set))
 
     def train(self):
-        if self.accelerator.is_main_process:
-            logger = SameLineLogger(self.train_set)
-            logger.line_start()
-        else:
-            logger = None
-
         #train_dataloader = DataLoader(self.train_set)
         models = [s.model for s in self.coupling_specs]
 
@@ -168,10 +162,7 @@ class SwitchingAccelerator:
 
         self.train_loss_list = []
 
-        self._main_loop(logger, models_acc, optimizer_acc, train_dl_acc)
-
-        if self.accelerator.is_main_process:
-            logger.line_break()
+        self._main_loop(models_acc, optimizer_acc, train_dl_acc)
 
         self.accelerator.wait_for_everyone()
 
@@ -179,12 +170,21 @@ class SwitchingAccelerator:
 
         return unwr_coupled_model, self.train_loss_list
 
-    def _main_loop(self, logger, models, optimizer, train_set):
+    def _main_loop(self, models, optimizer, train_set):
+        epoch_len = len(self.train_set)
+
+        if self.accelerator.is_main_process:
+            logger = SameLineLogger(epoch_len, self.kwargs.epochs)
+            logger.line_start()
+        else:
+            logger = None
+
         models[0].train()
 
         batch_idx = 0
 
         for epoch_idx in range(self.kwargs.epochs):
+
             for batch_with_bin_idxs in train_set:
                 weird_inputs, src_k, tgt_k, _ = batch_with_bin_idxs
 
@@ -210,21 +210,27 @@ class SwitchingAccelerator:
                 self.lr_scheduler.step()
                 optimizer.zero_grad()
 
-                self._step_and_perhaps_save(logger, batch_idx, epoch_idx, float(loss.item()), models[0])
+                self._step_and_perhaps_save(logger, batch_idx, epoch_idx, epoch_len, float(loss.item()), models[0])
                 batch_idx += 1
 
-    def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss, model):
         if self.accelerator.is_main_process:
-            logger.step(batch_i, epoch_i, loss)
+            logger.line_break()
 
-        if not ((batch_i + 1) % self.kwargs.save_steps):
+
+    def _step_and_perhaps_save(self, logger, batch_i, epoch_i, epoch_len, loss, model):
+        if self.accelerator.is_main_process:
+            logger.step(batch_i, loss)
+
+        if not ((batch_i + 1) % self.kwargs.save_steps) or not ((batch_i + 1) % epoch_len):
             if self.accelerator.is_main_process:
                 logger.line_break()
 
             log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
 
             if self.accelerator.is_main_process:
-                this_location = os.path.join(self.save_location, f"checkpoint-{epoch_i + 1}-{batch_i + 1}")
+                ckpt_name = f"checkpoint-e{epoch_i + 1}-b{batch_i + 1}" if ((batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1}-full"
+
+                this_location = os.path.join(self.save_location, ckpt_name)
                 if os.path.exists(this_location):
                     raise FileExistsError("Cannot overwrite existing checkpoint")
 
