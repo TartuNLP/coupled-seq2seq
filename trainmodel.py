@@ -201,7 +201,7 @@ class SwitchingAccelerator:
 
                 loss = outputs.loss
 
-                self.train_loss_list.append((loss.item(), src_k.item(), tgt_k.item()))
+                self.train_loss_list.append((loss.item(), src_k, tgt_k))
 
                 self.accelerator.backward(loss)
 
