@@ -211,7 +211,7 @@ class SwitchingAccelerator:
                 optimizer.zero_grad()
 
                 #self._step_and_perhaps_save(logger, batch_idx, epoch_idx, float(loss.item()), models[0])
-                self._step_and_perhaps_save(logger, batch_size, epoch_idx, float(loss.item()), models[0])
+                self._step_and_perhaps_save(logger, proc_batch_size, epoch_idx, float(loss.item()), models[0])
                 batch_idx += 1
 
     def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss, model):
