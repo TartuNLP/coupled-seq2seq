@@ -53,6 +53,8 @@ def loadmodel(mdlname="facebook/m2m100_418M"):
 
 
 def encode(model, input_batch):
+    model = model.module if hasattr(model, "module") else model
+
     if is_nllb(model):
         enc = model.model.encoder
     elif is_madlad(model):
