@@ -30,7 +30,7 @@ def debug(msg):
     ### log("\n(DEBUG) " + msg)
 
 
-def maybe_smugri_(lang_def):
+def lang_set_maybe_smugri(lang_def):
     if lang_def == "smugri-low":
         preresult = SMUGRI_LOW
     elif lang_def == "smugri-high":

@@ -9,7 +9,7 @@ from accelerate import Accelerator, DataLoaderConfiguration
 
 from translate import hf_tok, encode
 from data import MultilingualDatasetIterator
-from aux import log, maybe_smugri_, SameLineLogger, CmdlineArgs
+from aux import log, lang_set_maybe_smugri, SameLineLogger, CmdlineArgs
 from collections import namedtuple
 from coupling import to_cpl_spec, save_all_models
 from modelops import mdl_param_count
@@ -186,17 +186,16 @@ def _cmdline_args(input_values):
     description = """Train or tune models - TODO"""
 
     pos_args = ["mdl_id", "save_location", "train_file", "langs"]
+    pos_types = [str, str, str, lang_set_maybe_smugri]
 
     kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "batch_size": 16,
                 "save_steps": 1500, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4  }
 
     #post-process the arguments
-    args = CmdlineArgs(description, pos_arg_list=pos_args, kw_arg_dict=kw_args, input_args=input_values)
-
-    args.langs = maybe_smugri_(args.langs)
+    args = CmdlineArgs(description, pos_arg_list=pos_args, pos_arg_types=pos_types, kw_arg_dict=kw_args, input_args=input_values)
 
     if args.anchor_langs is not None:
-        args.anchor_langs = maybe_smugri_(args.anchor_langs)
+        args.anchor_langs = lang_set_maybe_smugri(args.anchor_langs)
 
     # if the directory args.save_location already exists, raise an exception:
     if os.path.exists(args.save_location):
