@@ -174,24 +174,35 @@ class CmdlineArgs:
 
         if kw_vals:
             extra_keys = ", ".join(kw_vals.keys())
-            msg = f"Command-line keyword arguments '{extra_keys}' are not recognized."
+            msg = f"command-line keyword arguments '{extra_keys}' are not recognized."
 
             self._help_message_and_die(extra=msg)
 
     def _convert_kw(self, kw_vals, kw):
         if self.kw_arg_dict_with_defaults[kw] is None:
-            result = kw_vals[kw]
+            return kw_vals[kw]
         else:
             this_typ = type(self.kw_arg_dict_with_defaults[kw])
 
             try:
-                result = this_typ(kw_vals[kw])
+                return this_typ(kw_vals[kw])
             except ValueError:
                 self._help_message_and_die(extra=f"could not convert '{kw_vals[kw]}' to '{this_typ}'")
 
-        return result
+    def _sanity_check_pos_args(self, cmdline_values):
+        cmdline_len = len(cmdline_values)
+
+        if cmdline_len < len(self.raw_pos_arg_list):
+            self._help_message_and_die(
+                extra=f"positional arguments missing: {', '.join(self.raw_pos_arg_list[cmdline_len:])}")
+
+        if cmdline_len > len(self.raw_pos_arg_list):
+            self._help_message_and_die(
+                extra=f"superfluous positional arguments: {', '.join(cmdline_len[len(self.raw_pos_arg_list):])}")
 
     def _handle_positional_args(self, cmdline_values):
+        self._sanity_check_pos_args(cmdline_values)
+
         for arg, val, typ in zip(self.raw_pos_arg_list, cmdline_values, self.raw_pos_arg_types):
             try:
                 val = val if typ is None else typ(val)
