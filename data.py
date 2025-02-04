@@ -8,12 +8,12 @@ import torch
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
 from random import randrange, shuffle
+from pathlib import Path
 
-from aux import log, smugri_back, maybe_smugri
+from aux import log, lang_set_maybe_smugri
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
-#DataEntry = namedtuple('DataEntry', ["tr_pair", "prepared", "src_bin_idx", "tgt_bin_idx"])
 
 
 def make_path_compatible(filename):
@@ -155,24 +155,23 @@ def inject_bin_indices(batch, src_k, tgt_k):
 
     batch['labels'][0,0] += tgt_k << 30
 
-def get_data_cache_location(filename, batch_size, idx = None):
-    dirname = filename + "-tokcache"
-    if not os.path.isdir(dirname):
-        os.mkdir(dirname)
+def get_data_cache_location(cache_meta_path, idx):
+    cache_folder, cache_file = os.path.split(cache_meta_path)
 
-    name = (dirname + "/batch-" + str(batch_size))
+    if cache_folder:
+        Path(cache_folder).mkdir(parents=True, exist_ok=True)
 
-    name += r"-meta.json" if idx is None else f"-{idx:04}.pt"
-
-    return name
-
+    if cache_meta_path.endswith(".json"):
+        return cache_meta_path[:-5] + f"_{idx:04}.pt"
+    else:
+        raise ValueError(f"Expected a json file for the cache meta-location ({cache_meta_path})")
 
 
 class MultilingualBatchingCachingDataset:
     def _post_proc_bins(self, bins):
         for src_k in bins:
             for tgt_k in bins[src_k]:
-                while len(bins[src_k][tgt_k]) % self.batch_size != 0:
+                while len(bins[src_k][tgt_k]) % self.args.batch_size != 0:
                     rnd_elem_idx = randrange(len(bins[src_k][tgt_k]))
                     rnd_elem = bins[src_k][tgt_k][rnd_elem_idx]
                     bins[src_k][tgt_k].append(rnd_elem)
@@ -269,7 +268,7 @@ class MultilingualBatchingCachingDataset:
 
         return prep_batch_grouped
 
-    def _bins_to_tokenized_batched_cached_data(self, bins):
+    def _bins_to_tokenized_batched_cached_data(self, bins, cache_path):
         shard_i = 0
         batch_i = 0
         total_i = 0
@@ -279,18 +278,18 @@ class MultilingualBatchingCachingDataset:
 
         log("Tokenizing data")
 
-        for raw_batch, src_k, tgt_k in do_bins_in_shuffled_batches(bins, self.batch_size):
+        for raw_batch, src_k, tgt_k in do_bins_in_shuffled_batches(bins, self.args.batch_size):
             batch_i += 1
             if not batch_i % 10000:
-                log(f"Tokenized {batch_i + shard_i * self.shard_size} batches (shard {shard_i})")
+                log(f"Tokenized {batch_i + shard_i * self.args.shard_size} batches (shard {shard_i})")
 
             prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
             data.append((prepared_batch, src_k, tgt_k, total_i))
 
-            if batch_i >= self.shard_size:
+            if batch_i >= self.args.shard_size:
                 shard_i += 1
                 batch_i = 0
-                fn = self._save_cache_file(data, self.filename, shard_i)
+                fn = self._save_cache_file(data, cache_path, shard_i)
                 metainfo.append({'shard_filename': fn, 'shard_size': len(data)})
 
                 del data
@@ -302,23 +301,24 @@ class MultilingualBatchingCachingDataset:
         if len(data) > 0:
             log(f"Tokenized {batch_i} batches (shard {shard_i})")
             shard_i += 1
-            fn = self._save_cache_file(data, self.filename, shard_i)
+            fn = self._save_cache_file(data, cache_path, shard_i)
             metainfo.append({'shard_filename': fn, 'shard_size': len(data)})
 
-        meta_fn = get_data_cache_location(self.filename, self.batch_size)
-        with open(meta_fn, 'w') as f:
+        with open(cache_path, 'w') as f:
             json.dump(metainfo, f)
 
         del data
 
-    def _save_cache_file(self, data, filename, idx):
-        cache_location = get_data_cache_location(filename, self.batch_size, idx)
+    @staticmethod
+    def _save_cache_file(data, cache_location, idx):
+        cache_location = get_data_cache_location(cache_location, idx)
 
         if os.path.exists(cache_location):
             raise Exception("Cache already exists")
 
         torch.save(data, cache_location)
         log("Saved data into cache")
+
         return cache_location
 
     def set_model_type(self):
@@ -334,32 +334,27 @@ class MultilingualBatchingCachingDataset:
         return result
 
 
-    def __init__(self, tr_file, coupling_specs, batch_size, tracing_msg="just a set", max_src_len=256,
-                 max_tgt_len=256, verbose=False, leave_only=None, shard_size=1000000):
-        self.msg = tracing_msg
-        self.batch_size = batch_size
-        self.shard_size = shard_size
-
+    def __init__(self, tr_file, coupling_specs, args):
+        self.args = args
         self.filename = tr_file
-
         self.coupling_specs = coupling_specs
+
         self.model_type = self.set_model_type()
 
         # init lang to idx
         self._lang_to_idx = lang_bin_mapping(coupling_specs)
 
-    def cache_data(self):
+    def load_and_cache_data(self, cache_path):
         # collect data into bins and cache it
         bins = self._fill_bins()
 
         self.report_update_stats(bins)
 
-        self._bins_to_tokenized_batched_cached_data(bins)
+        self._bins_to_tokenized_batched_cached_data(bins, cache_path)
+
 
 class MultilingualDatasetIterator(IterableDataset):
-    def _load_metafile(self, filename, batch_size):
-        cache_metafile = get_data_cache_location(filename, batch_size)
-
+    def _load_metafile(self, cache_metafile):
         with open(cache_metafile, 'r') as f:
             self.metainfo = json.load(f)
 
@@ -376,8 +371,8 @@ class MultilingualDatasetIterator(IterableDataset):
 
         self.curr_elem_idx = 0
 
-    def __init__(self, filename, batch_size):
-        self._load_metafile(filename, batch_size)
+    def __init__(self, filename):
+        self._load_metafile(filename)
 
         self._reset()
 
@@ -419,8 +414,8 @@ def dump_to_stdout(filename=None, lang_or_lp=None):
             i += 1
             print(tr_pair.input + "\t" + tr_pair.output)
     else:
-        langs = maybe_smugri(lang_or_lp)
-        lang_set = set(langs.split(","))
+        lang_set = lang_set_maybe_smugri(lang_or_lp)
+
         raw_data = load_json_datax(filename)
         data_iter = data_iter_for_tok_train(raw_data, lang_set)
         i = 0
