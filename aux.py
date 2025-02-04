@@ -10,7 +10,7 @@ def log(msg):
     sys.stderr.write(str(datetime.now()) + ": " + msg + '\n')
 
 
-def same_line_log(msg, len_to_del=0):
+def _same_line_log(msg, len_to_del=0):
     if sys.stderr.isatty():
         if len_to_del > 0:
             sys.stderr.write("\b" * len_to_del)
@@ -28,12 +28,6 @@ def same_line_log(msg, len_to_del=0):
 def debug(msg):
     pass
     ### log("\n(DEBUG) " + msg)
-
-
-def log_2dict(twod_dict, msg):
-    for k1 in twod_dict:
-        for k2 in twod_dict[k1]:
-            log(f"DEBUG {msg}: {k1}, {k2} --> {twod_dict[k1][k2]}")
 
 
 def maybe_smugri(lang_def):
@@ -99,7 +93,7 @@ class SameLineLogger:
         self.start_time = datetime.now()
 
     def line_start(self):
-        same_line_log(str(datetime.now()) + ": training batches ")
+        _same_line_log(str(datetime.now()) + ": training batches ")
 
     def step(self, batch_i, loss):
         passed_time = datetime.now() - self.start_time
@@ -113,7 +107,7 @@ class SameLineLogger:
 
         msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1} / {self.epoch_num}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
 
-        new_len = same_line_log(msg, self.log_len)
+        new_len = _same_line_log(msg, self.log_len)
 
         self.log_len = new_len
 
