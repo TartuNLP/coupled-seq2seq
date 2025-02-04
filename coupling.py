@@ -112,16 +112,12 @@ def to_cpl_spec(langs, model, tokenizer, location):
 
 
 def load_module_config(model_dir):
-    # TODO this leaves out anchor model loading, temporary
-
-    return [{"model_id": model_dir, "lang_set": {}}]
-
-    #try:
-    #    with open(os.path.join(model_dir, MODULE_CONFIG_FILE), "r") as f:
-    #        config = json.load(f)
-    #        return config
-    #except FileNotFoundError:
-    #    return [{"model_id": model_dir, "lang_set": {}}]
+    try:
+        with open(os.path.join(model_dir, MODULE_CONFIG_FILE), "r") as f:
+            config = json.load(f)
+            return config
+    except FileNotFoundError:
+        return [{"model_id": model_dir, "lang_set": {}}]
 
 
 def save_loss_list(location, loss_list):
