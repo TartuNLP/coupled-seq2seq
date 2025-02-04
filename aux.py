@@ -120,19 +120,19 @@ class SameLineLogger:
 class CmdlineArgs:
     def __init__(self,
                  description,
-                 pos_arg_list=[],
+                 pos_arg_list=None,
                  pos_arg_types=None,
-                 kw_arg_dict={},
+                 kw_arg_dict=None,
                  input_args=None):
 
         self.description = description
 
-        self.raw_pos_arg_list = pos_arg_list
+        self.raw_pos_arg_list = pos_arg_list if pos_arg_list is not None else []
         self.raw_pos_arg_types = pos_arg_types \
             if pos_arg_types is not None \
             else [None] * len(self.raw_pos_arg_list)
 
-        self.kw_arg_dict_with_defaults = kw_arg_dict
+        self.kw_arg_dict_with_defaults = kw_arg_dict if kw_arg_dict is not None else {}
 
         kw_vals, cmdline_values = self._to_kwargs(sys.argv[1:] if input_args is None else input_args)
 
