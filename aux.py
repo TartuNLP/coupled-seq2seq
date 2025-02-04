@@ -233,6 +233,7 @@ class CmdlineArgs:
         if extra is not None:
             sys.stderr.write("Error: " + extra + "\n")
 
+        sys.stderr.write("\n")
         sys.exit(-1)
 
     def to_dict(self):
@@ -244,11 +245,3 @@ class CmdlineArgs:
 
     def __repr__(self):
         return self.__str__()
-
-if __name__ == "__main__":
-    args = CmdlineArgs("Testing app",
-                       ["aaa", "bbb", "ccc"],
-                       [int, None, float],
-                       kw_arg_dict={'fu': 3, 'bar': None})
-    print("OK!")
-    print(args)
