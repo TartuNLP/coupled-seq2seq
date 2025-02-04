@@ -2,6 +2,7 @@
 
 import sys
 
+from aux import CmdlineArgs, log
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from data import do_list_in_batches, lang_bin_mapping
 from coupling import load_module_config, to_cpl_spec
@@ -9,8 +10,6 @@ from collections import defaultdict
 from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type
 
 hf_tok = "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"
-
-host_remote = True
 
 
 def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None, device=None):
@@ -25,7 +24,7 @@ def prepare_for_translation(provided_inputs, tokenizer, input_language, output_l
 
     prepared_inputs = tokenizer(inputs_to_process, return_tensors="pt", padding=True, truncation=True, max_length=512)
 
-    if host_remote and device is not None:
+    if device is not None:
         prepared_inputs.to(device)
 
     frc_bos = tokenizer.get_lang_id(output_language) if output_language is not None else None
@@ -45,10 +44,7 @@ def loadtokenizer(mdlname="facebook/m2m100_418M"):
 
 
 def loadmodel(mdlname="facebook/m2m100_418M"):
-    if host_remote:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, device_map="auto")
-    else:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok)
+    model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, device_map="auto")
     return model
 
 
@@ -137,6 +133,7 @@ def load_and_init_module_config(model_id):
         lang_set = entry["lang_set"]
         model_id = entry["model_id"] if i > 0 else model_id
 
+        log(f"Loading model and tokenizer from '{model_id}'")
         model = loadmodel(model_id)
         tokenizer = loadtokenizer(model_id)
 
@@ -149,28 +146,38 @@ def load_and_init_module_config(model_id):
     return main_model, coupling_specs
 
 
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        host_remote = True
-    else:
-        host_remote = False
+def _cmdline_args(input_values):
+    description = """Translate STDIN text with a translation model - TODO"""
 
-    if not host_remote:
-        sys.argv = ("X", "models/nllb", "et", "en")
+    pos_args = ["mdl_id", "from_lang", "to_lang"]
 
-    mdl_id = sys.argv[1]
+    #post-process the arguments
+    args = CmdlineArgs(description, pos_args, input_args=input_values)
 
-    from_lang = sys.argv[2]
-    to_lang = sys.argv[3]
+    log(f"Launched as {args}")
 
-    main_model, module_config = load_and_init_module_config(mdl_id)
+    return args
 
-    if host_remote:
-        inputs = [line.strip() for line in sys.stdin]
-    else:
-        inputs = ["See on ikka tore uudis."]
 
-    outputs = coupled_translate(module_config, inputs, from_lang, to_lang)
+def and_i_called_this_function_do_main_too(iv):
+    args = _cmdline_args(iv)
+
+    inputs = [line.strip() for line in sys.stdin]
+    # inputs = ["See on ikka tore uudis.", "Ma ikka katsetaks ka täpitähtedega tõlkimist.", "Mis tähed on täpitähed?"]
+
+    log(f"Inputs: {inputs}")
+
+    main_model, module_config = load_and_init_module_config(args.mdl_id)
+
+    outputs = coupled_translate(module_config, inputs, args.from_lang, args.to_lang)
 
     print("\n".join(outputs))
 
+    log("Done...")
+
+
+if __name__ == "__main__":
+    input_values = sys.argv[1:] if len(sys.argv) > 1 \
+        else ["models/nllb", "et", "en"]
+
+    and_i_called_this_function_do_main_too(input_values)
