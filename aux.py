@@ -72,7 +72,7 @@ def get_changed_config(conf, args):
     arg_dict = args.to_dict()
 
     for kwarg in arg_dict:
-        if hasattr(conf, kwarg):
+        if hasattr(conf, kwarg) and arg_dict[kwarg] is not None:
             setattr(conf, kwarg, maybe_convert(arg_dict[kwarg]))
 
     return conf
