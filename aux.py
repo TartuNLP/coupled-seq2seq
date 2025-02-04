@@ -11,7 +11,7 @@ def log(msg):
 
 
 def same_line_log(msg, len_to_del=0):
-    """if sys.stderr.isatty():
+    if sys.stderr.isatty():
         if len_to_del > 0:
             sys.stderr.write("\b" * len_to_del)
 
@@ -21,8 +21,8 @@ def same_line_log(msg, len_to_del=0):
         sys.stderr.flush()
 
         return new_len
-    else:"""
-    sys.stderr.write(msg + "\n")
+    else:
+        sys.stderr.write(msg + "\n")
 
 
 def debug(msg):
@@ -120,22 +120,6 @@ class SameLineLogger:
     def line_break(self):
         sys.stderr.write("\n")
 
-"""    def read_kwargs(self, kwargs):
-        type_list = [int, float, int, int, int]
-        kw_names = ["save_steps", "lr", "accum_steps", "log_steps", "epochs"]
-        default_values = [1500, 1.5e-5, 1, 100, 2]
-
-        kw_with_dv = { kn: (dv if kn not in kwargs else typ(kwargs[kn])) for kn, dv, typ in zip(kw_names, default_values, type_list)}
-
-        return namedtuple("kwargs", kw_names)(*[kw_with_dv[k] for k in kw_names])"""
-
-
-def _to_kwargs(arg_list):
-    key_args = dict(raw_entry.split("=") for raw_entry in arg_list if "=" in raw_entry)
-    filtered_arg_list = [arg for arg in arg_list if "=" not in arg]
-
-    return key_args, filtered_arg_list
-
 
 class CmdlineArgs:
     def __init__(self,
@@ -154,13 +138,20 @@ class CmdlineArgs:
 
         self.kw_arg_dict_with_defaults = kw_arg_dict
 
-        kw_vals, cmdline_values = _to_kwargs(sys.argv[1:] if input_args is None else input_args)
+        kw_vals, cmdline_values = self._to_kwargs(sys.argv[1:] if input_args is None else input_args)
 
         self._maybe_help(cmdline_values)
 
         self._handle_positional_args(cmdline_values)
 
         self._handle_keyword_args(kw_vals)
+
+    @staticmethod
+    def _to_kwargs(arg_list):
+        key_args = dict(raw_entry.split("=") for raw_entry in arg_list if "=" in raw_entry)
+        filtered_arg_list = [arg for arg in arg_list if "=" not in arg]
+
+        return key_args, filtered_arg_list
 
     def _handle_keyword_args(self, kw_vals):
         for kw in self.kw_arg_dict_with_defaults:
