@@ -182,7 +182,7 @@ class SwitchingAccelerator:
                 logger.line_start()
 
 
-def _cmdline_args(input_values):
+def _cmdline_args():
     description = """Train or tune models - TODO"""
 
     pos_args = ["mdl_id", "save_location", "train_file", "langs"]
@@ -192,7 +192,7 @@ def _cmdline_args(input_values):
                 "save_steps": 1500, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4  }
 
     #post-process the arguments
-    args = CmdlineArgs(description, pos_arg_list=pos_args, pos_arg_types=pos_types, kw_arg_dict=kw_args, input_args=input_values)
+    args = CmdlineArgs(description, pos_arg_list=pos_args, pos_arg_types=pos_types, kw_arg_dict=kw_args)
 
     if args.anchor_langs is not None:
         args.anchor_langs = lang_set_maybe_smugri(args.anchor_langs)
@@ -206,8 +206,8 @@ def _cmdline_args(input_values):
     return args
 
 
-def yes_i_called_this_function_do_main(iv):
-    args = _cmdline_args(iv)
+def yes_i_called_this_function_do_main():
+    args = _cmdline_args()
 
     log("loading coupled model and tokenizer")
     main_model, main_tokenizer = load_hf_mdl_and_tok(args.mdl_id, verbose=True)
@@ -227,10 +227,7 @@ def yes_i_called_this_function_do_main(iv):
 
     upd_model, loss_list = acc_trainer.train()
 
-    save_all_models(args.save_location, upd_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
+    save_all_models(args.save_location, upd_model, main_tokenizer, coupling_specs, loss_list=loss_list)
 
 if __name__ == "__main__":
-    input_values = sys.argv[1:] if len(sys.argv) > 1 \
-        else ["models/smol", "models/smol_upd", "data/smugri4a-dev.json", "smugri"]
-
-    yes_i_called_this_function_do_main(input_values)
+    yes_i_called_this_function_do_main()
