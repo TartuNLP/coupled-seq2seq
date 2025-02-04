@@ -49,7 +49,7 @@ def load_or_translate(model, mod_config, input_list, src_lang, tgt_lang, model_l
     return hypos
 
 
-if __name__ == '__main__':
+def do_main():
     mdl_id = sys.argv[1]
     corpus = sys.argv[2]
 
@@ -91,3 +91,6 @@ if __name__ == '__main__':
     filename = get_benchmark_filename(mdl_id, corpus)
     with open(filename, "w") as ofh:
         json.dump(scores, ofh, indent=2, sort_keys=True)
+
+if __name__ == '__main__':
+    do_main()
