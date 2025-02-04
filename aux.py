@@ -61,10 +61,10 @@ def smugri_back(lang_list):
 def maybe_convert(value):
     try:
         return int(value)
-    except ValueError:
+    except (ValueError, TypeError):
         try:
             return float(value)
-        except ValueError:
+        except (ValueError, TypeError):
             return value
 
 

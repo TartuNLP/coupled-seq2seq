@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer
 
@@ -42,7 +43,7 @@ def handle_tokenizers(mdl_id, mdl_new_name, args):
 
     return tokenizer, tokenizer_changed
 
-def just_do_main_stuff_and_avoid_global_variable_ctx():
+def just_do_main_stuff_and_avoid_global_ctx_variables():
     args = CmdlineArgs("Initialize a new HuggingFace model randomly, off of an existing configuration, with possible changes",
                        pos_arg_list=["mdl_id", "save_location"],
                        kw_arg_dict={ k: None for k in ["tok_train_file", "new_langs", "vocab_size",
@@ -53,6 +54,9 @@ def just_do_main_stuff_and_avoid_global_variable_ctx():
 
     if args.new_langs:
         args.new_langs = lang_set_maybe_smugri(args.new_langs)
+
+    if os.path.exists(args.save_location):
+        raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
 
     tok, it_changed = handle_tokenizers(args.mdl_id, args.save_location, args)
 
@@ -68,4 +72,4 @@ def just_do_main_stuff_and_avoid_global_variable_ctx():
           ("" if emb_size < 0 else f" of which {emb_size} ({100*emb_size/mdl_size:.2f}%) are embeddings"))
 
 if __name__ == '__main__':
-    just_do_main_stuff_and_avoid_global_variable_ctx()
+    just_do_main_stuff_and_avoid_global_ctx_variables()

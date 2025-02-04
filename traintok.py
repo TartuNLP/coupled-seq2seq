@@ -154,6 +154,9 @@ if __name__ == '__main__':
                        pos_arg_list=["mdl_id", "save_location", "train_file", "vocab_size", "languages"],
                        pos_arg_types=[str, str, str, str, lang_set_maybe_smugri])
 
+    if os.path.exists(args.save_location):
+        raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
+
     tokenizer = learn_spm_tokenizer(args.train_file, args.save_location, args.mdl_id, args.vocab_size, args.languages)
     tokenizer.save_pretrained(args.save_location)
 

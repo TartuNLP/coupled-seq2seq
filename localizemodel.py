@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from modelops import mdl_param_count
@@ -37,6 +38,9 @@ def i_dont_like_global_scope_variable_dangers():
                        pos_arg_list=["mdl_id", "save_location"],
                        kw_arg_dict={"tok_train_file": None,
                                     "new_langs": None})
+
+    if os.path.exists(args.save_location):
+        raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
 
     if args.new_langs:
         args.new_langs = lang_set_maybe_smugri(args.new_langs)
