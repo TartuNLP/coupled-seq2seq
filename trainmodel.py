@@ -183,7 +183,7 @@ class SwitchingAccelerator:
 
 
 def _cmdline_args():
-    description = """Train or tune models - TODO"""
+    description = """Train or tune models"""
 
     pos_args = ["mdl_id", "save_location", "train_file", "langs"]
     pos_types = [str, str, str, lang_set_maybe_smugri]
