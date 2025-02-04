@@ -221,7 +221,7 @@ def yes_i_called_this_function_do_main():
 
         coupling_specs += to_cpl_spec(args.anchor_langs, anchor_model, anchor_tokenizer, args.anchor_mdl_id)
 
-    train_set = MultilingualDatasetIterator(args.train_file, args.batch_size)
+    train_set = MultilingualDatasetIterator(args.train_file)
 
     acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, args)
 
