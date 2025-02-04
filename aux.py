@@ -198,7 +198,7 @@ class CmdlineArgs:
 
         if cmdline_len > len(self.raw_pos_arg_list):
             self._help_message_and_die(
-                extra=f"superfluous positional arguments: {', '.join(cmdline_len[len(self.raw_pos_arg_list):])}")
+                extra=f"superfluous positional arguments: {', '.join(cmdline_values[len(self.raw_pos_arg_list):])}")
 
     def _handle_positional_args(self, cmdline_values):
         self._sanity_check_pos_args(cmdline_values)
