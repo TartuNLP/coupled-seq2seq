@@ -29,8 +29,8 @@ def debug(msg):
     pass
     ### log("\n(DEBUG) " + msg)
 
-def log_2dict(twod_dict, msg):
 
+def log_2dict(twod_dict, msg):
     for k1 in twod_dict:
         for k2 in twod_dict[k1]:
             log(f"DEBUG {msg}: {k1}, {k2} --> {twod_dict[k1][k2]}")
@@ -60,13 +60,6 @@ def smugri_back(lang_list):
         return "smugri-full"
     else:
         return sll_str
-
-
-def to_kwargs(arg_list):
-    key_args = dict(raw_entry.split("=") for raw_entry in arg_list if "=" in raw_entry)
-    filtered_arg_list = [arg for arg in arg_list if "=" not in arg]
-
-    return key_args, filtered_arg_list
 
 
 def maybe_convert(value):
@@ -118,7 +111,7 @@ class SameLineLogger:
         batch_i_in_epoch = batch_i % self.epoch_len
         curr_epoch_i = batch_i // self.epoch_len
 
-        msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
+        msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1} / {self.epoch_num}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
 
         new_len = same_line_log(msg, self.log_len)
 
@@ -127,3 +120,106 @@ class SameLineLogger:
     def line_break(self):
         sys.stderr.write("\n")
 
+"""    def read_kwargs(self, kwargs):
+        type_list = [int, float, int, int, int]
+        kw_names = ["save_steps", "lr", "accum_steps", "log_steps", "epochs"]
+        default_values = [1500, 1.5e-5, 1, 100, 2]
+
+        kw_with_dv = { kn: (dv if kn not in kwargs else typ(kwargs[kn])) for kn, dv, typ in zip(kw_names, default_values, type_list)}
+
+        return namedtuple("kwargs", kw_names)(*[kw_with_dv[k] for k in kw_names])"""
+
+
+def _to_kwargs(arg_list):
+    key_args = dict(raw_entry.split("=") for raw_entry in arg_list if "=" in raw_entry)
+    filtered_arg_list = [arg for arg in arg_list if "=" not in arg]
+
+    return key_args, filtered_arg_list
+
+
+class CmdlineArgs:
+    def __init__(self,
+                 description,
+                 pos_arg_list,
+                 pos_arg_types=None,
+                 kw_arg_dict={},
+                 input_args=None):
+
+        self.description = description
+
+        self.raw_pos_arg_list = pos_arg_list
+        self.raw_pos_arg_types = pos_arg_types \
+            if pos_arg_types is not None \
+            else [None] * len(self.raw_pos_arg_list)
+
+        self.kw_arg_dict_with_defaults = kw_arg_dict
+
+        kw_vals, cmdline_values = _to_kwargs(sys.argv[1:] if input_args is None else input_args)
+
+        self._maybe_help(cmdline_values)
+
+        self._handle_positional_args(cmdline_values)
+
+        self._handle_keyword_args(kw_vals)
+
+    def _handle_keyword_args(self, kw_vals):
+        for kw in self.kw_arg_dict_with_defaults:
+            if kw in kw_vals:
+                val = self._convert_kw(kw_vals, kw)
+                del kw_vals[kw]
+            else:
+                val = self.kw_arg_dict_with_defaults[kw]
+
+            setattr(self, kw, val)
+
+        if kw_vals:
+            extra_keys = ", ".join(kw_vals.keys())
+            msg = f"Command-line keyword arguments '{extra_keys}' are not recognized."
+
+            self._help_message_and_die(extra=msg)
+
+    def _convert_kw(self, kw_vals, kw):
+        if self.kw_arg_dict_with_defaults[kw] is None:
+            result = kw_vals[kw]
+        else:
+            this_typ = type(self.kw_arg_dict_with_defaults[kw])
+
+            try:
+                result = this_typ(kw_vals[kw])
+            except ValueError:
+                self._help_message_and_die(extra=f"could not convert '{kw_vals[kw]}' to '{this_typ}'")
+
+        return result
+
+    def _handle_positional_args(self, cmdline_values):
+        for arg, val, typ in zip(self.raw_pos_arg_list, cmdline_values, self.raw_pos_arg_types):
+            try:
+                val = val if typ is None else typ(val)
+            except ValueError:
+                self._help_message_and_die(extra=f"could not convert '{val}' to '{typ}'")
+
+            setattr(self, arg, val)
+
+    def _maybe_help(self, cmdline_values):
+        if len(cmdline_values) == 1 and cmdline_values[0] in {"--help", "-h", "-?"}:
+            self._help_message_and_die()
+
+    def _help_message_and_die(self, extra=None):
+        sys.stderr.write("Help message: " + self.description + "\n")
+
+        if self.raw_pos_arg_list:
+            args_descr = ", ".join([f"'{arg}' ({typ.__name__  if typ is not None else 'any'})"
+                                    for arg, typ in zip(self.raw_pos_arg_list, self.raw_pos_arg_types)])
+
+            sys.stderr.write(f"Positional arguments: {args_descr}\n")
+
+        if self.kw_arg_dict_with_defaults:
+            kw_descr = ", ".join([f"'{kw}' (default: {val})"
+                                  for kw, val in self.kw_arg_dict_with_defaults.items()])
+
+            sys.stderr.write(f"Keyword arguments: {kw_descr}\n")
+
+        if extra is not None:
+            sys.stderr.write("Error: " + extra + "\n")
+
+        sys.exit(-1)
