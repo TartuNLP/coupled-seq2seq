@@ -3,85 +3,69 @@
 import sys
 
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer
+
+from modelops import mdl_param_count
 from translate import hf_tok
 from traintok import learn_spm_tokenizer, get_stupid_correction, get_unk_toks, extend_tok_langs
 
-from aux import maybe_smugri, to_kwargs, get_changed_config
+from aux import get_changed_config, lang_set_maybe_smugri, CmdlineArgs
 
 
-def mdl_param_count(model):
-    result = 0
-    embedding_size = -1
-
-    for n, p in model.named_parameters():
-        this_count = 1
-
-        for s in p.shape:
-            this_count *= s
-
-        result += this_count
-
-        # if n == "model.shared.weight":
-
-        if "shared.weight" in n:
-            embedding_size = this_count
-
-    return result, embedding_size
-
-
-def handle_tokenizers(mdl_id, mdl_new_name, kwargs):
-    lang_set = maybe_smugri(kwargs["lang_set"]).split(",") if "lang_set" in kwargs else None
-
+def handle_tokenizers(mdl_id, mdl_new_name, args):
     tokenizer_changed = False
 
     # train a new sentence-piece tokenizer
-    if "tok_train_set" in kwargs and "vocab_size" in kwargs:
-        assert lang_set is not None, "lang_set must be provided"
+    if args.tok_train_file and args.vocab_size:
+        assert args.new_langs is not None, "lang_set must be provided"
+
         tokenizer_changed = True
         correction = get_stupid_correction(mdl_id)
 
-        tokenizer = learn_spm_tokenizer(kwargs["tok_train_set"], mdl_new_name, base_model_id=mdl_id,
-                                        vocab_size=int(kwargs["vocab_size"]) - correction, lang_set=lang_set)
+        tokenizer = learn_spm_tokenizer(args.tok_train_file, mdl_new_name, base_model_id=mdl_id,
+                                        vocab_size=int(args.vocab_size) - correction, lang_set=args.new_langs)
 
     # save the pre-trained model's tokenizer,
     # possibly adding new languages and tokens
     else:
         tokenizer = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok)
 
-        if lang_set is not None:
+        if args.new_langs is not None:
             tokenizer_changed = True
-            extend_tok_langs(tokenizer, lang_set)
+            extend_tok_langs(tokenizer, args.new_langs)
 
-        if "tok_train_set" in kwargs:
+        if args.tok_train_file:
             tokenizer_changed = True
-            unk_toks = get_unk_toks(tokenizer, kwargs["tok_train_set"], verbose=True)
+            unk_toks = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
             tokenizer.add_tokens(unk_toks)
 
     tokenizer.save_pretrained(mdl_new_name)
 
     return tokenizer, tokenizer_changed
 
+def just_do_main_stuff_and_avoid_global_variable_ctx():
+    args = CmdlineArgs("Initialize a new HuggingFace model randomly, off of an existing configuration, with possible changes",
+                       pos_arg_list=["mdl_id", "save_location"],
+                       kw_arg_dict={ k: None for k in ["tok_train_file", "new_langs", "vocab_size",
+                                    "activation_dropout", "activation_function", "d_model",
+                                    "decoder_attention_heads", "decoder_ffn_dim", "decoder_layerdrop", "decoder_layers",
+                                    "encoder_attention_heads", "encoder_ffn_dim", "encoder_layerdrop", "encoder_layers",
+                                    "num_hidden_layers"] })
+
+    if args.new_langs:
+        args.new_langs = lang_set_maybe_smugri(args.new_langs)
+
+    tok, it_changed = handle_tokenizers(args.mdl_id, args.save_location, args)
+
+    config = get_changed_config(AutoConfig.from_pretrained(args.mdl_id), args)
+
+    model = AutoModelForSeq2SeqLM.from_config(config)
+    if it_changed:
+        model.resize_token_embeddings(len(tok) + get_stupid_correction(args.mdl_id))
+    model.save_pretrained(args.save_location)
+
+    mdl_size, emb_size = mdl_param_count(model)
+    print(f"Created model with {mdl_size} parameters" +
+          ("" if emb_size < 0 else f" of which {emb_size} ({100*emb_size/mdl_size:.2f}%) are embeddings"))
 
 if __name__ == '__main__':
-    #sys.argv = ["X", "facebook/nllb-200-distilled-600M", "new_tok", "decoder_layers=2", "dropout=0.01"]
-
-    try:
-        mdl_id = sys.argv[1]
-        mdl_new_name = sys.argv[2]
-        kwargs, _ = to_kwargs(sys.argv[3:])
-
-        tok, it_changed = handle_tokenizers(mdl_id, mdl_new_name, kwargs)
-
-        config = get_changed_config(AutoConfig.from_pretrained(mdl_id), "tok_train_set lang_set".split(), **kwargs)
-
-        model = AutoModelForSeq2SeqLM.from_config(config)
-        if it_changed:
-            model.resize_token_embeddings(len(tok) + get_stupid_correction(mdl_id))
-        model.save_pretrained(mdl_new_name)
-
-        mdl_size, emb_size = mdl_param_count(model)
-        print(f"Created model with {mdl_size} parameters" +
-              ("" if emb_size < 0 else f" of which {emb_size} ({100*emb_size/mdl_size:.2f}%) are embeddings"))
-
-    except IndexError:
-        sys.stderr.write("""Usage: initmodel.py  <model_id>  <model_new_name>  [param=value]+""")
+    just_do_main_stuff_and_avoid_global_variable_ctx()

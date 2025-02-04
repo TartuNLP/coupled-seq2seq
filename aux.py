@@ -68,16 +68,12 @@ def maybe_convert(value):
             return value
 
 
-def get_changed_config(conf, extra_keys=[], **kw):
-    for extra_key in extra_keys:
-        if extra_key in kw:
-            del kw[extra_key]
+def get_changed_config(conf, args):
+    arg_dict = args.to_dict()
 
-    for kwarg in kw:
-        if kwarg in conf.__dict__:
-            conf.__dict__[kwarg] = maybe_convert(kw[kwarg])
-        else:
-            raise KeyError(f'key "{kwarg}" is not in model config')
+    for kwarg in arg_dict:
+        if hasattr(conf, kwarg):
+            setattr(conf, kwarg, maybe_convert(arg_dict[kwarg]))
 
     return conf
 
