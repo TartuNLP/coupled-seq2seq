@@ -234,3 +234,21 @@ class CmdlineArgs:
             sys.stderr.write("Error: " + extra + "\n")
 
         sys.exit(-1)
+
+    def to_dict(self):
+        return {k: v for k, v in self.__dict__.items()
+                if k not in {'description', 'raw_pos_arg_list', 'raw_pos_arg_types', 'kw_arg_dict_with_defaults'}}
+
+    def __str__(self):
+        return str(self.to_dict())
+
+    def __repr__(self):
+        return self.__str__()
+
+if __name__ == "__main__":
+    args = CmdlineArgs("Testing app",
+                       ["aaa", "bbb", "ccc"],
+                       [int, None, float],
+                       kw_arg_dict={'fu': 3, 'bar': None})
+    print("OK!")
+    print(args)
