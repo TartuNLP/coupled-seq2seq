@@ -191,7 +191,7 @@ def _cmdline_args(input_values):
                 "save_steps": 1500, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4  }
 
     #post-process the arguments
-    args = CmdlineArgs(description, pos_args, kw_arg_dict=kw_args, input_args=input_values)
+    args = CmdlineArgs(description, pos_arg_list=pos_args, kw_arg_dict=kw_args, input_args=input_values)
 
     args.langs = maybe_smugri_(args.langs)
 
