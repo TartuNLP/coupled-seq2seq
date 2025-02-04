@@ -3,9 +3,9 @@
 import sys
 import os
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM
 from modelops import mdl_param_count
-from tokops import get_stupid_correction, get_unk_toks, extend_tok_langs, train_or_extend_tokenizer_and_upd_model
+from tokops import train_or_extend_tokenizer_and_upd_model
 from aux import CmdlineArgs, lang_set_maybe_smugri, log
 
 
@@ -27,7 +27,7 @@ def i_dont_like_global_scope_variable_dangers():
     tokenizer = train_or_extend_tokenizer_and_upd_model(args, model)
 
     mdl_size, emb_size = mdl_param_count(model)
-    print(f"Cached model with {mdl_size} parameters" +
+    log(f"Cached model with {mdl_size} parameters" +
           ("" if emb_size < 0 else f" of which {emb_size} ({100 * emb_size / mdl_size:.2f}%) are embeddings"))
 
     tokenizer.save_pretrained(args.save_location)

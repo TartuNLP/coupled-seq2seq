@@ -3,7 +3,7 @@ import json
 
 from collections import namedtuple
 
-from langconv import is_nllb, is_madlad, langs_to_mdl_type, get_mdl_type
+from langconv import langs_to_mdl_type, get_mdl_type
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "model_id", "model"])
 

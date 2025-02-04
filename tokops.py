@@ -192,12 +192,14 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
         log("Training new tokenizer")
         tokenizer_changed = True
         tokenizer = do_new_tok(args)
+        old_len = len(tokenizer)
 
     # save the pre-trained model's tokenizer,
     # possibly adding new languages and tokens
     else:
         log("Reusing existing tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(args.mdl_id, token=hf_tok)
+        old_len = len(tokenizer)
 
         if args.new_langs is not None:
             log("Extending existing tokenizer with languages")
@@ -222,8 +224,6 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
             log(f"Added {new_tok_num} tokens")
 
     if tokenizer_changed:
-        old_len = len(tokenizer)
-
         upd_amt = get_stupid_correction(args.mdl_id)
         new_len = len(tokenizer)
 
