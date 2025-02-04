@@ -5,39 +5,16 @@ import os
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from modelops import mdl_param_count
-from traintok import get_stupid_correction, get_unk_toks, extend_tok_langs
-from aux import CmdlineArgs, lang_set_maybe_smugri
-
-
-def maybe_update_tokenizer(tok, tok_corpus, tok_new_langs, model, mdl_id):
-    updated = False
-
-    if tok_corpus is not None:
-        unk_toks = get_unk_toks(tok, tok_corpus, verbose=True)
-
-        old_len = len(tok)
-
-        tok.add_tokens(unk_toks)
-
-        updated = True
-
-    if tok_new_langs is not None:
-        extend_tok_langs(tok, tok_new_langs)
-        updated = True
-
-    if updated:
-        upd_amt = get_stupid_correction(mdl_id)
-        new_len = len(tok)
-        model.resize_token_embeddings(new_len + upd_amt)
-
-        print(f"Increased tokens from {old_len} to {new_len}")
+from tokops import get_stupid_correction, get_unk_toks, extend_tok_langs, train_or_extend_tokenizer_and_upd_model
+from aux import CmdlineArgs, lang_set_maybe_smugri, log
 
 
 def i_dont_like_global_scope_variable_dangers():
     args = CmdlineArgs("Localize an existing HuggingFace model, possibly expanding the tokenizer",
                        pos_arg_list=["mdl_id", "save_location"],
                        kw_arg_dict={"tok_train_file": None,
-                                    "new_langs": None})
+                                    "new_langs": None,
+                                    "merge_tokenizers": 0})
 
     if os.path.exists(args.save_location):
         raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
@@ -47,16 +24,13 @@ def i_dont_like_global_scope_variable_dangers():
 
     model = AutoModelForSeq2SeqLM.from_pretrained(args.mdl_id)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.mdl_id)
-
-    maybe_update_tokenizer(tokenizer, args.tok_train_file, args.new_langs, model, args.mdl_id)
+    tokenizer = train_or_extend_tokenizer_and_upd_model(args, model)
 
     mdl_size, emb_size = mdl_param_count(model)
     print(f"Cached model with {mdl_size} parameters" +
           ("" if emb_size < 0 else f" of which {emb_size} ({100 * emb_size / mdl_size:.2f}%) are embeddings"))
 
     tokenizer.save_pretrained(args.save_location)
-
     model.save_pretrained(args.save_location)
 
 if __name__ == '__main__':

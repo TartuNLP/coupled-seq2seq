@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import os
-import sys
+import tempfile
 
 import sentencepiece as spm
 import json
@@ -10,8 +10,9 @@ from transformers.models.nllb import NllbTokenizer
 from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
-from aux import CmdlineArgs, lang_set_maybe_smugri
+from aux import CmdlineArgs, lang_set_maybe_smugri, log
 from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad
+from translate import hf_tok
 
 
 def test_tok(tok, snt, lang):
@@ -81,6 +82,21 @@ def get_unk_toks(tokenizer, corpus, verbose=False):
     return list(unk_toks)
 
 
+def get_top_toks(tokenizer, corpus, num_top_toks):
+    freq_count = defaultdict(int)
+
+    with open(corpus, "r", encoding='utf-8') as f:
+        for snt in f:
+            toks = tokenizer.tokenize(snt.strip())
+
+            for t in toks:
+                freq_count[t] += 1
+
+    sorted_freq_count = sorted(freq_count.keys(), key=lambda x: -freq_count[x])
+
+    return sorted_freq_count[:num_top_toks]
+
+
 def test_existing_toks(test_snt="Pǟgiņ vȯȯnnõ mäd kolēgõn", lang="fi", mdl_list=["facebook/m2m100_418M", "facebook/seamless-m4t-v2-large", "facebook/nllb-200-1.3B", "google/madlad400-3b-mt", "google/gemma-7b", "google/mt5-base", "facebook/mbart-large-50"]):
     for mdl_id in mdl_list:
        print(mdl_id)
@@ -143,32 +159,76 @@ def learn_spm_tokenizer(corpus, save_location, base_model_id, vocab_size, lang_s
     return tok
 
 
-if __name__ == '__main__':
-    # sys.argv: either 1 or 4 arguments; 1 is for loading, 4 is for training new
-    # 1: tokenizer location (to load or save)
-    # 2: text corpus for training a new SentencePiece model
-    # 3: size of the new model's vocabulary
-    # 4: comma-separated list of languages for the new tokenizer
+def do_new_tok(tokargs):
+    # if args.vocab_size is set then we're actually creating a new tokenizer for saving
+    # if not, then it is only for merging with top N tokens
+    if not hasattr(tokargs, "vocab_size") or tokargs.vocab_size is None:
+        # for a merging-oriented tokenizer let's use 16000 as some default number
+        voc_size = 16000
 
-    args = CmdlineArgs("Train a tokenizer",
-                       pos_arg_list=["mdl_id", "save_location", "train_file", "vocab_size", "languages"],
-                       pos_arg_types=[str, str, str, str, lang_set_maybe_smugri])
+        # and generate a tmp location for saving the files:
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            location = tmpdirname
+    else:
+        correction = get_stupid_correction(tokargs.mdl_id)
+        voc_size = tokargs.vocab_size - correction
+        location = tokargs.save_location
 
-    if os.path.exists(args.save_location):
-        raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
+    return learn_spm_tokenizer(tokargs.tok_train_file, location, base_model_id=tokargs.mdl_id,
+                                    vocab_size=voc_size, lang_set=tokargs.new_langs)
 
-    tokenizer = learn_spm_tokenizer(args.train_file, args.save_location, args.mdl_id, args.vocab_size, args.languages)
-    tokenizer.save_pretrained(args.save_location)
 
-    """
-    # old testing code:
-    new_lang = "liv_Latn"
+def remove_known_toks(toks, tokenizer):
+    return [t for t in toks if not t in tokenizer.vocab]
 
-    snts = ["Pǟgiņ vȯnnõ", "see on jama"]
+def train_or_extend_tokenizer_and_upd_model(args, model):
+    tokenizer_changed = False
 
-    print(sys.argv[1])
-    for snt in snts:
-        test_tok(_tok, snt, new_lang)
+    # train a new sentence-piece tokenizer
+    if hasattr(args, "vocab_size") and args.vocab_size:
+        assert args.new_langs is not None, "lang_set must be provided"
+        assert args.tok_train_file is not None, "tok_train_file must be provided"
 
-    test_existing_toks(snts[0], lang="liv_Latn")
-    """
+        log("Training new tokenizer")
+        tokenizer_changed = True
+        tokenizer = do_new_tok(args)
+
+    # save the pre-trained model's tokenizer,
+    # possibly adding new languages and tokens
+    else:
+        log("Reusing existing tokenizer")
+        tokenizer = AutoTokenizer.from_pretrained(args.mdl_id, token=hf_tok)
+
+        if args.new_langs is not None:
+            log("Extending existing tokenizer with languages")
+            tokenizer_changed = True
+            extend_tok_langs(tokenizer, args.new_langs)
+
+        if args.tok_train_file:
+            tokenizer_changed = True
+
+            if args.merge_tokenizers:
+                log("Extending existing tokenizer with top tokens from corpus-specific tokenizer, training new tok")
+                new_tok = do_new_tok(args)
+                log("And extracting top tokens from it")
+                toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, int(args.merge_tokenizers))
+            else:
+                log("Extending existing tokenizer with UNK tokens from corpus")
+                toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
+
+            toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
+
+            new_tok_num = tokenizer.add_tokens(toks_to_add)
+            log(f"Added {new_tok_num} tokens")
+
+    if tokenizer_changed:
+        old_len = len(tokenizer)
+
+        upd_amt = get_stupid_correction(args.mdl_id)
+        new_len = len(tokenizer)
+
+        model.resize_token_embeddings(new_len + upd_amt)
+
+        log(f"Increased tokens from {old_len} to {new_len}")
+
+    return tokenizer

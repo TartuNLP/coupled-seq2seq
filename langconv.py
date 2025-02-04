@@ -134,11 +134,11 @@ def any_to_mdl_type(mdl_type, lang):
         raise ValueError(f"Unknown mdl_type {mdl_type}")
 
 def langs_to_madlad(lang_set):
-    return [any_to_madlad(l) for l in lang_set]
+    return [any_to_madlad(l) for l in lang_set] if lang_set is not None else []
 
 
 def langs_to_nllb(lang_set):
-    return [any_to_nllb(l) for l in lang_set]
+    return [any_to_nllb(l) for l in lang_set] if lang_set is not None else []
 
 
 if __name__ == "__main__":
