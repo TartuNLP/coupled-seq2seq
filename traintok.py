@@ -10,6 +10,7 @@ from transformers.models.nllb import NllbTokenizer
 from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
+from aux import CmdlineArgs, lang_set_maybe_smugri
 from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad
 
 
@@ -129,9 +130,9 @@ def remove_tmp_spm_files(location):
         os.remove(location + tmp_file)
 
 
-def learn_spm_tokenizer(corpus, model_dir, base_model_id, vocab_size, lang_set=None):
-    tmp_location = os.path.join(model_dir, "sentencepiece.bpe.tmp")
-    os.makedirs(model_dir, exist_ok=True)
+def learn_spm_tokenizer(corpus, save_location, base_model_id, vocab_size, lang_set=None):
+    tmp_location = os.path.join(save_location, "sentencepiece.bpe.tmp")
+    os.makedirs(save_location, exist_ok=True)
 
     spm.SentencePieceTrainer.train(input=corpus, model_prefix=tmp_location, vocab_size=vocab_size)
 
@@ -149,12 +150,15 @@ if __name__ == '__main__':
     # 3: size of the new model's vocabulary
     # 4: comma-separated list of languages for the new tokenizer
 
-    try:
-        _tok = learn_spm_tokenizer(sys.argv[2], sys.argv[1], int(sys.argv[3]), lang_set=sys.argv[4].split(","))
-        _tok.save_pretrained(sys.argv[1])
-    except IndexError:
-        _tok = AutoTokenizer.from_pretrained(sys.argv[1])
+    args = CmdlineArgs("Train a tokenizer",
+                       pos_arg_list=["mdl_id", "save_location", "train_file", "vocab_size", "languages"],
+                       pos_arg_types=[str, str, str, str, lang_set_maybe_smugri])
 
+    tokenizer = learn_spm_tokenizer(args.train_file, args.save_location, args.mdl_id, args.vocab_size, args.languages)
+    tokenizer.save_pretrained(args.save_location)
+
+    """
+    # old testing code:
     new_lang = "liv_Latn"
 
     snts = ["Pǟgiņ vȯnnõ", "see on jama"]
@@ -164,3 +168,4 @@ if __name__ == '__main__':
         test_tok(_tok, snt, new_lang)
 
     test_existing_toks(snts[0], lang="liv_Latn")
+    """
