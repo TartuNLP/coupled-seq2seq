@@ -3,24 +3,18 @@
 import sys
 import os
 import torch
-import time
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, get_scheduler
 from accelerate import Accelerator, DataLoaderConfiguration
-from torch.utils.data import DataLoader, DistributedSampler
 
 from translate import hf_tok, encode
-from data import MultilingualDatasetIterator, make_path_compatible
-from aux import log, maybe_smugri, to_kwargs, SameLineLogger
+from data import MultilingualDatasetIterator
+from aux import log, maybe_smugri_, SameLineLogger, CmdlineArgs
 from collections import namedtuple
 from coupling import to_cpl_spec, save_all_models
-from initmodel import mdl_param_count
-from random import random
+from modelops import mdl_param_count
 
-CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
-
-host_remote = True
-
+_CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
 
 def freeze_model(model):
     for n, p in model.named_parameters():
@@ -39,49 +33,6 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
         log(f"Loaded {mdl_id} with {mdl_size} params, voc size {model.config.vocab_size}")
 
     return model, tokenizer
-
-
-def cmdline_args():
-    try:
-        kwargs, filt_args = to_kwargs(sys.argv)
-
-        coupled_mdl_id = filt_args[1]
-        train_data_file = filt_args[2]
-        raw_coupled_langs = maybe_smugri(filt_args[3])
-
-        coupled_langs = set(raw_coupled_langs.split(","))
-
-        if len(filt_args) > 4:
-            anchor_mdl_id = filt_args[4]
-            raw_anchor_langs = maybe_smugri(filt_args[5])
-
-            anchor_langs = set(raw_anchor_langs.split(","))
-
-            mdl_name_suff = "-mix" if (coupled_langs & anchor_langs) else "-cpl"
-
-            mdl_name_suff += "-" + make_path_compatible(anchor_mdl_id)
-        else:
-            anchor_mdl_id = None
-            anchor_langs = None
-
-            mdl_name_suff = "-indtrained"
-
-        if "bigmix" in train_data_file:
-            mdl_name_suff += "-big"
-
-        result = CmdlineArgs(coupled_mdl_id, train_data_file, None, coupled_langs, anchor_mdl_id, anchor_langs,
-                             coupled_mdl_id + mdl_name_suff)
-
-        return result, kwargs
-
-    except IndexError:
-        sys.stderr.write(f"Usage: {sys.argv[0]}  coupled_mdl_id  train_data_file  dev_data_file  coupled_langs  [anchor_mdl_id  anchor_langs]\n")
-        sys.stderr.write("       coupled_mdl_id:            ID of HuggingFace model to train or fine-tune, coupled to the anchor model\n")
-        sys.stderr.write("       train_data_file, dev_data_file: self-explanatory\n")
-        sys.stderr.write("       coupled_langs:  comma-separated list of language codes used in train and dev data that are to be sent to the coupled model\n")
-        sys.stderr.write("       anchor_mdl_id (optional):  ID of HuggingFace model to be used as anchor (pre-trained multilingual model)\n")
-        sys.stderr.write("       anchor_langs (optional):   comma-separated list of language codes used in train and dev data that are to be sent to the anchor model\n")
-        sys.exit(1)
 
 
 def get_lps_from_specs(coupling_specs):
@@ -128,21 +79,12 @@ def chain_params(coupling_specs):
 
 
 class SwitchingAccelerator:
-    def read_kwargs(self, kwargs):
-        type_list = [int, float, int, int, int]
-        kw_names = ["save_steps", "lr", "accum_steps", "log_steps", "epochs"]
-        default_values = [1500, 1.5e-5, 1, 100, 2]
-
-        kw_with_dv = { kn: (dv if kn not in kwargs else typ(kwargs[kn])) for kn, dv, typ in zip(kw_names, default_values, type_list)}
-
-        return namedtuple("kwargs", kw_names)(*[kw_with_dv[k] for k in kw_names])
-
     def __init__(self, coupling_specs, train_set, save_location, train_kwargs):
         self.coupling_specs = coupling_specs
 
         self.train_set = train_set
         self.save_location = save_location
-        self.kwargs = self.read_kwargs(train_kwargs)
+        self.kwargs = train_kwargs
 
         self.train_loss_list = []
 
@@ -214,7 +156,6 @@ class SwitchingAccelerator:
         if self.accelerator.is_main_process:
             logger.line_break()
 
-
     def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss, model):
         epoch_len = len(self.train_set)
 
@@ -240,34 +181,39 @@ class SwitchingAccelerator:
             if self.accelerator.is_main_process:
                 logger.line_start()
 
-    def debug_accelerator(self):
-        train_dataloader = DataLoader(self.train_set)
 
-        train_dl_acc = self.accelerator.prepare(train_dataloader)
+def _cmdline_args(input_values):
+    description = """Train or tune models - TODO"""
 
-        for epoch_idx in range(self.kwargs.epochs):
-            for batch, src_k, tgt_k, batch_idx in train_dl_acc:
-                sys.stderr.write(f"Handling batch: size {batch['input_ids'].size()}; epoch {epoch_idx}, on {self.accelerator.process_index} / {self.accelerator.local_process_index} / {self.accelerator.num_processes}\n")
-                time.sleep(0.5 + random()/2)
+    pos_args = ["mdl_id", "save_location", "train_file", "langs"]
 
+    kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "batch_size": 16,
+                "save_steps": 1500, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4  }
 
-def do_main():
-    if not host_remote:
-        #sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri", "facebook/nllb-200-distilled-600m", "smugri-high"]
-        sys.argv = ["X", "models/smol", "data/smugri4a-dev.json", "smugri"]
+    #post-process the arguments
+    args = CmdlineArgs(description, pos_args, kw_arg_dict=kw_args, input_args=input_values)
 
-    args, train_kwargs = cmdline_args()
+    args.langs = maybe_smugri_(args.langs)
 
-    log(f"Launched as {args}")
+    if args.anchor_langs is not None:
+        args.anchor_langs = maybe_smugri_(args.anchor_langs)
 
     # if the directory args.save_location already exists, raise an exception:
     if os.path.exists(args.save_location):
         raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
 
-    log("loading coupled model and tokenizer")
-    coupled_model, coupled_tokenizer = load_hf_mdl_and_tok(args.coupled_mdl_id, verbose=True)
+    log(f"Launched as {args}")
 
-    coupling_specs = to_cpl_spec(args.coupled_langs, coupled_model, coupled_tokenizer, args.save_location)
+    return args
+
+
+def yes_i_called_this_function_do_main(iv):
+    args = _cmdline_args(iv)
+
+    log("loading coupled model and tokenizer")
+    main_model, main_tokenizer = load_hf_mdl_and_tok(args.mdl_id, verbose=True)
+
+    coupling_specs = to_cpl_spec(args.langs, main_model, main_tokenizer, args.save_location)
 
     if args.anchor_mdl_id is not None:
         log("loading anchor model and tokenizer")
@@ -276,22 +222,16 @@ def do_main():
 
         coupling_specs += to_cpl_spec(args.anchor_langs, anchor_model, anchor_tokenizer, args.anchor_mdl_id)
 
-    lp_set = set(get_lps_from_specs(coupling_specs))
+    train_set = MultilingualDatasetIterator(args.train_file, args.batch_size)
 
-    batch_size = int(train_kwargs['batch']) if 'batch' in train_kwargs else 16
+    acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, args)
 
-    train_set = MultilingualDatasetIterator(args.train_data_file, batch_size)
+    upd_model, loss_list = acc_trainer.train()
 
-    acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, train_kwargs)
-
-    if 'debugging' in train_kwargs:
-        acc_trainer.debug_accelerator()
-    else:
-        upd_model, loss_list = acc_trainer.train()
-
-        save_all_models(args.save_location, upd_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
+    save_all_models(args.save_location, upd_model, coupled_tokenizer, coupling_specs, loss_list=loss_list)
 
 if __name__ == "__main__":
-    host_remote = len(sys.argv) > 1
+    input_values = sys.argv[1:] if len(sys.argv) > 1 \
+        else ["models/smol", "models/smol_upd", "data/smugri4a-dev.json", "smugri"]
 
-    do_main()
+    yes_i_called_this_function_do_main(input_values)

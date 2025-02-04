@@ -30,15 +30,17 @@ def debug(msg):
     ### log("\n(DEBUG) " + msg)
 
 
-def maybe_smugri(lang_def):
+def maybe_smugri_(lang_def):
     if lang_def == "smugri-low":
-        return SMUGRI_LOW
+        preresult = SMUGRI_LOW
     elif lang_def == "smugri-high":
-        return SMUGRI_HIGH
+        preresult = SMUGRI_HIGH
     elif lang_def == "smugri":
-        return SMUGRI
+        preresult = SMUGRI
     else:
-        return lang_def
+        preresult = lang_def
+
+    return set(preresult.split(","))
 
 
 def smugri_back(lang_list):
@@ -118,7 +120,7 @@ class SameLineLogger:
 class CmdlineArgs:
     def __init__(self,
                  description,
-                 pos_arg_list,
+                 pos_arg_list=[],
                  pos_arg_types=None,
                  kw_arg_dict={},
                  input_args=None):
