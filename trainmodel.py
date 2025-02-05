@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 
-import sys
 import os
 import torch
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, get_scheduler
-from accelerate import Accelerator, DataLoaderConfiguration
+from accelerate import Accelerator
 
 from translate import hf_tok, encode
 from data import MultilingualDatasetIterator
 from aux import log, lang_set_maybe_smugri, SameLineLogger, CmdlineArgs
 from collections import namedtuple
-from coupling import to_cpl_spec, save_all_models
+from coupling import to_cpl_spec, save_all_models, load_data_state
 from modelops import mdl_param_count
 
 _CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
@@ -86,99 +85,114 @@ class SwitchingAccelerator:
         self.save_location = save_location
         self.kwargs = train_kwargs
 
-        self.train_loss_list = []
+        self._init_acc_and_stuff()
 
-        #dl_conf = DataLoaderConfiguration(split_batches=True)
-        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps) #, dataloader_config=dl_conf)
+    def _init_acc_and_stuff(self):
+        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps)
 
-        self.optimizer = torch.optim.AdamW(chain_params(coupling_specs), lr=self.kwargs.lr)
-        self.lr_scheduler = get_scheduler("linear", optimizer=self.optimizer, num_warmup_steps=200,
-                                          num_training_steps=len(train_set))
-
-    def train(self):
-        #train_dataloader = DataLoader(self.train_set)
+        optimizer = torch.optim.AdamW(chain_params(self.coupling_specs), lr=self.kwargs.lr)
+        lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=200,
+                                          num_training_steps=len(self.train_set))
         models = [s.model for s in self.coupling_specs]
 
-        #train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
-        train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(self.train_set, self.optimizer, *models)
+        self.train_set, self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare( \
+            self.train_set, optimizer, lr_scheduler, *models)
 
+        self.accelerator.load_state(self.save_location)
+
+        self.data_state = load_data_state(self.save_location)
+
+    def train(self):
+        #train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
         self.train_loss_list = []
 
-        self._main_loop(models_acc, optimizer_acc, train_dl_acc)
+        self._main_loop(self.models, self.optimizer, self.train_set)
 
         self.accelerator.wait_for_everyone()
 
-        unwr_coupled_model = self.accelerator.unwrap_model(models_acc[0])
+        unwr_coupled_model = self.accelerator.unwrap_model(self.models[0])
 
         return unwr_coupled_model, self.train_loss_list
 
-    def _main_loop(self, models, optimizer, train_set):
+    def _prepare_inputs(self, batch_with_idxs):
+        weird_inputs, src_k, tgt_k, _ = batch_with_idxs
+
+        batch_size = weird_inputs['input_ids'].size()[0]
+
+        proc_batch_size = batch_size / self.accelerator.num_processes
+
+        from_proc_idx = int(self.accelerator.process_index * proc_batch_size)
+        to_proc_idx = int((self.accelerator.process_index + 1) * proc_batch_size)
+
+        unweird_inputs = {k: weird_inputs[k][from_proc_idx:to_proc_idx].to(self.accelerator.device)
+                          for k in weird_inputs}
+
+        return unweird_inputs, src_k, tgt_k
+
+    def _main_loop(self):
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
             logger.line_start()
         else:
             logger = None
 
-        models[0].train()
+        self.models[0].train()
 
         batch_idx = 0
 
-        for epoch_idx in range(self.kwargs.epochs):
+        for epoch_idx in range(self.data_state[1], self.kwargs.epochs):
 
-            for batch_with_bin_idxs in train_set:
-                weird_inputs, src_k, tgt_k, _ = batch_with_bin_idxs
+            for batch_with_bin_idxs in self.train_set:
+                if batch_idx > self.data_state[0]:
+                    inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
 
-                batch_size = weird_inputs['input_ids'].size()[0]
+                    encoder_vecs = encode(self.models[src_k], inputs)
+                    outputs = self.models[tgt_k](attention_mask=inputs['attention_mask'], labels=inputs['labels'], encoder_outputs=encoder_vecs)
 
-                proc_batch_size = batch_size / self.accelerator.num_processes
+                    loss = outputs.loss
 
-                from_proc_idx = int(self.accelerator.process_index * proc_batch_size)
-                to_proc_idx = int((self.accelerator.process_index + 1) * proc_batch_size)
+                    self.train_loss_list.append((loss.item(), src_k, tgt_k))
 
-                unweird_inputs = {k: weird_inputs[k][from_proc_idx:to_proc_idx].to(self.accelerator.device) for k in weird_inputs}
+                    self.accelerator.backward(loss)
 
-                encoder_vecs = encode(models[src_k], unweird_inputs)
-                outputs = models[tgt_k](attention_mask=unweird_inputs['attention_mask'], labels=unweird_inputs['labels'], encoder_outputs=encoder_vecs)
-
-                loss = outputs.loss
-
-                self.train_loss_list.append((loss.item(), src_k, tgt_k))
-
-                self.accelerator.backward(loss)
-
-                optimizer.step()
-                self.lr_scheduler.step()
-                optimizer.zero_grad()
-
-                self._step_and_perhaps_save(logger, batch_idx, epoch_idx, float(loss.item()), models[0])
+                    self._step_and_perhaps_save(logger, batch_idx, epoch_idx, float(loss.item()))
+                    
                 batch_idx += 1
 
         if self.accelerator.is_main_process:
             logger.line_break()
 
-    def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss, model):
-        epoch_len = len(self.train_set)
+    def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss):
+        self.optimizer.step()
+        self.lr_scheduler.step()
+        self.optimizer.zero_grad()
 
         if self.accelerator.is_main_process and not (batch_i + 1) % self.kwargs.log_steps:
             logger.step(batch_i, loss)
 
-        if not ((batch_i + 1) % self.kwargs.save_steps) or not ((batch_i + 1) % epoch_len):
-            if self.accelerator.is_main_process:
-                logger.line_break()
-                log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
+        if self.accelerator.is_main_process and (not ((batch_i + 1) % self.kwargs.save_steps) or not ((batch_i + 1) % len(self.train_set))):
+            logger.line_break()
+            log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
 
-            if self.accelerator.is_main_process:
-                ckpt_name = f"checkpoint-e{epoch_i + 1}-b{batch_i + 1:06}" if ((batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1}-full"
+            self._save_all(batch_i, epoch_i)
 
-                this_location = os.path.join(self.save_location, ckpt_name)
-                if os.path.exists(this_location):
-                    raise FileExistsError("Cannot overwrite existing checkpoint")
+            logger.line_start()
 
-                model_to_save = self.accelerator.unwrap_model(model)
-                save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer, self.coupling_specs, loss_list=self.train_loss_list, trainer=self.accelerator)
+    def _save_all(self, batch_i, epoch_i):
+        epoch_len = len(self.train_set)
 
-            if self.accelerator.is_main_process:
-                logger.line_start()
+        ckpt_name = f"checkpoint-e{epoch_i + 1}-b{batch_i + 1:06}" if (
+                    (batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1}-full"
+
+        this_location = os.path.join(self.save_location, ckpt_name)
+        if os.path.exists(this_location):
+            raise FileExistsError("Cannot overwrite existing checkpoint")
+
+        model_to_save = self.accelerator.unwrap_model(self.models[0])
+
+        save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer,
+                        self.coupling_specs, loss_list=self.train_loss_list, trainer=self.accelerator,
+                        data_state=(batch_i, epoch_i))
 
 
 def _cmdline_args():
@@ -213,7 +227,7 @@ def yes_i_called_this_function_do_main():
 
     coupling_specs = to_cpl_spec(args.langs, main_model, main_tokenizer, args.save_location)
 
-    if args.anchor_mdl_id is not None:
+    if args.anchor_mdl_id:
         log("loading anchor model and tokenizer")
         anchor_model, anchor_tokenizer = load_hf_mdl_and_tok(args.anchor_mdl_id, verbose=True)
         freeze_model(anchor_model)
