@@ -188,6 +188,7 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
     if hasattr(args, "vocab_size") and args.vocab_size:
         assert args.new_langs is not None, "lang_set must be provided"
         assert args.tok_train_file is not None, "tok_train_file must be provided"
+        args.vocab_size = int(args.vocab_size)
 
         log("Training new tokenizer")
         tokenizer_changed = True
