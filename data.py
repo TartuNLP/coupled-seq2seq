@@ -299,9 +299,7 @@ class MultilingualBatchingCachingDataset:
             total_i += 1
 
         if len(data) > 0:
-            shard_i += 1
-            log(f"Final saving at {batch_i + shard_i * self.args.shard_size} batches (shard {shard_i})")
-            fn = self._save_cache_file(data, cache_path, shard_i)
+            fn = self._save_cache_file(data, cache_path, shard_i + 1)
             metainfo.append({'shard_filename': fn, 'shard_size': len(data)})
 
         with open(cache_path, 'w') as f:
@@ -317,7 +315,7 @@ class MultilingualBatchingCachingDataset:
             raise Exception("Cache already exists")
 
         torch.save(data, cache_location)
-        log("Saved data into cache")
+        log(f"Saved data into cache (shard {idx})")
 
         return cache_location
 
