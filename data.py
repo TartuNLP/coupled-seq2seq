@@ -299,8 +299,8 @@ class MultilingualBatchingCachingDataset:
             total_i += 1
 
         if len(data) > 0:
-            log(f"Tokenized {batch_i} batches (shard {shard_i})")
             shard_i += 1
+            log(f"Final saving at {batch_i + shard_i * self.args.shard_size} batches (shard {shard_i})")
             fn = self._save_cache_file(data, cache_path, shard_i)
             metainfo.append({'shard_filename': fn, 'shard_size': len(data)})
 
