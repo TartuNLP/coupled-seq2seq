@@ -174,7 +174,7 @@ def do_new_tok(tokargs):
         voc_size = tokargs.vocab_size - correction
         location = tokargs.save_location
 
-    return learn_spm_tokenizer(tokargs.tok_train_file, location, base_model_id=tokargs.mdl_id,
+    return learn_spm_tokenizer(tokargs.tok_train_file, location, base_model_id=tokargs.tok_mdl_id,
                                     vocab_size=voc_size, lang_set=tokargs.new_langs)
 
 
@@ -199,7 +199,7 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
     # possibly adding new languages and tokens
     else:
         log("Reusing existing tokenizer")
-        tokenizer = AutoTokenizer.from_pretrained(args.mdl_id, token=hf_tok)
+        tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok)
         old_len = len(tokenizer)
 
         if args.new_langs is not None:

@@ -13,8 +13,11 @@ def i_dont_like_global_scope_variable_dangers():
     args = CmdlineArgs("Localize an existing HuggingFace model, possibly expanding the tokenizer",
                        pos_arg_list=["mdl_id", "save_location"],
                        kw_arg_dict={"tok_train_file": None,
+                                    "tok_mdl_id": None,
                                     "new_langs": None,
                                     "merge_tokenizers": 0})
+    if not args.tok_mdl_id:
+        args.tok_mdl_id = args.mdl_id
 
     if os.path.exists(args.save_location):
         raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
