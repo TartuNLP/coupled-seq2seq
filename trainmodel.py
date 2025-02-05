@@ -165,11 +165,10 @@ class SwitchingAccelerator:
         if not ((batch_i + 1) % self.kwargs.save_steps) or not ((batch_i + 1) % epoch_len):
             if self.accelerator.is_main_process:
                 logger.line_break()
-
-            log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
+                log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
 
             if self.accelerator.is_main_process:
-                ckpt_name = f"checkpoint-e{epoch_i + 1}-b{batch_i + 1}" if ((batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1}-full"
+                ckpt_name = f"checkpoint-e{epoch_i + 1}-b{batch_i + 1:06}" if ((batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1}-full"
 
                 this_location = os.path.join(self.save_location, ckpt_name)
                 if os.path.exists(this_location):
