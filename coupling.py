@@ -2,13 +2,14 @@ import os
 import json
 
 from collections import namedtuple
-
+from aux import log
 from langconv import langs_to_mdl_type, get_mdl_type
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "model_id", "model"])
 
 MODULE_CONFIG_FILE = "coupled_module_config.json"
 DATA_STATE_FILE = "data_state.json"
+LOSS_LIST_FILE = "loss_list.json"
 
 
 def save_module_config(model_dir, coupling_specs):
@@ -27,17 +28,29 @@ def to_cpl_spec(langs, model, tokenizer, location):
 
 
 def load_module_config(model_dir):
+    path = os.path.join(model_dir, MODULE_CONFIG_FILE)
     try:
-        with open(os.path.join(model_dir, MODULE_CONFIG_FILE), "r") as f:
+        with open(path, "r") as f:
             config = json.load(f)
             return config
     except FileNotFoundError:
+        log(f"Config file {path} not found.")
         return [{"model_id": model_dir, "lang_set": {}}]
+
+
+def load_loss_list(model_dir):
+    path = os.path.join(model_dir, LOSS_LIST_FILE)
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        log(f"Loss list file {path} not found.")
+        return []
 
 
 def save_loss_list(location, loss_list):
     if loss_list is not None:
-        with open(os.path.join(location, "loss_list.json"), "w") as f:
+        with open(os.path.join(location, LOSS_LIST_FILE), "w") as f:
             json.dump(loss_list, f, indent=2, sort_keys=True)
             f.write("\n")
     else:
@@ -56,21 +69,29 @@ def save_data_state(location, data):
 
 
 def load_data_state(location):
+    path = os.path.join(location, DATA_STATE_FILE)
     try:
-        with open(os.path.join(location, DATA_STATE_FILE), "r") as f:
+        with open(path, "r") as f:
             data = json.load(f)
             return data
     except FileNotFoundError:
+        log(f"Data state file {path} not found.")
         return 0, 0
 
 
 def save_all_models(location, model, tokenizer, cpl_specs, loss_list=None, trainer=None, data_state=None):
-    model.save_pretrained(location)
+    if not os.path.exists(location):
+        os.makedirs(location)
+
+    model.config.save_pretrained(location)
+    model.generation_config.save_pretrained(location)
+
     tokenizer.save_pretrained(location)
+
+    save_training_state(location, trainer)
+
     save_module_config(location, cpl_specs)
 
     save_loss_list(location, loss_list)
-
-    save_training_state(location, trainer)
 
     save_data_state(location, data_state)

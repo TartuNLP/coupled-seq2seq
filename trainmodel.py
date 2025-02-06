@@ -10,7 +10,7 @@ from translate import hf_tok, encode
 from data import MultilingualDatasetIterator
 from aux import log, lang_set_maybe_smugri, SameLineLogger, CmdlineArgs
 from collections import namedtuple
-from coupling import to_cpl_spec, save_all_models, load_data_state
+from coupling import to_cpl_spec, save_all_models, load_data_state, load_loss_list
 from modelops import mdl_param_count
 
 _CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
@@ -78,12 +78,13 @@ def chain_params(coupling_specs):
 
 
 class SwitchingAccelerator:
-    def __init__(self, coupling_specs, train_set, save_location, train_kwargs):
+    def __init__(self, coupling_specs, train_set, train_kwargs):
         self.coupling_specs = coupling_specs
 
         self.train_set = train_set
-        self.save_location = save_location
         self.kwargs = train_kwargs
+
+        self.train_loss_list = []
 
         self._init_acc_and_stuff()
 
@@ -95,18 +96,20 @@ class SwitchingAccelerator:
                                           num_training_steps=len(self.train_set))
         models = [s.model for s in self.coupling_specs]
 
-        self.train_set, self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare( \
+        self.train_set, self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare(
             self.train_set, optimizer, lr_scheduler, *models)
 
-        self.accelerator.load_state(self.save_location)
-
-        self.data_state = load_data_state(self.save_location)
+        if self.kwargs.continue_training:
+            self.accelerator.load_state(self.kwargs.mdl_id)
+            self.data_state = load_data_state(self.kwargs.mdl_id)
+            self.train_loss_list = load_loss_list(self.kwargs.mdl_id)
+        else:
+            self.data_state = (0, 0)
+            self.train_loss_list = []
 
     def train(self):
         #train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
-        self.train_loss_list = []
-
-        self._main_loop(self.models, self.optimizer, self.train_set)
+        self._main_loop()
 
         self.accelerator.wait_for_everyone()
 
@@ -184,7 +187,7 @@ class SwitchingAccelerator:
         ckpt_name = f"checkpoint-e{epoch_i + 1}-b{batch_i + 1:06}" if (
                     (batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1}-full"
 
-        this_location = os.path.join(self.save_location, ckpt_name)
+        this_location = os.path.join(self.kwargs.save_location, ckpt_name)
         if os.path.exists(this_location):
             raise FileExistsError("Cannot overwrite existing checkpoint")
 
@@ -201,7 +204,7 @@ def _cmdline_args():
     pos_args = ["mdl_id", "save_location", "train_file", "langs"]
     pos_types = [str, str, str, lang_set_maybe_smugri]
 
-    kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "batch_size": 16,
+    kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "batch_size": 16, "continue_training": False,
                 "save_steps": 100000, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4  }
 
     #post-process the arguments
@@ -213,8 +216,6 @@ def _cmdline_args():
     # if the directory args.save_location already exists, raise an exception:
     if os.path.exists(args.save_location):
         raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
-
-    log(f"Launched as {args}")
 
     return args
 
@@ -236,7 +237,7 @@ def yes_i_called_this_function_do_main():
 
     train_set = MultilingualDatasetIterator(args.train_file)
 
-    acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args.save_location, args)
+    acc_trainer = SwitchingAccelerator(coupling_specs, train_set, args)
 
     upd_model, loss_list = acc_trainer.train()
 
