@@ -187,7 +187,7 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
             if args.merge_tokenizers:
                 merge_tok_max = int(args.merge_tokenizers)
                 log(f"Extending existing tokenizer ({args.merge_tok_mdl_id}) with up to {merge_tok_max} top tokens" +
-                    " from another tokenizer and corpus ({args.tok_train_file})")
+                    f" from another tokenizer and corpus ({args.tok_train_file})")
                 new_tok = AutoTokenizer.from_pretrained(args.merge_tok_mdl_id, token=hf_tok)
                 toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, merge_tok_max)
             else:
