@@ -224,12 +224,11 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
             new_tok_num = tokenizer.add_tokens(toks_to_add)
             log(f"Added {new_tok_num} tokens")
 
-    if tokenizer_changed:
-        upd_amt = get_stupid_correction(args.mdl_id)
-        new_len = len(tokenizer)
+    upd_amt = get_stupid_correction(args.mdl_id)
+    new_len = len(tokenizer)
 
-        model.resize_token_embeddings(new_len + upd_amt)
+    model.resize_token_embeddings(new_len + upd_amt)
 
-        log(f"Increased tokens from {old_len} to {new_len}")
+    log(f"Increased tokens from {old_len} to {new_len}")
 
     return tokenizer
