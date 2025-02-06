@@ -182,8 +182,6 @@ def remove_known_toks(toks, tokenizer):
     return [t for t in toks if not t in tokenizer.vocab]
 
 def train_or_extend_tokenizer_and_upd_model(args, model):
-    tokenizer_changed = False
-
     # train a new sentence-piece tokenizer
     if hasattr(args, "vocab_size") and args.vocab_size:
         assert args.new_langs is not None, "lang_set must be provided"
@@ -191,7 +189,6 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
         args.vocab_size = int(args.vocab_size)
 
         log("Training new tokenizer")
-        tokenizer_changed = True
         tokenizer = do_new_tok(args)
         old_len = len(tokenizer)
 
@@ -204,17 +201,14 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
 
         if args.new_langs is not None:
             log("Extending existing tokenizer with languages")
-            tokenizer_changed = True
             extend_tok_langs(tokenizer, args.new_langs)
 
         if args.tok_train_file:
-            tokenizer_changed = True
-
             if args.merge_tokenizers:
-                log("Extending existing tokenizer with top tokens from corpus-specific tokenizer, training new tok")
-                new_tok = do_new_tok(args)
-                log("And extracting top tokens from it")
-                toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, int(args.merge_tokenizers))
+                merge_tok_max = int(args.merge_tokenizers)
+                log(f"Extending existing tokenizer ({args.merge_tok_mdl_id}) with up to {merge_tok_max} top tokens from another tokenizer")
+                new_tok = AutoTokenizer.from_pretrained(args.merge_tok_mdl_id, token=hf_tok)
+                toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, merge_tok_max)
             else:
                 log("Extending existing tokenizer with UNK tokens from corpus")
                 toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)

@@ -15,7 +15,8 @@ def i_dont_like_global_scope_variable_dangers():
                        kw_arg_dict={"tok_train_file": None,
                                     "tok_mdl_id": None,
                                     "new_langs": None,
-                                    "merge_tokenizers": 0})
+                                    "merge_tokenizers": 0,
+                                    "merge_tok_mdl_id": None })
     if not args.tok_mdl_id:
         args.tok_mdl_id = args.mdl_id
 

@@ -13,7 +13,7 @@ from aux import get_changed_config, lang_set_maybe_smugri, CmdlineArgs
 def just_do_main_stuff_and_avoid_global_ctx_variables():
     args = CmdlineArgs("Initialize a new HuggingFace model randomly, off of an existing configuration, with possible changes",
                        pos_arg_list=["mdl_id", "save_location"],
-                       kw_arg_dict={ k: None for k in ["tok_train_file", "new_langs", "vocab_size", "merge_tokenizers",
+                       kw_arg_dict={ k: None for k in ["tok_train_file", "new_langs", "vocab_size", "merge_tokenizers", "merge_tok_mdl_id",
                                     "tok_mdl_id", "activation_dropout", "activation_function", "d_model",
                                     "decoder_attention_heads", "decoder_ffn_dim", "decoder_layerdrop", "decoder_layers",
                                     "encoder_attention_heads", "encoder_ffn_dim", "encoder_layerdrop", "encoder_layers",
