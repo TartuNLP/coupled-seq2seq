@@ -10,7 +10,7 @@ from transformers.models.nllb import NllbTokenizer
 from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
-from aux import CmdlineArgs, lang_set_maybe_smugri, log
+from aux import log
 from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad
 from translate import hf_tok
 
@@ -95,16 +95,6 @@ def get_top_toks(tokenizer, corpus, num_top_toks):
     sorted_freq_count = sorted(freq_count.keys(), key=lambda x: -freq_count[x])
 
     return sorted_freq_count[:num_top_toks]
-
-
-def test_existing_toks(test_snt="Pǟgiņ vȯȯnnõ mäd kolēgõn", lang="fi", mdl_list=["facebook/m2m100_418M", "facebook/seamless-m4t-v2-large", "facebook/nllb-200-1.3B", "google/madlad400-3b-mt", "google/gemma-7b", "google/mt5-base", "facebook/mbart-large-50"]):
-    for mdl_id in mdl_list:
-       print(mdl_id)
-       try:
-           m2mtok = AutoTokenizer.from_pretrained(mdl_id)
-           test_tok(m2mtok, test_snt, lang)
-       except Exception as e:
-           print("Failed because:", e)
 
 
 def extend_tok_langs(tokenizer, lang_set_raw):
@@ -193,20 +183,19 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
             log("Extending existing tokenizer with languages")
             extend_tok_langs(tokenizer, args.new_langs)
 
-        if args.tok_train_file:
-            if args.merge_tokenizers:
-                merge_tok_max = int(args.merge_tokenizers)
-                log(f"Extending existing tokenizer ({args.merge_tok_mdl_id}) with up to {merge_tok_max} top tokens from another tokenizer")
-                new_tok = AutoTokenizer.from_pretrained(args.merge_tok_mdl_id, token=hf_tok)
-                toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, merge_tok_max)
-            else:
-                log("Extending existing tokenizer with UNK tokens from corpus")
-                toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
+        if args.merge_tokenizers:
+            merge_tok_max = int(args.merge_tokenizers)
+            log(f"Extending existing tokenizer ({args.merge_tok_mdl_id}) with up to {merge_tok_max} top tokens from another tokenizer")
+            new_tok = AutoTokenizer.from_pretrained(args.merge_tok_mdl_id, token=hf_tok)
+            toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, merge_tok_max)
+        elif args.tok_train_file:
+            log(f"Extending existing tokenizer with UNK tokens from corpus ({args.tok_train_file})")
+            toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
 
-            toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
+        toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
 
-            new_tok_num = tokenizer.add_tokens(toks_to_add)
-            log(f"Added {new_tok_num} tokens")
+        new_tok_num = tokenizer.add_tokens(toks_to_add)
+        log(f"Added {new_tok_num} tokens")
 
     upd_amt = get_stupid_correction(args.mdl_id)
     new_len = len(tokenizer)
