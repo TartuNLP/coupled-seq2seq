@@ -160,22 +160,12 @@ def learn_spm_tokenizer(corpus, save_location, base_model_id, vocab_size, lang_s
 
 
 def do_new_tok(tokargs):
-    # if args.vocab_size is set then we're actually creating a new tokenizer for saving
-    # if not, then it is only for merging with top N tokens
-    if not hasattr(tokargs, "vocab_size") or tokargs.vocab_size is None:
-        # for a merging-oriented tokenizer let's use 16000 as some default number
-        voc_size = 16000
-
-        # and generate a tmp location for saving the files:
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            location = tmpdirname
-    else:
-        correction = get_stupid_correction(tokargs.mdl_id)
-        voc_size = tokargs.vocab_size - correction
-        location = tokargs.save_location
+    correction = get_stupid_correction(tokargs.mdl_id)
+    voc_size = tokargs.vocab_size - correction
+    location = tokargs.save_location
 
     return learn_spm_tokenizer(tokargs.tok_train_file, location, base_model_id=tokargs.tok_mdl_id,
-                                    vocab_size=voc_size, lang_set=tokargs.new_langs)
+                               vocab_size=voc_size, lang_set=tokargs.new_langs)
 
 
 def remove_known_toks(toks, tokenizer):
