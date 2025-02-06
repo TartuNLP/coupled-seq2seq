@@ -45,13 +45,13 @@ def _cmdline_args():
 def oh_look_another_do_main_function():
     args = _cmdline_args()
 
-    log("loading coupled model and tokenizer")
+    log("loading tokenizer")
     main_tokenizer = load_hf_tok(args.mdl_id, verbose=True)
 
     coupling_specs = to_cpl_spec(args.langs, None, main_tokenizer, None)
 
     if args.anchor_mdl_id is not None:
-        log("loading anchor model and tokenizer")
+        log("loading anchor model tokenizer")
         anchor_tokenizer = load_hf_tok(args.anchor_mdl_id, verbose=True)
 
         coupling_specs += to_cpl_spec(args.anchor_langs, None, anchor_tokenizer, None)
