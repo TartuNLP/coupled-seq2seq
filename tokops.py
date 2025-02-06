@@ -183,19 +183,21 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
             log("Extending existing tokenizer with languages")
             extend_tok_langs(tokenizer, args.new_langs)
 
-        if args.merge_tokenizers:
-            merge_tok_max = int(args.merge_tokenizers)
-            log(f"Extending existing tokenizer ({args.merge_tok_mdl_id}) with up to {merge_tok_max} top tokens from another tokenizer")
-            new_tok = AutoTokenizer.from_pretrained(args.merge_tok_mdl_id, token=hf_tok)
-            toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, merge_tok_max)
-        elif args.tok_train_file:
-            log(f"Extending existing tokenizer with UNK tokens from corpus ({args.tok_train_file})")
-            toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
+        if args.tok_train_file:
+            if args.merge_tokenizers:
+                merge_tok_max = int(args.merge_tokenizers)
+                log(f"Extending existing tokenizer ({args.merge_tok_mdl_id}) with up to {merge_tok_max} top tokens" +
+                    " from another tokenizer and corpus ({args.tok_train_file})")
+                new_tok = AutoTokenizer.from_pretrained(args.merge_tok_mdl_id, token=hf_tok)
+                toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, merge_tok_max)
+            else:
+                log(f"Extending existing tokenizer with UNK tokens from corpus ({args.tok_train_file})")
+                toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
 
-        toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
+            toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
 
-        new_tok_num = tokenizer.add_tokens(toks_to_add)
-        log(f"Added {new_tok_num} tokens")
+            new_tok_num = tokenizer.add_tokens(toks_to_add)
+            log(f"Added {new_tok_num} tokens")
 
     upd_amt = get_stupid_correction(args.mdl_id)
     new_len = len(tokenizer)
