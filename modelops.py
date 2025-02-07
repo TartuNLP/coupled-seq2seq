@@ -93,6 +93,9 @@ def save_all_models(location, model, tokenizer, cpl_specs, loss_list=None, train
     if not os.path.exists(location):
         os.makedirs(location)
 
+    if trainer is not None:
+        trainer.wait_for_everyone()
+
     model.save_pretrained(location)
 
     tokenizer.save_pretrained(location)
