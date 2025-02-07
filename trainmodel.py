@@ -10,8 +10,7 @@ from translate import hf_tok, encode
 from data import MultilingualDatasetIterator
 from aux import log, lang_set_maybe_smugri, SameLineLogger, CmdlineArgs
 from collections import namedtuple
-from coupling import to_cpl_spec, save_all_models, load_data_state, load_loss_list
-from modelops import mdl_param_count
+from modelops import mdl_param_count, to_cpl_spec, load_loss_list, load_data_state, save_all_models
 
 _CmdlineArgs = namedtuple("CmdlineArgs", "coupled_mdl_id train_data_file dev_data_file coupled_langs anchor_mdl_id anchor_langs save_location".split())
 

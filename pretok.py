@@ -7,7 +7,7 @@ from transformers import AutoTokenizer
 from translate import hf_tok
 from data import MultilingualBatchingCachingDataset
 from aux import log, CmdlineArgs, lang_set_maybe_smugri
-from coupling import to_cpl_spec
+from modelops import to_cpl_spec
 
 
 def load_hf_tok(mdl_id, tok_id=None, verbose=False):
