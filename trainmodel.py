@@ -172,13 +172,16 @@ class SwitchingAccelerator:
         if self.accelerator.is_main_process and not (batch_i + 1) % self.kwargs.log_steps:
             logger.step(batch_i, loss)
 
-        if self.accelerator.is_main_process and (not ((batch_i + 1) % self.kwargs.save_steps) or not ((batch_i + 1) % len(self.train_set))):
-            logger.line_break()
-            log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
+        if not ((batch_i + 1) % self.kwargs.save_steps) or not ((batch_i + 1) % len(self.train_set)):
+            self.accelerator.wait_for_everyone()
 
-            self._save_all(batch_i, epoch_i)
+            if self.accelerator.is_main_process:
+                logger.line_break()
+                log(f"Saving at {batch_i + 1} steps, epoch {epoch_i + 1}")
 
-            logger.line_start()
+                self._save_all(batch_i, epoch_i)
+
+                logger.line_start()
 
     def _save_all(self, batch_i, epoch_i):
         epoch_len = len(self.train_set)
@@ -189,8 +192,6 @@ class SwitchingAccelerator:
         this_location = os.path.join(self.kwargs.save_location, ckpt_name)
         if os.path.exists(this_location):
             raise FileExistsError("Cannot overwrite existing checkpoint")
-
-        self.accelerator.wait_for_everyone()
 
         model_to_save = self.accelerator.unwrap_model(self.models[0])
 
