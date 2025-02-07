@@ -190,6 +190,8 @@ class SwitchingAccelerator:
         if os.path.exists(this_location):
             raise FileExistsError("Cannot overwrite existing checkpoint")
 
+        self.accelerator.wait_for_everyone()
+
         model_to_save = self.accelerator.unwrap_model(self.models[0])
 
         save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer,
