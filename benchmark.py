@@ -4,7 +4,7 @@ import sys
 import os
 import json
 
-from data import split_by_lang, make_path_compatible
+from data import split_by_lang, make_path_compatible, get_tr_pairs
 from translate import coupled_translate, load_and_init_module_config
 from evaluate import load as load_metric
 
@@ -38,7 +38,7 @@ def save_hyps_to_file(hypos, filename):
             f.write(hyp + "\n")
 
 
-def load_or_translate(model, mod_config, input_list, src_lang, tgt_lang, model_location, benchmark_corpus):
+def load_or_translate(mod_config, input_list, src_lang, tgt_lang, model_location, benchmark_corpus):
     cache_filename, src_filename = get_hyp_cache_filename(model_location, benchmark_corpus, src_lang, tgt_lang)
 
     try:
@@ -57,7 +57,8 @@ def do_main():
     corpus = sys.argv[2]
 
     log("Loading data")
-    lp_test_sets = split_by_lang(filename=corpus)
+    # lp_test_sets = split_by_lang(filename=corpus)
+    lp_test_sets = split_by_lang(tr_pairs=get_tr_pairs(filename=corpus))
 
     log("Loading metrics")
     exp_id = make_path_compatible(mdl_id) + "---" + make_path_compatible(corpus)
@@ -77,7 +78,7 @@ def do_main():
 
         inputs, outputs = zip(*lp_test_sets[lp])
 
-        hyps = load_or_translate(main_model, module_config, inputs, from_lang, to_lang, mdl_id, corpus)
+        hyps = load_or_translate(module_config, inputs, from_lang, to_lang, mdl_id, corpus)
 
         result1 = metric_bleu.compute(predictions=hyps, references=outputs)
         result2 = metric_chrf.compute(predictions=hyps, references=outputs, word_order=2)
