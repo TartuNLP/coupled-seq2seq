@@ -15,8 +15,10 @@ from aux import log
 
 def get_hyp_cache_filename(model_location, benchmark_corpus, src_lang, tgt_lang):
     corpus_base = os.path.basename(benchmark_corpus)
-    hyp_file = f"{corpus_base}-{src_lang}-to-{tgt_lang}.hyp"
-    return os.path.join(model_location, hyp_file)
+    basename = f"{corpus_base}-{src_lang}-to-{tgt_lang}"
+    hyp_file = os.path.join(model_location, f"{basename}.hyp")
+    src_file = os.path.join(model_location, f"{basename}.src")
+    return hyp_file, src_file
 
 
 def get_benchmark_filename(model_location, benchmark_corpus):
@@ -37,7 +39,7 @@ def save_hyps_to_file(hypos, filename):
 
 
 def load_or_translate(model, mod_config, input_list, src_lang, tgt_lang, model_location, benchmark_corpus):
-    cache_filename = get_hyp_cache_filename(model_location, benchmark_corpus, src_lang, tgt_lang)
+    cache_filename, src_filename = get_hyp_cache_filename(model_location, benchmark_corpus, src_lang, tgt_lang)
 
     try:
         hypos = load_hyps_from_file(cache_filename)
@@ -45,6 +47,7 @@ def load_or_translate(model, mod_config, input_list, src_lang, tgt_lang, model_l
         hypos = coupled_translate(mod_config, input_list, src_lang, tgt_lang)
 
         save_hyps_to_file(hypos, cache_filename)
+        save_hyps_to_file(input_list, src_filename)
 
     return hypos
 
