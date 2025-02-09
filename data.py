@@ -100,18 +100,22 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, 
                             yield TrPair(conv_l1, conv_l2, input, tup[l2])
 
 
-def split_by_lang(tr_pairs=None, filename=None):
+def split_by_lang(filename, model_type):
     result = defaultdict(list)
 
-    if filename is not None:
-        tr_pairs = load_json_datax(filename)
+    # if filename is not None:
+        # tr_pairs = load_json_datax(filename)
+
+    tr_pairs = get_tr_pairs(filename=filename, model_type=model_type)
 
     for tup in tr_pairs:
-        for l1 in tup:
-            for l2 in tup:
-                if l1 != l2 and not "dia" in l1 and not "dia" in l2:
-                    lp = f"{l1}-{l2}"
-                    result[lp].append((tup[l1], tup[l2]))
+        #for l1 in tup:
+        #    for l2 in tup:
+        #        if l1 != l2 and not "dia" in l1 and not "dia" in l2:
+        l1 = tup.src_lang
+        l2 = tup.tgt_lang
+        lp = f"{l1}-{l2}"
+        result[lp].append((tup.input, tup.output))
 
     return result
 

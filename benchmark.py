@@ -7,7 +7,7 @@ import json
 from data import split_by_lang, make_path_compatible, get_tr_pairs
 from translate import coupled_translate, load_and_init_module_config
 from evaluate import load as load_metric
-
+from langconv import get_mdl_type
 from datetime import datetime
 
 from aux import log
@@ -56,17 +56,17 @@ def do_main():
     mdl_id = sys.argv[1]
     corpus = sys.argv[2]
 
+    log("Loading model")
+    main_model, module_config = load_and_init_module_config(mdl_id)
+
     log("Loading data")
     # lp_test_sets = split_by_lang(filename=corpus)
-    lp_test_sets = split_by_lang(tr_pairs=get_tr_pairs(filename=corpus))
+    lp_test_sets = split_by_lang(filename=corpus, model_type=get_mdl_type(main_model))
 
     log("Loading metrics")
     exp_id = make_path_compatible(mdl_id) + "---" + make_path_compatible(corpus)
     metric_bleu = load_metric("sacrebleu", experiment_id=exp_id)
     metric_chrf = load_metric("chrf", experiment_id=exp_id)
-
-    log("Loading model")
-    main_model, module_config = load_and_init_module_config(mdl_id)
 
     scores = dict()
 
@@ -97,4 +97,5 @@ def do_main():
         json.dump(scores, ofh, indent=2, sort_keys=True)
 
 if __name__ == '__main__':
+    sys.argv = ["X", "models/nllb", "data/smugri4a-dev.json"]
     do_main()
