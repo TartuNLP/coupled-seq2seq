@@ -97,5 +97,4 @@ def do_main():
         json.dump(scores, ofh, indent=2, sort_keys=True)
 
 if __name__ == '__main__':
-    sys.argv = ["X", "models/nllb", "data/smugri4a-dev.json"]
     do_main()
