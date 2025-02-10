@@ -10,8 +10,9 @@ from collections import namedtuple, defaultdict
 from random import randrange, shuffle
 from pathlib import Path
 
-from aux import log, lang_set_maybe_smugri
-from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type
+from aux import log
+from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, \
+    lang_set_maybe_smugri
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 

@@ -6,7 +6,8 @@ from transformers import AutoTokenizer
 
 from translate import hf_tok
 from data import MultilingualBatchingCachingDataset
-from aux import log, CmdlineArgs, lang_set_maybe_smugri
+from aux import log, CmdlineArgs
+from langconv import lang_set_maybe_smugri
 from modelops import to_cpl_spec
 
 

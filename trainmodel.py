@@ -8,7 +8,8 @@ from accelerate import Accelerator
 
 from translate import hf_tok, encode
 from data import MultilingualDatasetIterator
-from aux import log, lang_set_maybe_smugri, SameLineLogger, CmdlineArgs
+from aux import log, SameLineLogger, CmdlineArgs
+from langconv import lang_set_maybe_smugri
 from collections import namedtuple
 from modelops import mdl_param_count, to_cpl_spec, load_loss_list, load_data_state, save_all_models
 

@@ -6,7 +6,8 @@ import os
 from transformers import AutoModelForSeq2SeqLM
 from modelops import mdl_param_count
 from tokops import train_or_extend_tokenizer_and_upd_model
-from aux import CmdlineArgs, lang_set_maybe_smugri, log
+from aux import CmdlineArgs, log
+from langconv import lang_set_maybe_smugri
 
 
 def i_dont_like_global_scope_variable_dangers():

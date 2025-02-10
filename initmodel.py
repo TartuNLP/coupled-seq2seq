@@ -7,7 +7,8 @@ from transformers import AutoConfig, AutoModelForSeq2SeqLM
 from modelops import mdl_param_count
 from tokops import get_stupid_correction, train_or_extend_tokenizer_and_upd_model
 
-from aux import get_changed_config, lang_set_maybe_smugri, CmdlineArgs
+from aux import get_changed_config, CmdlineArgs
+from langconv import lang_set_maybe_smugri
 
 
 def just_do_main_stuff_and_avoid_global_ctx_variables():

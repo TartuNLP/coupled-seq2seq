@@ -1,10 +1,6 @@
 import sys
 from datetime import datetime
 
-SMUGRI_LOW = "fkv,izh,kca,koi,kpv,krl,liv,lud,mdf,mhr,mns,mrj,myv,olo,sjd,sje,sju,sma,sme,smj,smn,sms,udm,vep,vot,vro"
-SMUGRI_HIGH = "deu,eng,est,fin,hun,lvs,nor,rus,swe"
-SMUGRI = "deu,eng,est,fin,fkv,hun,izh,kca,koi,kpv,krl,liv,lud,lvs,mdf,mhr,mns,mrj,myv,nor,olo,rus,sjd,sje,sju,sma,sme,smj,smn,sms,swe,udm,vep,vot,vro"
-
 
 def log(msg):
     sys.stderr.write(str(datetime.now()) + ": " + msg + '\n')
@@ -28,34 +24,6 @@ def _same_line_log(msg, len_to_del=0):
 def debug(msg):
     pass
     ### log("\n(DEBUG) " + msg)
-
-
-def lang_set_maybe_smugri(lang_def):
-    if lang_def == "smugri-low":
-        preresult = SMUGRI_LOW
-    elif lang_def == "smugri-high":
-        preresult = SMUGRI_HIGH
-    elif lang_def == "smugri":
-        preresult = SMUGRI
-    else:
-        preresult = lang_def
-
-    return set(preresult.split(","))
-
-
-def smugri_back(lang_list):
-    sll = sorted(lang_list)
-
-    sll_str = ",".join(sll)
-
-    if sll_str == SMUGRI_LOW:
-        return "smugri-low"
-    elif sll_str == SMUGRI_HIGH:
-        return "smugri-high"
-    elif sll_str == SMUGRI:
-        return "smugri-full"
-    else:
-        return sll_str
 
 
 def maybe_convert(value):
