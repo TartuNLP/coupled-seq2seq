@@ -84,10 +84,7 @@ def do_main():
 
         jlp = f"{from_joshi}-{to_joshi}"
 
-        tmplpset = lp_test_sets[lp][:10]
-
-        #inputs, outputs = zip(*lp_test_sets[lp])
-        inputs, outputs = zip(*tmplpset)
+        inputs, outputs = zip(*lp_test_sets[lp])
 
         hyps = load_or_translate(module_config, inputs, from_lang, to_lang, mdl_id, corpus)
 
