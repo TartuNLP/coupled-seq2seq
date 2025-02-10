@@ -36,7 +36,7 @@ def _avg_diff(pd1, pd2, skip_emb):
                 raise Exception("Unexpected shape")
             count += thiscount
             deltasum = torch.sum(delta)
-            log(f"DETDIFF {k}: {deltasum/thiscount}")
+            #log(f"DETDIFF {k}: {deltasum/thiscount}")
             result += deltasum
     # print(f"Count {count}, raw count {raw_count}")
 
