@@ -10,6 +10,11 @@ Functions at the end of the file (any_to_nllb, any_to_madlad) should
 cope with a lang code in any style ('en', 'eng', 'eng_Latn', '<2en>', '<2eng>', etc)
 and convert them to corresponding representations (NLLB/MADLAD).
 """
+from collections import defaultdict
+
+SMUGRI_LOW = "fkv,izh,kca,koi,kpv,krl,liv,lud,mdf,mhr,mns,mrj,myv,olo,sjd,sje,sju,sma,sme,smj,smn,sms,udm,vep,vot,vro"
+SMUGRI_HIGH = "deu,eng,est,fin,hun,lvs,nor,rus,swe"
+SMUGRI = SMUGRI_HIGH + "," + SMUGRI_LOW
 
 import pycountry
 
@@ -34,6 +39,16 @@ for lang in "fkv izh krl liv lud olo sje sju sma sme smj smn sms vep vot vro".sp
 
 for lang in "kca koi kpv mdf mhr mns mrj myv sjd udm".split():
     iso3_to_nllb[lang] = f"{lang}_Cyrl"
+
+
+_rev_joshi = defaultdict(lambda: "?")
+
+for k in "krl,sma,vep,smj,smn,lud,liv,izh,vot,kca,sms,sje,mns,fkv,sju,sjd".split(","):
+    _rev_joshi[k] = "0"
+for k in "kpv,sme,mhr,udm,olo,myv,mdf,vro,mrj,koi".split(","):
+    _rev_joshi[k] = "1"
+for k in SMUGRI_HIGH.split(","):
+    _rev_joshi[k] = "2+"
 
 
 def guess_script(lang):
@@ -181,10 +196,15 @@ def langs_to_mdl_type(mdl_type, lang_set):
         raise ValueError(f"Model type {mdl_type} is not supported")
 
 
-SMUGRI_LOW = "fkv,izh,kca,koi,kpv,krl,liv,lud,mdf,mhr,mns,mrj,myv,olo,sjd,sje,sju,sma,sme,smj,smn,sms,udm,vep,vot,vro"
-SMUGRI_HIGH = "deu,eng,est,fin,hun,lvs,nor,rus,swe"
-SMUGRI = "deu,eng,est,fin,fkv,hun,izh,kca,koi,kpv,krl,liv,lud,lvs,mdf,mhr,mns,mrj,myv,nor,olo,rus,sjd,sje,sju,sma,sme,smj,smn,sms,swe,udm,vep,vot,vro"
+def get_joshi_class(lang_code):
+    norm_code = any_to_base(lang_code)
 
+    if norm_code is None:
+        return "?"
+    else:
+        norm_code = norm_code.alpha_3
+
+    return _rev_joshi[norm_code]
 
 def lang_set_maybe_smugri(lang_def):
     if lang_def == "smugri-low":

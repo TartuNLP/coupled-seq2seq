@@ -3,11 +3,12 @@
 import sys
 import os
 import json
+from collections import defaultdict
 
 from data import split_by_lang, make_path_compatible, get_tr_pairs
 from translate import coupled_translate, load_and_init_module_config
 from evaluate import load as load_metric
-from langconv import get_mdl_type
+from langconv import get_mdl_type, get_joshi_class
 from datetime import datetime
 
 from aux import log
@@ -72,11 +73,21 @@ def do_main():
 
     log("Starting benchmarking")
 
-    for lp in lp_test_sets:
+    avgs = defaultdict(list)
+
+    for ii, lp in enumerate(lp_test_sets):
         start_time = datetime.now()
         from_lang, to_lang = lp.split("-")
 
-        inputs, outputs = zip(*lp_test_sets[lp])
+        from_joshi = get_joshi_class(from_lang)
+        to_joshi = get_joshi_class(to_lang)
+
+        jlp = f"{from_joshi}-{to_joshi}"
+
+        tmplpset = lp_test_sets[lp][:10]
+
+        #inputs, outputs = zip(*lp_test_sets[lp])
+        inputs, outputs = zip(*tmplpset)
 
         hyps = load_or_translate(module_config, inputs, from_lang, to_lang, mdl_id, corpus)
 
@@ -86,15 +97,23 @@ def do_main():
         scores[lp + "-bleu"] = result1['score']
         scores[lp + "-chrf"] = result2['score']
 
+        avgs[jlp + "-bleu"].append(result1['score'])
+        avgs[jlp + "-chrf"].append(result2['score'])
+
         end_time = datetime.now()
 
         time_per_sample = (end_time - start_time) / len(hyps)
 
-        log(f"LP: {lp}, BLEU: {result1['score']}, chrf++: {result2['score']}, num translated: {len(hyps)}, time per sample: {time_per_sample}")
+        log(f"{ii+1}/{len(lp_test_sets)} LP: {lp}, BLEU: {result1['score']:03f}, " +
+            f"chrf++: {result2['score']:03f}, num translated: {len(hyps)}, time per sample: {time_per_sample}")
+
+    for avg_k in avgs:
+        scores[avg_k] = sum(avgs[avg_k]) / len(avgs[avg_k])
 
     filename = get_benchmark_filename(mdl_id, corpus)
     with open(filename, "w") as ofh:
         json.dump(scores, ofh, indent=2, sort_keys=True)
 
 if __name__ == '__main__':
+    sys.argv = ["X", "models/nllb", "data/smugri4a-dev.json"]
     do_main()
