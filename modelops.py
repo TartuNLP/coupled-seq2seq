@@ -93,7 +93,7 @@ def save_all_models(location, model, tokenizer, cpl_specs, loss_list=None, train
     if not os.path.exists(location):
         os.makedirs(location)
 
-    model.save_pretrained(location)
+    model.save_pretrained(location, save_function=trainer.save)
 
     tokenizer.save_pretrained(location)
 

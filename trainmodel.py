@@ -244,7 +244,7 @@ def yes_i_called_this_function_do_main():
 
     upd_model, loss_list = acc_trainer.train()
 
-    save_all_models(args.save_location, upd_model, main_tokenizer, coupling_specs, loss_list=loss_list)
+    save_all_models(args.save_location, upd_model, main_tokenizer, coupling_specs, loss_list=loss_list, trainer=acc_trainer.accelerator)
 
 if __name__ == "__main__":
     yes_i_called_this_function_do_main()
