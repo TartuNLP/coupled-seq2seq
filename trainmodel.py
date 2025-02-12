@@ -200,7 +200,7 @@ class SwitchingAccelerator:
         model_to_save = self.accelerator.unwrap_model(self.models[0])
 
         save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer,
-                        self.coupling_specs, loss_list=self.train_loss_list, trainer=self.accelerator,
+                        self.coupling_specs, self.train_loss_list, self.accelerator,
                         data_state=(batch_i, epoch_i))
 
 
@@ -247,7 +247,7 @@ def yes_i_called_this_function_do_main():
 
     upd_model, loss_list = acc_trainer.train()
 
-    save_all_models(args.save_location, upd_model, main_tokenizer, coupling_specs, loss_list=loss_list, trainer=acc_trainer.accelerator)
+    save_all_models(args.save_location, upd_model, main_tokenizer, coupling_specs, loss_list, acc_trainer.accelerator)
 
 if __name__ == "__main__":
     yes_i_called_this_function_do_main()

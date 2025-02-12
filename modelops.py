@@ -74,11 +74,6 @@ def save_loss_list(location, loss_list):
         raise Exception("No loss list to save")
 
 
-def save_training_state(location, trainer):
-    if trainer is not None:
-        trainer.save_state(location)
-
-
 def save_data_state(location, data):
     if data is not None:
         _save_json_config(location, DATA_STATE_FILE, data)
@@ -89,7 +84,7 @@ def load_data_state(location):
     return result if result is not None else (0, 0)
 
 
-def save_all_models(location, model, tokenizer, cpl_specs, loss_list=None, trainer=None, data_state=None):
+def save_all_models(location, model, tokenizer, cpl_specs, loss_list, trainer, data_state=None):
     if not os.path.exists(location):
         os.makedirs(location)
 
@@ -97,10 +92,8 @@ def save_all_models(location, model, tokenizer, cpl_specs, loss_list=None, train
 
     tokenizer.save_pretrained(location)
 
-    save_training_state(location, trainer)
+    trainer.save_state(location)
 
     save_module_config(location, cpl_specs)
-
     save_loss_list(location, loss_list)
-
     save_data_state(location, data_state)
