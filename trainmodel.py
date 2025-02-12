@@ -99,6 +99,9 @@ class SwitchingAccelerator:
         self.train_set, self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare(
             self.train_set, optimizer, lr_scheduler, *models)
 
+        self.accelerator.register_for_checkpointing(self.optimizer, self.lr_scheduler, *self.models)
+        self.accelerator.save_state(self.kwargs.save_location)
+
         if self.kwargs.continue_training:
             self.accelerator.load_state(self.kwargs.mdl_id)
             self.data_state = load_data_state(self.kwargs.mdl_id)
