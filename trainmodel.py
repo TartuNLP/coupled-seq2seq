@@ -170,7 +170,7 @@ class SwitchingAccelerator:
         self.lr_scheduler.step()
         self.optimizer.zero_grad()
 
-        if self.accelerator.is_main_process and not (batch_i + 1) % self.kwargs.log_steps:
+        if self.accelerator.is_main_process and ((batch_i + 1) % self.kwargs.log_steps == 0):
             logger.step(batch_i, loss)
 
         if ((batch_i + 1) % self.kwargs.save_steps == 0) or ((batch_i + 1) % len(self.train_set) == 0):
