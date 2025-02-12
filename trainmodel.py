@@ -173,7 +173,7 @@ class SwitchingAccelerator:
         if self.accelerator.is_main_process and not (batch_i + 1) % self.kwargs.log_steps:
             logger.step(batch_i, loss)
 
-        if not ((batch_i + 1) % self.kwargs.save_steps) or not ((batch_i + 1) % len(self.train_set)):
+        if ((batch_i + 1) % self.kwargs.save_steps == 0) or ((batch_i + 1) % len(self.train_set) == 0):
             self.accelerator.wait_for_everyone()
 
             if self.accelerator.is_main_process:
