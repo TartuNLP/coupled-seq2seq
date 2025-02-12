@@ -89,6 +89,8 @@ def save_all_models(location, model, tokenizer, cpl_specs, loss_list, trainer, d
         os.makedirs(location)
 
     #model.save_pretrained(location, save_function=trainer.save)
+    model.config.save_pretrained(location)
+    model.generation_config.save_pretrained(location)
 
     tokenizer.save_pretrained(location)
 

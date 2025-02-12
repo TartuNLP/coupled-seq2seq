@@ -99,9 +99,6 @@ class SwitchingAccelerator:
         self.train_set, self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare(
             self.train_set, optimizer, lr_scheduler, *models)
 
-        self.accelerator.register_for_checkpointing(self.optimizer, self.lr_scheduler, *self.models)
-        self.accelerator.save_state(self.kwargs.save_location)
-
         if self.kwargs.continue_training:
             self.accelerator.load_state(self.kwargs.mdl_id)
             self.data_state = load_data_state(self.kwargs.mdl_id)
@@ -109,6 +106,10 @@ class SwitchingAccelerator:
         else:
             self.data_state = (0, 0)
             self.train_loss_list = []
+
+        self.accelerator.register_for_checkpointing(self.optimizer, self.lr_scheduler, *self.models)
+        #self.accelerator.save_state(self.kwargs.save_location)
+        self._save_all(*self.data_state)
 
     def train(self):
         #train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
@@ -207,7 +208,7 @@ class SwitchingAccelerator:
 def _cmdline_args():
     description = """Train or tune models"""
 
-    pos_args = ["mdl_id", "save_location", "train_file", "langs"]
+    pos_args = ["mdl_id", "save_location", "train_pretok_file", "langs"]
     pos_types = [str, str, str, lang_set_maybe_smugri]
 
     kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "batch_size": 16, "continue_training": False,
