@@ -145,7 +145,9 @@ def do_main():
 
     log("Starting benchmarking")
 
-    _ = get_hyp_cache_dir(mdl_id)
+    if accelerator.is_main_process():
+        _ = get_hyp_cache_dir(mdl_id)
+
     hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator)
 
     scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
