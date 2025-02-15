@@ -14,12 +14,10 @@ from accelerate import Accelerator
 from aux import log
 
 
-def get_hyp_cache_dir(model_location):
+def get_hyp_cache_dir(model_location, create=False):
     hyp_location = os.path.join(model_location, "hyp_cache")
-
-    if not os.path.exists(hyp_location):
-        os.makedirs(hyp_location)
-
+    if create:
+        os.makedirs(hyp_location, exist_ok=True)
     return hyp_location
 
 
@@ -146,7 +144,7 @@ def do_main():
     log("Starting benchmarking")
 
     if accelerator.is_main_process:
-        _ = get_hyp_cache_dir(mdl_id)
+        _ = get_hyp_cache_dir(mdl_id, create=True)
 
     hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator)
 
