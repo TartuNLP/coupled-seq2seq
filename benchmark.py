@@ -70,7 +70,7 @@ def load_or_translate(mod_config, input_output_list, lp, model_location, benchma
 
 
 def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator, manager):
-    result = manager.dict()
+    ind_result = dict()
 
     key_list = sorted(lp_test_set_dict.keys())
 
@@ -79,11 +79,16 @@ def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accel
             log(f"Process {accelerator.process_index} translating {lp}")
             these_hyps = load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
 
-            result[lp] = these_hyps
-        accelerator.wait_for_everyone()
+            ind_result[lp] = these_hyps
+
+    fin_result = manager.dict()
+
+    for k in ind_result:
+        fin_result[k] = ind_result[k]
+
     accelerator.wait_for_everyone()
 
-    return dict(result)
+    return dict(fin_result)
 
 
 def get_joshi_lp(from_lang, to_lang):
