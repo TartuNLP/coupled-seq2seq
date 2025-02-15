@@ -179,6 +179,8 @@ def is_madlad(object):
 
 
 def get_mdl_type(obj):
+    obj = obj.module if hasattr(obj, "module") else obj
+
     if is_nllb(obj):
         return MDL_NLLB
     elif is_madlad(obj):
