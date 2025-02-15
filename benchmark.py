@@ -14,11 +14,17 @@ from accelerate import Accelerator
 from aux import log
 
 
-def get_hyp_cache_filename(model_location, benchmark_corpus, src_lang, tgt_lang):
+def get_hyp_cache_dir(model_location):
     hyp_location = os.path.join(model_location, "hyp_cache")
 
     if not os.path.exists(hyp_location):
         os.makedirs(hyp_location)
+
+    return hyp_location
+
+
+def get_hyp_cache_filename(model_location, benchmark_corpus, src_lang, tgt_lang):
+    hyp_location = get_hyp_cache_dir(model_location)
 
     corpus_base = os.path.basename(benchmark_corpus)
     basename = f"{corpus_base}-{src_lang}-to-{tgt_lang}"
@@ -139,6 +145,7 @@ def do_main():
 
     log("Starting benchmarking")
 
+    _ = get_hyp_cache_dir(mdl_id)
     hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator)
 
     scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
