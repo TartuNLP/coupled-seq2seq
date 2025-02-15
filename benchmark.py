@@ -91,7 +91,7 @@ def get_all_scores(hyps_dict, lp_test_sets, metric_dict):
     scores = dict()
     avgs = defaultdict(list)
 
-    for lp in enumerate(lp_test_sets):
+    for lp in lp_test_sets:
         from_lang, to_lang = lp.split("-")
         jlp = get_joshi_lp(from_lang, to_lang)
 
