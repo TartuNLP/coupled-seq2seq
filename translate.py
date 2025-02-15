@@ -93,7 +93,10 @@ def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embedding
 
     # 2. encoder vectors --> output token IDs
     frc_bos = tokenizer.convert_tokens_to_ids(conv_output_lang)
-    raw_outputs = coupling_specs[dec_idx].model.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings, attention_mask=att_mask)
+    obj = coupling_specs[dec_idx].model
+    obj = obj.module if hasattr(obj, "module") else obj
+
+    raw_outputs = obj.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings, attention_mask=att_mask)
 
     # 3. output token IDs --> output text
     result = finalize_translation(raw_outputs, tokenizer, conv_output_lang)
