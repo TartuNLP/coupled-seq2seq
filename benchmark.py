@@ -9,7 +9,7 @@ from data import split_by_lang, make_path_compatible, get_tr_pairs
 from translate import coupled_translate, load_and_init_module_config
 from evaluate import load as load_metric
 from langconv import get_mdl_type, get_joshi_class
-from datetime import datetime
+from accelerate import Accelerator
 
 from aux import log
 
@@ -46,31 +46,36 @@ def save_hyps_to_file(hypos, filename):
             f.write(hyp + "\n")
 
 
-def load_or_translate(mod_config, input_list, src_lang, tgt_lang, model_location, benchmark_corpus):
+def load_or_translate(mod_config, input_output_list, lp, model_location, benchmark_corpus):
+    src_lang, tgt_lang = lp.split("-")
+
+    inputs, _ = zip(*input_output_list)
+
     cache_filename, src_filename = get_hyp_cache_filename(model_location, benchmark_corpus, src_lang, tgt_lang)
 
     try:
         hypos = load_hyps_from_file(cache_filename)
     except FileNotFoundError:
-        hypos = coupled_translate(mod_config, input_list, src_lang, tgt_lang)
+        hypos = coupled_translate(mod_config, inputs, src_lang, tgt_lang)
 
         save_hyps_to_file(hypos, cache_filename)
-        save_hyps_to_file(input_list, src_filename)
+        save_hyps_to_file(inputs, src_filename)
 
     return hypos
 
 
-def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id):
+def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator):
     result = dict()
 
-    for lp in lp_test_set_dict:
-        from_lang, to_lang = lp.split("-")
+    key_list = sorted(lp_test_set_dict.keys())
 
-        inputs, _ = zip(*lp_test_set_dict[lp])
+    for idx, lp in enumerate(key_list):
+        if idx % accelerator.num_processes == accelerator.process_index:
+            log(f"Process {accelerator.process_index} translating {lp}")
+            these_hyps = load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
+            result[lp] = these_hyps
 
-        these_hyps = load_or_translate(module_conf, inputs, from_lang, to_lang, model_id, corpus_id)
-
-        result[lp] = these_hyps
+    accelerator.wait_for_everyone()
 
     return result
 
@@ -117,11 +122,12 @@ def do_main():
     mdl_id = sys.argv[1]
     corpus = sys.argv[2]
 
+    accelerator = Accelerator()
+
     log("Loading model")
-    main_model, module_config = load_and_init_module_config(mdl_id)
+    main_model, module_config = load_and_init_module_config(mdl_id, accelerator)
 
     log("Loading data")
-    # lp_test_sets = split_by_lang(filename=corpus)
     lp_test_sets = split_by_lang(filename=corpus, model_type=get_mdl_type(main_model))
 
     log("Loading metrics")
@@ -133,7 +139,7 @@ def do_main():
 
     log("Starting benchmarking")
 
-    hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus)
+    hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator)
 
     scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
 

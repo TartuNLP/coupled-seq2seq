@@ -43,8 +43,12 @@ def loadtokenizer(mdlname="facebook/m2m100_418M"):
     return tokenizer
 
 
-def loadmodel(mdlname="facebook/m2m100_418M"):
+def loadmodel(mdlname="facebook/m2m100_418M", accelerator=None):
     model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, device_map="auto")
+
+    if accelerator is not None:
+        model = accelerator.prepare(model)
+
     return model
 
 
@@ -122,7 +126,7 @@ def coupled_translate(coupling_specs, input_texts, input_language, output_langua
     return all_outputs
 
 
-def load_and_init_module_config(model_id):
+def load_and_init_module_config(model_id, accelerator=None):
     config = load_module_config(model_id)
 
     coupling_specs = list()
@@ -134,7 +138,7 @@ def load_and_init_module_config(model_id):
         model_id = entry["model_id"] if i > 0 else model_id
 
         log(f"Loading model and tokenizer from '{model_id}'")
-        model = loadmodel(model_id)
+        model = loadmodel(model_id, accelerator)
         tokenizer = loadtokenizer(model_id)
 
         if i == 0:
