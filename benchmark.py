@@ -155,9 +155,12 @@ def do_main():
 
     hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator, manager)
 
-    scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
+    log(f"Hmm, {len(hyps_dict)}: {" / ".join(hyps_dict.keys())}")
 
-    save_scores(scores, mdl_id, corpus)
+    if accelerator.is_main_process:
+        scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
+
+        save_scores(scores, mdl_id, corpus)
 
 
 if __name__ == '__main__':
