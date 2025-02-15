@@ -15,10 +15,17 @@ from aux import log
 
 
 def get_hyp_cache_filename(model_location, benchmark_corpus, src_lang, tgt_lang):
+    hyp_location = os.path.join(model_location, "hyp_cache")
+
+    if not os.path.exists(hyp_location):
+        os.makedirs(hyp_location)
+
     corpus_base = os.path.basename(benchmark_corpus)
     basename = f"{corpus_base}-{src_lang}-to-{tgt_lang}"
-    hyp_file = os.path.join(model_location, f"{basename}.hyp")
-    src_file = os.path.join(model_location, f"{basename}.src")
+
+    hyp_file = os.path.join(hyp_location, f"{basename}.hyp")
+    src_file = os.path.join(hyp_location, f"{basename}.src")
+
     return hyp_file, src_file
 
 
