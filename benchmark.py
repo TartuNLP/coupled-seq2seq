@@ -3,8 +3,9 @@
 import sys
 import os
 import json
-from collections import defaultdict
 
+from collections import defaultdict
+from multiprocessing import Manager
 from data import split_by_lang, make_path_compatible, get_tr_pairs
 from translate import coupled_translate, load_and_init_module_config
 from evaluate import load as load_metric
@@ -68,8 +69,8 @@ def load_or_translate(mod_config, input_output_list, lp, model_location, benchma
     return hypos
 
 
-def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator):
-    result = dict()
+def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator, manager):
+    result = manager.dict()
 
     key_list = sorted(lp_test_set_dict.keys())
 
@@ -77,11 +78,12 @@ def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accel
         if idx % accelerator.num_processes == accelerator.process_index:
             log(f"Process {accelerator.process_index} translating {lp}")
             these_hyps = load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
-            result[lp] = these_hyps
 
+            result[lp] = these_hyps
+        accelerator.wait_for_everyone()
     accelerator.wait_for_everyone()
 
-    return result
+    return dict(result)
 
 
 def get_joshi_lp(from_lang, to_lang):
@@ -127,8 +129,8 @@ def do_main():
     corpus = sys.argv[2]
 
     accelerator = Accelerator()
+    manager = Manager()
 
-    log("Loading model")
     main_model, module_config = load_and_init_module_config(mdl_id, accelerator)
 
     log("Loading data")
@@ -146,7 +148,7 @@ def do_main():
     if accelerator.is_main_process:
         _ = get_hyp_cache_dir(mdl_id, create=True)
 
-    hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator)
+    hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator, manager)
 
     scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
 
