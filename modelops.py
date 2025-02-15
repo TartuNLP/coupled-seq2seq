@@ -2,9 +2,13 @@ import json
 import os
 from collections import namedtuple
 
+import torch
+
+from aux import log
 from langconv import get_mdl_type, langs_to_mdl_type
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "model_id", "model"])
+
 MODULE_CONFIG_FILE = "coupled_module_config.json"
 DATA_STATE_FILE = "data_state.json"
 LOSS_LIST_FILE = "loss_list.json"
@@ -99,3 +103,32 @@ def save_all_models(location, model, tokenizer, cpl_specs, loss_list, trainer, d
     save_module_config(location, cpl_specs)
     save_loss_list(location, loss_list)
     save_data_state(location, data_state)
+
+
+def report_devices(accelerator = None, mdl = None):
+    if torch.cuda.is_available():
+        # Get the visible devices from CUDA
+        visible_devices = torch.cuda.device_count()
+
+        #log(f"Number of visible GPUs: {visible_devices}")
+        msg = f"{visible_devices} GPUs:"
+
+        # List the actual GPUs being used
+        gpu_names = [torch.cuda.get_device_name(i) for i in range(visible_devices)]
+        for i, name in enumerate(gpu_names):
+            mem_alloc = torch.cuda.memory_allocated(i) / 1024**2
+            mem_res = torch.cuda.memory_reserved(i) / 1024**2
+
+            msg += f"  {i}: alloc {mem_alloc:.2f} Mb / res {mem_res:.2f} Mb;"
+
+            #log(f"  GPU {i}: {name}, alloc: {mem_alloc:.2f} Mb (reserved: {mem_res:.2f} Mb)")
+
+        log(msg)
+    elif accelerator is not None and accelerator.device.type == "mps":
+        mem_alloc = torch.mps.current_allocated_memory() / 1024**2
+        log(f"Device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
+    else:
+        log(f"No acceleration")
+
+    if mdl is not None:
+        log(f"Model device: {mdl.device}")
