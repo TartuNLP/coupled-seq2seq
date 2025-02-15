@@ -126,14 +126,16 @@ def do_main():
 
     log("Loading metrics")
     exp_id = make_path_compatible(mdl_id) + "---" + make_path_compatible(corpus)
-    metric_bleu = load_metric("sacrebleu", experiment_id=exp_id)
-    metric_chrf = load_metric("chrf", experiment_id=exp_id)
+
+    metric_dict = {
+        'bleu': load_metric("sacrebleu", experiment_id=exp_id),
+        'chrf': load_metric("chrf", experiment_id=exp_id) }
 
     log("Starting benchmarking")
 
     hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus)
 
-    scores = get_all_scores()
+    scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
 
     save_scores(scores, mdl_id, corpus)
 
