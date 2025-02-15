@@ -60,6 +60,59 @@ def load_or_translate(mod_config, input_list, src_lang, tgt_lang, model_location
     return hypos
 
 
+def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id):
+    result = dict()
+
+    for lp in lp_test_set_dict:
+        from_lang, to_lang = lp.split("-")
+
+        inputs, _ = zip(*lp_test_set_dict[lp])
+
+        these_hyps = load_or_translate(module_conf, inputs, from_lang, to_lang, model_id, corpus_id)
+
+        result[lp] = these_hyps
+
+    return result
+
+
+def get_joshi_lp(from_lang, to_lang):
+    from_joshi = get_joshi_class(from_lang)
+    to_joshi = get_joshi_class(to_lang)
+
+    return f"{from_joshi}-{to_joshi}"
+
+
+def get_all_scores(hyps_dict, lp_test_sets, metric_dict):
+    scores = dict()
+    avgs = defaultdict(list)
+
+    for lp in enumerate(lp_test_sets):
+        from_lang, to_lang = lp.split("-")
+        jlp = get_joshi_lp(from_lang, to_lang)
+
+        _, outputs = zip(*lp_test_sets[lp])
+
+        for metric_name in metric_dict:
+            metric_func = metric_dict[metric_name]
+
+            metric_value = metric_func.compute(predictions=hyps_dict[lp], references=outputs)
+
+            scores[lp + "-" + metric_name] = metric_value['score']
+
+            avgs[jlp + "-" + metric_name].append(metric_value['score'])
+
+    for avg_k in avgs:
+        scores[avg_k] = sum(avgs[avg_k]) / len(avgs[avg_k])
+
+    return scores
+
+
+def save_scores(scores, mdl_id, corpus):
+    filename = get_benchmark_filename(mdl_id, corpus)
+    with open(filename, "w") as ofh:
+        json.dump(scores, ofh, indent=2, sort_keys=True)
+
+
 def do_main():
     mdl_id = sys.argv[1]
     corpus = sys.argv[2]
@@ -76,47 +129,14 @@ def do_main():
     metric_bleu = load_metric("sacrebleu", experiment_id=exp_id)
     metric_chrf = load_metric("chrf", experiment_id=exp_id)
 
-    scores = dict()
-
     log("Starting benchmarking")
 
-    avgs = defaultdict(list)
+    hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus)
 
-    for ii, lp in enumerate(lp_test_sets):
-        start_time = datetime.now()
-        from_lang, to_lang = lp.split("-")
+    scores = get_all_scores()
 
-        from_joshi = get_joshi_class(from_lang)
-        to_joshi = get_joshi_class(to_lang)
+    save_scores(scores, mdl_id, corpus)
 
-        jlp = f"{from_joshi}-{to_joshi}"
-
-        inputs, outputs = zip(*lp_test_sets[lp])
-
-        hyps = load_or_translate(module_config, inputs, from_lang, to_lang, mdl_id, corpus)
-
-        result1 = metric_bleu.compute(predictions=hyps, references=outputs)
-        result2 = metric_chrf.compute(predictions=hyps, references=outputs, word_order=2)
-
-        scores[lp + "-bleu"] = result1['score']
-        scores[lp + "-chrf"] = result2['score']
-
-        avgs[jlp + "-bleu"].append(result1['score'])
-        avgs[jlp + "-chrf"].append(result2['score'])
-
-        end_time = datetime.now()
-
-        time_per_sample = (end_time - start_time) / len(hyps)
-
-        log(f"{ii+1}/{len(lp_test_sets)} LP: {lp}, BLEU: {result1['score']:03f}, " +
-            f"chrf++: {result2['score']:03f}, num translated: {len(hyps)}, time per sample: {time_per_sample}")
-
-    for avg_k in avgs:
-        scores[avg_k] = sum(avgs[avg_k]) / len(avgs[avg_k])
-
-    filename = get_benchmark_filename(mdl_id, corpus)
-    with open(filename, "w") as ofh:
-        json.dump(scores, ofh, indent=2, sort_keys=True)
 
 if __name__ == '__main__':
     do_main()
