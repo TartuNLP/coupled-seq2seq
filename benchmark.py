@@ -69,17 +69,19 @@ def load_or_translate(mod_config, input_output_list, lp, model_location, benchma
     return hypos
 
 
-def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator, thedict):
-    key_list = sorted(lp_test_set_dict.keys())
-
-    for idx, lp in enumerate(key_list):
-        if idx % accelerator.num_processes == accelerator.process_index:
-            log(f"Process {accelerator.process_index} translating {lp}")
-            these_hyps = load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
-
-            thedict[lp] = these_hyps
-
-    accelerator.wait_for_everyone()
+def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator=None):
+    if accelerator is not None:
+        key_list = sorted(lp_test_set_dict.keys())
+        for idx, lp in enumerate(key_list):
+            if idx % accelerator.num_processes == accelerator.process_index:
+                log(f"Process {accelerator.process_index} translating {lp}")
+                load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
+        accelerator.wait_for_everyone()
+    else:
+        result = dict()
+        for lp in lp_test_set_dict:
+            result[lp] = load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
+        return result
 
 
 def get_joshi_lp(from_lang, to_lang):
@@ -144,11 +146,11 @@ def do_main():
     if accelerator.is_main_process:
         _ = get_hyp_cache_dir(mdl_id, create=True)
 
-    hps_dict = manager.dict()
-    translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator, hps_dict)
+    translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator)
 
     if accelerator.is_main_process:
-        fin_hyps_dict = dict(hps_dict)
+        fin_hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus)
+
         log(f"Hmm, {len(fin_hyps_dict)}: {' / '.join(fin_hyps_dict.keys())}")
 
         scores = get_all_scores(fin_hyps_dict, lp_test_sets, metric_dict)
