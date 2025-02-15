@@ -69,9 +69,7 @@ def load_or_translate(mod_config, input_output_list, lp, model_location, benchma
     return hypos
 
 
-def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator, manager):
-    ind_result = dict()
-
+def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator, thedict):
     key_list = sorted(lp_test_set_dict.keys())
 
     for idx, lp in enumerate(key_list):
@@ -79,16 +77,9 @@ def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accel
             log(f"Process {accelerator.process_index} translating {lp}")
             these_hyps = load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
 
-            ind_result[lp] = these_hyps
-
-    fin_result = manager.dict()
-
-    for k in ind_result:
-        fin_result[k] = ind_result[k]
+            thedict[lp] = these_hyps
 
     accelerator.wait_for_everyone()
-
-    return dict(fin_result)
 
 
 def get_joshi_lp(from_lang, to_lang):
@@ -153,12 +144,14 @@ def do_main():
     if accelerator.is_main_process:
         _ = get_hyp_cache_dir(mdl_id, create=True)
 
-    hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator, manager)
-
-    log(f"Hmm, {len(hyps_dict)}: { ' / '.join(hyps_dict.keys()) }")
+    hps_dict = manager.dict()
+    translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus, accelerator, hps_dict)
 
     if accelerator.is_main_process:
-        scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
+        fin_hyps_dict = dict(hps_dict)
+        log(f"Hmm, {len(fin_hyps_dict)}: {' / '.join(fin_hyps_dict.keys())}")
+
+        scores = get_all_scores(fin_hyps_dict, lp_test_sets, metric_dict)
 
         save_scores(scores, mdl_id, corpus)
 
