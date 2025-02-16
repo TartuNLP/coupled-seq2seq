@@ -151,8 +151,6 @@ def do_main():
     if accelerator.is_main_process:
         fin_hyps_dict = translate_all_hyps(lp_test_sets, module_config, mdl_id, corpus)
 
-        log(f"Hmm, {len(fin_hyps_dict)}: {' / '.join(fin_hyps_dict.keys())}")
-
         scores = get_all_scores(fin_hyps_dict, lp_test_sets, metric_dict)
 
         save_scores(scores, mdl_id, corpus)

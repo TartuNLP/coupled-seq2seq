@@ -44,10 +44,11 @@ def loadtokenizer(mdlname="facebook/m2m100_418M"):
 
 
 def loadmodel(mdlname="facebook/m2m100_418M", accelerator=None):
-    model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, device_map="auto")
-
     if accelerator is not None:
+        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok)
         model = accelerator.prepare(model)
+    else:
+        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, device_map="auto")
 
     return model
 
