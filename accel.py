@@ -31,8 +31,12 @@ class SwitchingAccelerator:
         epoch_len = len(self.train_set)
         train_len = epoch_len * self.kwargs.epochs
 
+        num_warmup = int(train_len * 0.01)
+
+        log(f"Warmup steps: {num_warmup}, epoch len: {epoch_len}, train len: {train_len}")
+
         optimizer = torch.optim.AdamW(chain_params(self.coupling_specs), lr=self.kwargs.lr)
-        lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=int(train_len * 0.1),
+        lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=num_warmup,
                                      num_training_steps=train_len)
         models = [s.model for s in self.coupling_specs]
 
@@ -110,13 +114,28 @@ class SwitchingAccelerator:
         if self.accelerator.is_main_process:
             logger.line_break()
 
+    def get_total_grad(self):
+        result = 0
+        grad_count = 0
+        all_count = 0
+
+        for p in self.models[0].parameters():
+            if p.grad is not None:
+                result += p.grad.abs().mean().item()
+                grad_count += 1
+            all_count += 1
+
+        return result/grad_count if grad_count > 0 else -1
+
     def _step_and_perhaps_save(self, logger, batch_i, epoch_i, loss):
         self.optimizer.step()
         self.lr_scheduler.step()
-        self.optimizer.zero_grad()
 
         if self.accelerator.is_main_process and ((batch_i + 1) % self.kwargs.log_steps == 0):
-            logger.step(batch_i, loss)
+            grad = self.get_total_grad()
+            logger.step(batch_i, loss, self.lr_scheduler.get_last_lr()[0], grad)
+
+        self.optimizer.zero_grad()
 
         if ((batch_i + 1) % self.kwargs.save_steps == 0) or ((batch_i + 1) % len(self.train_set) == 0):
             self.accelerator.wait_for_everyone()

@@ -7,7 +7,7 @@ def log(msg):
 
 
 def _same_line_log(msg, len_to_del=0):
-    if sys.stderr.isatty():
+    """if sys.stderr.isatty():
         if len_to_del > 0:
             sys.stderr.write("\b" * len_to_del)
 
@@ -17,8 +17,8 @@ def _same_line_log(msg, len_to_del=0):
         sys.stderr.flush()
 
         return new_len
-    else:
-        sys.stderr.write(msg + "\n")
+    else:"""
+    sys.stderr.write(msg + "\n")
 
 
 def debug(msg):
@@ -61,7 +61,7 @@ class SameLineLogger:
     def line_start(self):
         _same_line_log(str(datetime.now()) + ": training batches ")
 
-    def step(self, batch_i, loss):
+    def step(self, batch_i, loss, lr, grad):
         passed_time = datetime.now() - self.start_time
 
         time_per_batch = passed_time / (batch_i + 1)
@@ -71,7 +71,7 @@ class SameLineLogger:
         batch_i_in_epoch = batch_i % self.epoch_len
         curr_epoch_i = batch_i // self.epoch_len
 
-        msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1} / {self.epoch_num}, loss={loss}, {time_per_batch}/iter, {prediction} to finish        "
+        msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1} / {self.epoch_num}, loss={loss:.2e}, {time_per_batch}/iter, {prediction} to finish, LR={lr:.2e}, grad={grad:.2e}        "
 
         new_len = _same_line_log(msg, self.log_len)
 
