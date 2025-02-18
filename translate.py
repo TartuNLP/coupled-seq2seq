@@ -9,7 +9,7 @@ from modelops import to_cpl_spec, load_module_config
 from collections import defaultdict
 from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type
 
-hf_tok = "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"
+hf_tok = TODO
 
 
 def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None, device=None):
