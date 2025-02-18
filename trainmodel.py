@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
@@ -76,4 +77,5 @@ def yes_i_called_this_function_do_main():
     save_all_models(args.save_location, upd_model, main_tokenizer, coupling_specs, loss_list, acc_trainer.accelerator)
 
 if __name__ == "__main__":
+    #sys.argv = ". models/smol models/smol_next data/smugri4a-dev.json-tokcache/thiscache.json smugri log_steps=1 lr=1e-5".split()
     yes_i_called_this_function_do_main()
