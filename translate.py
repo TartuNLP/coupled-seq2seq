@@ -10,7 +10,7 @@ from collections import defaultdict
 from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type
 
 hf_tok = None
-with open("hf_token", r) as fh:
+with open("hf_token", 'r') as fh:
     hf_tok = fh.read()
 
 
