@@ -408,7 +408,7 @@ def dump_to_stdout():
     filename = sys.argv[1]
 
     for tr_pair in get_tr_pairs(filename=filename):
-        print(tr_pair.input + "\t" + tr_pair.output)
+        print(tr_pair.src_lang + "\t" + tr_pair.input + "\t" + tr_pair.tgt_lang + "\t" + tr_pair.output)
 
 
 def do_stats(filename):
