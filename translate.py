@@ -10,8 +10,8 @@ from collections import defaultdict
 from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type
 
 hf_tok = None
-with open("hf_token", 'r') as fh:
-    hf_tok = fh.read()
+#with open("hf_token", 'r') as fh:
+#    hf_tok = fh.read()
 
 
 def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None, device=None):
@@ -122,7 +122,7 @@ def coupled_translate(coupling_specs, input_texts, input_language, output_langua
 
     all_outputs = list()
 
-    for inp_batch in do_list_in_batches(input_texts, 64):
+    for inp_batch in do_list_in_batches(input_texts, 32):
         encoder_embeddings, att_mask = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch)
 
         these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings, att_mask)

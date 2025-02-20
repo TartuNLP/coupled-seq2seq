@@ -5,7 +5,6 @@ import os
 import json
 
 from collections import defaultdict
-from multiprocessing import Manager
 from data import split_by_lang, make_path_compatible, get_tr_pairs
 from translate import coupled_translate, load_and_init_module_config
 from evaluate import load as load_metric
@@ -127,7 +126,6 @@ def do_main():
     corpus = sys.argv[2]
 
     accelerator = Accelerator()
-    manager = Manager()
 
     main_model, module_config = load_and_init_module_config(mdl_id, accelerator)
 
