@@ -404,27 +404,11 @@ class MultilingualDatasetIterator(IterableDataset):
         return self.data_len
 
 
-def dump_to_stdout(filename=None, lang_or_lp=None):
-    if not filename:
-        filename = sys.argv[1]
-    if not lang_or_lp:
-        lang_or_lp = sys.argv[2]
+def dump_to_stdout():
+    filename = sys.argv[1]
 
-    if "-" in lang_or_lp:
-        lp = lang_or_lp
-        i = 0
-        for tr_pair in get_tr_pairs(filename=filename, leave_only={lp}):
-            i += 1
-            print(tr_pair.input + "\t" + tr_pair.output)
-    else:
-        lang_set = lang_set_maybe_smugri(lang_or_lp)
-
-        raw_data = load_json_datax(filename)
-        data_iter = data_iter_for_tok_train(raw_data, lang_set)
-        i = 0
-        for snt in data_iter:
-            print(snt)
-            i += 1
+    for tr_pair in get_tr_pairs(filename=filename):
+        print(tr_pair.input + "\t" + tr_pair.output)
 
 
 def do_stats(filename):
@@ -496,7 +480,6 @@ def combine_jsons(filelist):
 
 
 if __name__ == "__main__":
-    # dump_to_stdout(filename="data/train.json", lang_or_lp="fi")
     dump_to_stdout()
     # multi_moses_to_json(sys.argv[1], sys.argv[2], group_tuples(sys.argv[3:]))
 
