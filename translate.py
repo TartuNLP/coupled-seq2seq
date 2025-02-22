@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 import sys
+import requests
+import re
 
 from aux import CmdlineArgs, log
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from data import do_list_in_batches, lang_bin_mapping
 from modelops import to_cpl_spec, load_module_config
 from collections import defaultdict
-from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type
+from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type, any_to_base
 
 hf_tok = None
 #with open("hf_token", 'r') as fh:
@@ -115,6 +117,50 @@ def make_uniq(lang_to_bin):
         result[lang] = 0 if 0 in bin_set else list(bin_set)[0]
 
     return result
+
+
+def translate_with_neurotolge(translation_input: str, src_lang: str, tgt_lang: str) -> dict:
+    url = "https://api.tartunlp.ai/translation/v2"
+    payload = {
+        "text": translation_input,
+        "src": any_to_base(src_lang).alpha_3,
+        "tgt": any_to_base(tgt_lang).alpha_3,
+        "domain": "general",
+        "application": "benchmarking"
+    }
+
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()  # Raise an error for bad status codes
+        return response.json()['result']
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+
+def remove_dia(snt):
+    if ">" in snt:
+        return re.sub(r'^<[^>]+> ', '', snt)
+    else:
+        return snt
+
+
+def neurotolge_in_batches(input_texts, src_lang, tgt_lang):
+    neurotolge_langs = {'eng', 'est', 'ger', 'lit', 'lav', 'fin', 'rus', 'ukr', 'kca', 'koi', 'kpv', 'krl', 'lud', 'mdf', 'mhr', 'mns', 'mrj', 'myv', 'olo', 'udm', 'vep', 'liv', 'vro', 'sma', 'sme', 'smn', 'sms', 'smj', 'nor', 'hun'}
+
+    if src_lang in neurotolge_langs and tgt_lang in neurotolge_langs:
+        all_outputs = list()
+
+        for inp_batch in do_list_in_batches(input_texts, 8):
+            inp_batch_no_dia = [remove_dia(s) for s in inp_batch]
+            these_outputs = translate_with_neurotolge(inp_batch_no_dia, src_lang, tgt_lang)
+            if len(these_outputs) != len(inp_batch_no_dia):
+                raise Exception(f"Something went wrong.: {these_outputs}")
+            all_outputs += these_outputs
+            log(f"Translated {len(all_outputs)}/{len(input_texts)} sentences")
+
+        return all_outputs
+    else:
+        return None
 
 
 def coupled_translate(coupling_specs, input_texts, input_language, output_language):

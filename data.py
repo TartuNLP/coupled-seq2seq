@@ -11,8 +11,7 @@ from random import randrange, shuffle
 from pathlib import Path
 
 from aux import log
-from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, \
-    lang_set_maybe_smugri
+from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 
@@ -404,11 +403,43 @@ class MultilingualDatasetIterator(IterableDataset):
         return self.data_len
 
 
+def upd_lc(dct, lang, snt):
+    l = len(snt.split(" "))
+
+    if l <= 10:
+        k = '1:  1..10'
+    elif l <= 15:
+        k = '2: 11..15'
+    elif l <= 20:
+        k = '3: 16..20'
+    else:
+        k = '4:    >20'
+
+    dct[k] += 1
+
+    return l
+
+
 def dump_to_stdout():
     filename = sys.argv[1]
 
+    lc_src = defaultdict(int)
+
+    tot_len = 0
+    tot_count = 0
+
     for tr_pair in get_tr_pairs(filename=filename):
         print(tr_pair.src_lang + "\t" + tr_pair.input + "\t" + tr_pair.tgt_lang + "\t" + tr_pair.output)
+
+        tot_len += upd_lc(lc_src, tr_pair.src_lang, tr_pair.input)
+        tot_len += upd_lc(lc_src, tr_pair.tgt_lang, tr_pair.output)
+
+        tot_count += 2
+
+    totes = sum(lc_src.values())
+    for k in sorted(lc_src):
+        sys.stderr.write(f"{k}: {100*lc_src[k]/totes:.1f}%\n")
+    sys.stderr.write(f"Avg length: {tot_len/float(tot_count):.1f}\n")
 
 
 def do_stats(filename):

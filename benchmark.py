@@ -6,7 +6,7 @@ import json
 
 from collections import defaultdict
 from data import split_by_lang, make_path_compatible, get_tr_pairs
-from translate import coupled_translate, load_and_init_module_config
+from translate import coupled_translate, load_and_init_module_config, neurotolge_in_batches
 from evaluate import load as load_metric
 from langconv import get_mdl_type, get_joshi_class
 from accelerate import Accelerator
@@ -45,9 +45,10 @@ def load_hyps_from_file(filename):
 
 
 def save_hyps_to_file(hypos, filename):
-    with open(filename, "w", encoding="utf-8") as f:
-        for hyp in hypos:
-            f.write(hyp + "\n")
+    if hypos is not None:
+        with open(filename, "w", encoding="utf-8") as f:
+            for hyp in hypos:
+                f.write(hyp + "\n")
 
 
 def load_or_translate(mod_config, input_output_list, lp, model_location, benchmark_corpus):
@@ -60,7 +61,10 @@ def load_or_translate(mod_config, input_output_list, lp, model_location, benchma
     try:
         hypos = load_hyps_from_file(cache_filename)
     except FileNotFoundError:
-        hypos = coupled_translate(mod_config, inputs, src_lang, tgt_lang)
+        if model_location == "/tmp/neurotolge":
+            hypos = neurotolge_in_batches(inputs, src_lang, tgt_lang)
+        else:
+            hypos = coupled_translate(mod_config, inputs, src_lang, tgt_lang)
 
         save_hyps_to_file(hypos, cache_filename)
         save_hyps_to_file(inputs, src_filename)
@@ -78,7 +82,8 @@ def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accel
         accelerator.wait_for_everyone()
     else:
         result = dict()
-        for lp in lp_test_set_dict:
+        for i, lp in enumerate(lp_test_set_dict.keys()):
+            log(f"Translating {lp}, {i+1}/{len(lp_test_set_dict)}")
             result[lp] = load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
         return result
 
@@ -103,11 +108,12 @@ def get_all_scores(hyps_dict, lp_test_sets, metric_dict):
         for metric_name in metric_dict:
             metric_func = metric_dict[metric_name]
 
-            metric_value = metric_func.compute(predictions=hyps_dict[lp], references=outputs)
+            if hyps_dict[lp] is not None:
+                metric_value = metric_func.compute(predictions=hyps_dict[lp], references=outputs)
 
-            scores[lp + "-" + metric_name] = metric_value['score']
+                scores[lp + "-" + metric_name] = metric_value['score']
 
-            avgs[jlp + "-" + metric_name].append(metric_value['score'])
+                avgs[jlp + "-" + metric_name].append(metric_value['score'])
 
     for avg_k in avgs:
         scores[avg_k] = sum(avgs[avg_k]) / len(avgs[avg_k])
@@ -121,10 +127,27 @@ def save_scores(scores, mdl_id, corpus):
         json.dump(scores, ofh, indent=2, sort_keys=True)
 
 
-def do_main():
-    mdl_id = sys.argv[1]
-    corpus = sys.argv[2]
+def benchmark_neurotolge(corpus):
+    log("Loading data")
+    lp_test_sets = split_by_lang(filename=corpus, model_type=None)
 
+    log("Starting benchmarking")
+    _ = get_hyp_cache_dir("/tmp/neurotolge", create=True)
+
+    hyps_dict = translate_all_hyps(lp_test_sets, None, "/tmp/neurotolge", corpus)
+
+    log("Loading metrics")
+    exp_id = "neurotõlge---" + make_path_compatible(corpus)
+    metric_dict = {
+        'bleu': load_metric("sacrebleu", experiment_id=exp_id),
+        'chrf': load_metric("chrf", experiment_id=exp_id) }
+
+    scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
+
+    save_scores(scores, "/tmp/neurotolge", corpus)
+
+
+def benchmark_local_model(mdl_id, corpus):
     accelerator = Accelerator()
 
     main_model, module_config = load_and_init_module_config(mdl_id, accelerator)
@@ -155,4 +178,10 @@ def do_main():
 
 
 if __name__ == '__main__':
-    do_main()
+    mdl_id_param = sys.argv[1]
+    corpus_param = sys.argv[2]
+
+    if mdl_id_param == "neurotolge":
+        benchmark_neurotolge(corpus_param)
+    else:
+        benchmark_local_model(mdl_id_param, corpus_param)

@@ -26,6 +26,7 @@ NLLB_CODES = ['ace_Arab', 'ace_Latn', 'acm_Arab', 'acq_Arab', 'aeb_Arab', 'afr_L
 
 MDL_NLLB = "MDL_NLLB"
 MDL_MADLAD = "MDL_MADLAD"
+MDL_NEUROTOLGE = "MDL_NEUROTÕLGE"
 
 _iso3_to_script = dict([nllb_code.split("_") for nllb_code in NLLB_CODES])
 
