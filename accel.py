@@ -5,13 +5,42 @@ from accelerate import Accelerator
 from transformers import get_scheduler
 
 from aux import SameLineLogger, log
-from modelops import load_data_state, load_loss_list, save_all_models
+#from modelops import load_data_state, load_loss_list, save_all_models
+from modelops import save_all_models
 from translate import encode
 
 
 def chain_params(coupling_specs):
     for spec in coupling_specs:
         yield from spec.model.parameters()
+
+
+class DataState:
+    def __init__(self):
+        self.batch_idx = 0
+        self.epoch_idx = 0
+
+    def state_dict(self):
+        return {'batch_idx': self.batch_idx, 'epoch_idx': self.epoch_idx}
+
+    def load_state_dict(self, state_dict):
+        self.batch_idx = state_dict['batch_idx']
+        self.epoch_idx = state_dict['epoch_idx']
+
+
+class TrainLossList:
+    def __init__(self):
+        self.data = []
+
+    def append(self, loss_val, src_k, tgt_k):
+        self.data.append((loss_val, src_k, tgt_k))
+
+    def state_dict(self):
+        return {'data': self.data}
+
+    def load_state_dict(self, state_dict):
+        self.data = state_dict['data']
+
 
 
 class SwitchingAccelerator:
@@ -21,7 +50,8 @@ class SwitchingAccelerator:
         self.train_set = train_set
         self.kwargs = train_kwargs
 
-        self.train_loss_list = []
+        self.train_loss_list = TrainLossList()
+        self._data_state = DataState()
 
         self._init_acc_and_stuff()
 
@@ -43,21 +73,13 @@ class SwitchingAccelerator:
         self.train_set, self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare(
             self.train_set, optimizer, lr_scheduler, *models)
 
+        self.accelerator.register_for_checkpointing(self.lr_scheduler, self._data_state, self.train_loss_list)
+
         if self.kwargs.continue_training:
             self.accelerator.load_state(self.kwargs.mdl_id)
-            self.data_state = load_data_state(self.kwargs.mdl_id)
-            self.train_loss_list = load_loss_list(self.kwargs.mdl_id)
-        else:
-            self.data_state = (0, 0)
-            self.train_loss_list = []
 
-        self.accelerator.register_for_checkpointing(self.optimizer, self.lr_scheduler, *self.models)
-        self.accelerator.save_state(self.kwargs.save_location)
-
-        #self._save_all(*self.data_state)
 
     def train(self):
-        #train_dl_acc, optimizer_acc, *models_acc = self.accelerator.prepare(train_dataloader, self.optimizer, *models)
         self._main_loop()
 
         self.accelerator.wait_for_everyone()
@@ -90,12 +112,15 @@ class SwitchingAccelerator:
 
         self.models[0].train()
 
-        batch_idx = 0
+        _batch_idx = 0
 
-        for epoch_idx in range(self.data_state[1], self.kwargs.epochs):
+        for _epoch_idx in range(self._data_state.epoch_idx, self.kwargs.epochs):
+            self._data_state.epoch_idx = _epoch_idx
 
             for batch_with_bin_idxs in self.train_set:
-                if batch_idx > self.data_state[0]:
+                if _batch_idx > self._data_state.batch_idx:
+                    self._data_state.batch_idx = _batch_idx
+
                     inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
 
                     encoder_vecs = encode(self.models[src_k], inputs)
@@ -103,13 +128,13 @@ class SwitchingAccelerator:
 
                     loss = outputs.loss
 
-                    self.train_loss_list.append((loss.item(), src_k, tgt_k))
+                    self.train_loss_list.append(loss.item(), src_k, tgt_k)
 
                     self.accelerator.backward(loss)
 
-                    self._step_and_perhaps_save(logger, batch_idx, epoch_idx, float(loss.item()))
+                    self._step_and_perhaps_save(logger, _batch_idx, _epoch_idx, float(loss.item()))
 
-                batch_idx += 1
+                _batch_idx += 1
 
         if self.accelerator.is_main_process:
             logger.line_break()
@@ -158,8 +183,10 @@ class SwitchingAccelerator:
         if os.path.exists(this_location):
             raise FileExistsError("Cannot overwrite existing checkpoint")
 
+        self.accelerator.save_state(this_location)
+
         model_to_save = self.accelerator.unwrap_model(self.models[0])
 
         save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer,
-                        self.coupling_specs, self.train_loss_list, self.accelerator,
+                        self.coupling_specs, self.train_loss_list, trainer=self.accelerator,
                         data_state=(batch_i, epoch_i))

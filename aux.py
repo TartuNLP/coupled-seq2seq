@@ -71,7 +71,7 @@ class SameLineLogger:
         batch_i_in_epoch = batch_i % self.epoch_len
         curr_epoch_i = batch_i // self.epoch_len
 
-        msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1} / {self.epoch_num}, loss={loss:.2e}, {time_per_batch}/iter, {prediction} to finish, LR={lr:.2e}, grad={grad:.2e}        "
+        msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1} / {self.epoch_num}, loss={loss}, {time_per_batch}/iter, {prediction} to finish, LR={lr:.2e}, grad={grad:.2e}        "
 
         new_len = _same_line_log(msg, self.log_len)
 

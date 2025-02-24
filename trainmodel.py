@@ -47,7 +47,7 @@ def _cmdline_args():
         args.anchor_langs = lang_set_maybe_smugri(args.anchor_langs)
 
     # if the directory args.save_location already exists, raise an exception:
-    if os.path.exists(args.save_location):
+    if not args.continue_training and os.path.exists(args.save_location):
         raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
 
     return args
@@ -75,6 +75,7 @@ def yes_i_called_this_function_do_main():
     upd_model, loss_list = acc_trainer.train()
 
     save_all_models(args.save_location, upd_model, main_tokenizer, coupling_specs, loss_list, acc_trainer.accelerator)
+
 
 if __name__ == "__main__":
     #sys.argv = ". models/smol models/smol_next data/smugri4a-dev.json-tokcache/thiscache.json smugri log_steps=1 lr=1e-5".split()
