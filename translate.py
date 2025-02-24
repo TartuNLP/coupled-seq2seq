@@ -121,6 +121,7 @@ def make_uniq(lang_to_bin):
 
 def translate_with_neurotolge(translation_input: str, src_lang: str, tgt_lang: str) -> dict:
     url = "https://api.tartunlp.ai/translation/v2"
+
     payload = {
         "text": translation_input,
         "src": any_to_neurotolge(src_lang),
@@ -129,12 +130,17 @@ def translate_with_neurotolge(translation_input: str, src_lang: str, tgt_lang: s
         "application": "benchmarking"
     }
 
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()  # Raise an error for bad status codes
-        return response.json()['result']
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    error = None
+
+    for i in range(5):
+        try:
+            response = requests.post(url, json=payload)
+            response.raise_for_status()  # Raise an error for bad status codes
+            return response.json()['result']
+        except requests.exceptions.RequestException as e:
+            error = {"error": str(e)}
+
+    return error
 
 
 def remove_dia(snt):
