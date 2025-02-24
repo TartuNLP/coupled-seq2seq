@@ -9,7 +9,7 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from data import do_list_in_batches, lang_bin_mapping
 from modelops import to_cpl_spec, load_module_config
 from collections import defaultdict
-from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type, any_to_base
+from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type, any_to_neurotolge
 
 hf_tok = None
 #with open("hf_token", 'r') as fh:
@@ -123,8 +123,8 @@ def translate_with_neurotolge(translation_input: str, src_lang: str, tgt_lang: s
     url = "https://api.tartunlp.ai/translation/v2"
     payload = {
         "text": translation_input,
-        "src": any_to_base(src_lang).alpha_3,
-        "tgt": any_to_base(tgt_lang).alpha_3,
+        "src": any_to_neurotolge(src_lang),
+        "tgt": any_to_neurotolge(tgt_lang),
         "domain": "general",
         "application": "benchmarking"
     }
@@ -145,7 +145,7 @@ def remove_dia(snt):
 
 
 def neurotolge_in_batches(input_texts, src_lang, tgt_lang):
-    neurotolge_langs = {'eng', 'est', 'ger', 'lit', 'lav', 'fin', 'rus', 'ukr', 'kca', 'koi', 'kpv', 'krl', 'lud', 'mdf', 'mhr', 'mns', 'mrj', 'myv', 'olo', 'udm', 'vep', 'liv', 'vro', 'sma', 'sme', 'smn', 'sms', 'smj', 'nor', 'hun'}
+    neurotolge_langs = {'eng', 'est', 'ger', 'lit', 'lav', 'lvs', 'fin', 'rus', 'ukr', 'kca', 'koi', 'kpv', 'krl', 'lud', 'mdf', 'mhr', 'mns', 'mrj', 'myv', 'olo', 'udm', 'vep', 'liv', 'vro', 'sma', 'sme', 'smn', 'sms', 'smj', 'nor', 'hun'}
 
     if src_lang in neurotolge_langs and tgt_lang in neurotolge_langs:
         all_outputs = list()
@@ -154,7 +154,7 @@ def neurotolge_in_batches(input_texts, src_lang, tgt_lang):
             inp_batch_no_dia = [remove_dia(s) for s in inp_batch]
             these_outputs = translate_with_neurotolge(inp_batch_no_dia, src_lang, tgt_lang)
             if len(these_outputs) != len(inp_batch_no_dia):
-                raise Exception(f"Something went wrong.: {these_outputs}")
+                raise Exception(f"Something went wrong.: {src_lang}/{tgt_lang}/{these_outputs}")
             all_outputs += these_outputs
             log(f"Translated {len(all_outputs)}/{len(input_texts)} sentences")
 

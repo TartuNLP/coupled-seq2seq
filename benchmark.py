@@ -66,8 +66,9 @@ def load_or_translate(mod_config, input_output_list, lp, model_location, benchma
         else:
             hypos = coupled_translate(mod_config, inputs, src_lang, tgt_lang)
 
-        save_hyps_to_file(hypos, cache_filename)
-        save_hyps_to_file(inputs, src_filename)
+        if hypos is not None:
+            save_hyps_to_file(hypos, cache_filename)
+            save_hyps_to_file(inputs, src_filename)
 
     return hypos
 

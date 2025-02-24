@@ -139,6 +139,12 @@ def any_to_nllb(lang):
     return any_to_something(lang, base_to_nllb)
 
 
+def any_to_neurotolge(lang):
+    l = any_to_base(lang).alpha_3
+
+    return l if l != 'lvs' else 'lv'
+
+
 def any_to_mdl_type(mdl_type, lang):
     if mdl_type == MDL_NLLB:
         return any_to_nllb(lang)
