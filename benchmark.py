@@ -61,7 +61,7 @@ def load_or_translate(mod_config, input_output_list, lp, model_location, benchma
     try:
         hypos = load_hyps_from_file(cache_filename)
     except FileNotFoundError:
-        if model_location == "/tmp/neurotolge":
+        if model_location == "models/neurotolge":
             hypos = neurotolge_in_batches(inputs, src_lang, tgt_lang)
         else:
             hypos = coupled_translate(mod_config, inputs, src_lang, tgt_lang)
@@ -133,9 +133,9 @@ def benchmark_neurotolge(corpus):
     lp_test_sets = split_by_lang(filename=corpus, model_type=None)
 
     log("Starting benchmarking")
-    _ = get_hyp_cache_dir("/tmp/neurotolge", create=True)
+    _ = get_hyp_cache_dir("models/neurotolge", create=True)
 
-    hyps_dict = translate_all_hyps(lp_test_sets, None, "/tmp/neurotolge", corpus)
+    hyps_dict = translate_all_hyps(lp_test_sets, None, "models/neurotolge", corpus)
 
     log("Loading metrics")
     exp_id = "neurotõlge---" + make_path_compatible(corpus)
@@ -145,7 +145,7 @@ def benchmark_neurotolge(corpus):
 
     scores = get_all_scores(hyps_dict, lp_test_sets, metric_dict)
 
-    save_scores(scores, "/tmp/neurotolge", corpus)
+    save_scores(scores, "models/neurotolge", corpus)
 
 
 def benchmark_local_model(mdl_id, corpus):
