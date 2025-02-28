@@ -27,6 +27,12 @@ class DataState:
         self.batch_idx = state_dict['batch_idx']
         self.epoch_idx = state_dict['epoch_idx']
 
+    def __str__(self):
+        return 'DataState(batch_idx={}, epoch_idx={})'.format(self.batch_idx, self.epoch_idx)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class TrainLossList:
     def __init__(self):
@@ -51,7 +57,7 @@ class SwitchingAccelerator:
         self.kwargs = train_kwargs
 
         self.train_loss_list = TrainLossList()
-        self._data_state = DataState()
+        self.data_state = DataState()
 
         self._init_acc_and_stuff()
 
@@ -73,11 +79,11 @@ class SwitchingAccelerator:
         self.train_set, self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare(
             self.train_set, optimizer, lr_scheduler, *models)
 
-        self.accelerator.register_for_checkpointing(self.lr_scheduler, self._data_state, self.train_loss_list)
+        self.accelerator.register_for_checkpointing(self.lr_scheduler, self.data_state, self.train_loss_list)
 
         if self.kwargs.continue_training:
             self.accelerator.load_state(self.kwargs.mdl_id)
-
+            log(f"Reloaded data state: {self.data_state}")
 
     def train(self):
         self._main_loop()
@@ -113,13 +119,14 @@ class SwitchingAccelerator:
         self.models[0].train()
 
         _batch_idx = 0
+        print(f"Starting from epoch {self.data_state.epoch_idx} and running up to {self.kwargs.epochs-1}")
+        for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
+            #self.data_state.epoch_idx = _epoch_idx
 
-        for _epoch_idx in range(self._data_state.epoch_idx, self.kwargs.epochs):
-            self._data_state.epoch_idx = _epoch_idx
-
+            print(f"Batching from idx > {self.data_state.batch_idx}")
             for batch_with_bin_idxs in self.train_set:
-                if _batch_idx > self._data_state.batch_idx:
-                    self._data_state.batch_idx = _batch_idx
+                if _batch_idx > self.data_state.batch_idx:
+                    #self.data_state.batch_idx = _batch_idx
 
                     inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
 
