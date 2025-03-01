@@ -17,8 +17,12 @@ def chain_params(coupling_specs):
 
 class DataState:
     def __init__(self):
-        self.batch_idx = 0
+        self.batch_idx = -1
         self.epoch_idx = 0
+
+    def is_continued(self):
+        is_fresh = (self.batch_idx == -1) and (self.epoch_idx == 0)
+        return not is_fresh
 
     def state_dict(self):
         return {'batch_idx': self.batch_idx, 'epoch_idx': self.epoch_idx}
@@ -118,16 +122,14 @@ class SwitchingAccelerator:
 
         self.models[0].train()
 
-        _batch_idx = 0
-        print(f"Starting from epoch {self.data_state.epoch_idx} and running up to {self.kwargs.epochs-1}")
-        for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
-            #self.data_state.epoch_idx = _epoch_idx
+        _batch_idx = self.train_set.maybe_skip_ahead(self.data_state)
 
-            print(f"Batching from idx > {self.data_state.batch_idx}")
+        print(f"Batching from idx {self.data_state.batch_idx + 1}")
+        print(f"Starting from epoch {self.data_state.epoch_idx} and running up to {self.kwargs.epochs-1}")
+
+        for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
             for batch_with_bin_idxs in self.train_set:
                 if _batch_idx > self.data_state.batch_idx:
-                    #self.data_state.batch_idx = _batch_idx
-
                     inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
 
                     encoder_vecs = encode(self.models[src_k], inputs)
@@ -190,10 +192,14 @@ class SwitchingAccelerator:
         if os.path.exists(this_location):
             raise FileExistsError("Cannot overwrite existing checkpoint")
 
+        self.data_state.epoch_idx = epoch_i
+        self.data_state.batch_idx = batch_i
+        log(f"Saving data state as epoch={epoch_i}, batch={batch_i}")
+
         self.accelerator.save_state(this_location)
 
         model_to_save = self.accelerator.unwrap_model(self.models[0])
 
         save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer,
-                        self.coupling_specs, self.train_loss_list, trainer=self.accelerator,
+                        self.coupling_specs, self.train_loss_list, trainer=None,
                         data_state=(batch_i, epoch_i))

@@ -381,6 +381,15 @@ class MultilingualDatasetIterator(IterableDataset):
     def __iter__(self):
         return self
 
+    def maybe_skip_ahead(self, data_state):
+        curr_full_len_batch_idx = data_state.batch_idx + 1
+
+        result = curr_full_len_batch_idx - self.data_len * data_state.epoch_idx
+
+        assert result >= 0
+
+        return result
+
     def __next__(self):
         try:
             result = self.curr_shard_data[self.curr_elem_idx]
