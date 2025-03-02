@@ -185,7 +185,7 @@ class SwitchingAccelerator:
     def _save_all(self, batch_i, epoch_i):
         epoch_len = len(self.train_set)
 
-        ckpt_name = f"checkpoint-e{epoch_i + 1}-b{batch_i + 1:07}" if (
+        ckpt_name = f"checkpoint-e{epoch_i + 1:02}-b{batch_i + 1:07}" if (
                     (batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1}-full"
 
         this_location = os.path.join(self.kwargs.save_location, ckpt_name)
