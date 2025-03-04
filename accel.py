@@ -190,7 +190,7 @@ class SwitchingAccelerator:
 
         this_location = os.path.join(self.kwargs.save_location, ckpt_name)
         if os.path.exists(this_location):
-            raise FileExistsError("Cannot overwrite existing checkpoint")
+            raise FileExistsError(f"Cannot overwrite existing checkpoint {this_location}!")
 
         self.data_state.epoch_idx = epoch_i
         self.data_state.batch_idx = batch_i
