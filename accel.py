@@ -186,7 +186,7 @@ class SwitchingAccelerator:
         epoch_len = len(self.train_set)
 
         ckpt_name = f"checkpoint-e{epoch_i + 1:02}-b{batch_i + 1:07}" if (
-                    (batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1}-full"
+                    (batch_i + 1) % epoch_len) else f"checkpoint-e{epoch_i + 1:02}-full"
 
         this_location = os.path.join(self.kwargs.save_location, ckpt_name)
         if os.path.exists(this_location):
