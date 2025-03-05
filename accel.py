@@ -124,15 +124,16 @@ class SwitchingAccelerator:
 
         self.models[0].train()
 
-        _batch_idx = self.train_set.maybe_skip_ahead(self.data_state)
+        _batch_idx, skipped = self.train_set.maybe_skip_ahead(self.data_state)
+        print(self.data_state, _batch_idx, skipped)
 
         if self.accelerator.is_main_process:
-            print(f"Batching from idx {self.data_state.batch_idx + 1}")
+            print(f"Batching from idx {_batch_idx + skipped + 1}")
             print(f"Starting from epoch {self.data_state.epoch_idx} and running up to {self.kwargs.epochs-1}")
 
         for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
             for batch_with_bin_idxs in self.train_set:
-                if _batch_idx > self.data_state.batch_idx:
+                if _batch_idx > self.data_state.batch_idx - skipped:
                     inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
 
                     encoder_vecs = encode(self.models[src_k], inputs)
@@ -144,7 +145,7 @@ class SwitchingAccelerator:
 
                     self.accelerator.backward(loss)
 
-                    self._step_and_perhaps_save(logger, _batch_idx, _epoch_idx, float(loss.item()))
+                    self._step_and_perhaps_save(logger, _batch_idx + skipped, _epoch_idx, float(loss.item()))
 
                 _batch_idx += 1
 
