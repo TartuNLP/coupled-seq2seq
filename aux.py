@@ -209,4 +209,4 @@ if __name__ == "__main__":
         p = pickle.loads(d['custom_checkpoint_1/data.pkl'])
         #print(dname, p)
         nn = re.sub(r'^.*-b', '', dname)
-        print(dname, ("full" if "full" in dname else int(nn) - p['batch_idx']))
+        print(dname, (("?", p['batch_idx']) if "full" in dname else int(nn) - p['batch_idx']))
