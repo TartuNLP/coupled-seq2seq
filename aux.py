@@ -1,4 +1,10 @@
+#!/usr/bin/env python3
+
+import numpy as np
+import pickle
+import re
 import sys
+
 from datetime import datetime
 
 
@@ -196,3 +202,11 @@ class CmdlineArgs:
 
     def __repr__(self):
         return self.__str__()
+
+if __name__ == "__main__":
+    for dname in sys.argv[1:]:
+        d = np.load(dname + "/custom_checkpoint_1.pkl", allow_pickle=True)
+        p = pickle.loads(d['custom_checkpoint_1/data.pkl'])
+        #print(dname, p)
+        nn = re.sub(r'^.*-b', '', dname)
+        print(dname, int(nn) - p['batch_idx'])
