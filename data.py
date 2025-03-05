@@ -355,6 +355,27 @@ class MultilingualBatchingCachingDataset:
         self._bins_to_tokenized_batched_cached_data(bins, cache_path)
 
 
+class DataState:
+    def __init__(self, elem_idx = 0, shard_idx = 0, epoch_idx = None):
+        self.elem_idx = elem_idx
+        self.shard_idx = shard_idx
+        self.epoch_idx = epoch_idx
+
+    def state_dict(self):
+        return {'elem_idx': self.elem_idx, 'shard_idx': self.shard_idx, 'epoch_idx': self.epoch_idx}
+
+    def load_state_dict(self, state_dict):
+        self.elem_idx = state_dict['elem_idx']
+        self.shard_idx = state_dict['shard_idx']
+        self.epoch_idx = state_dict['epoch_idx']
+
+    def __str__(self):
+        return 'DataState(elem_idx={}, shard_idx={}, epoch_idx={})'.format(self.elem_idx, self.shard_idx, self.epoch_idx)
+
+    def __repr__(self):
+        return self.__str__()
+
+
 class MultilingualDatasetIterator(IterableDataset):
     def _load_metafile(self, cache_metafile):
         with open(cache_metafile, 'r') as f:
@@ -363,7 +384,7 @@ class MultilingualDatasetIterator(IterableDataset):
 
     def _init_curr_shard(self):
         cache_location = self.metainfo[self.curr_shard_idx]['shard_filename']
-
+        print(f"LOAD {cache_location}")
         self.curr_shard_data = torch.load(cache_location, weights_only=False)
 
         assert len(self.curr_shard_data) == self.metainfo[self.curr_shard_idx]['shard_size']
@@ -380,7 +401,10 @@ class MultilingualDatasetIterator(IterableDataset):
         self._init_curr_shard()
         return self
 
-    def skip_ahead(self, data_state):
+    def where_are_we(self):
+        return DataState(shard_idx=self.curr_shard_idx, elem_idx=self.curr_elem_idx)
+
+    def thats_where(self, data_state):
         self.curr_shard_idx = data_state.shard_idx
         self.curr_elem_idx = data_state.elem_idx
         self.prev_shard_sum_len = sum([e['shard_size'] for i, e in enumerate(self.metainfo) if i < self.curr_shard_idx])
@@ -388,8 +412,6 @@ class MultilingualDatasetIterator(IterableDataset):
     def __next__(self):
         try:
             result_data = self.curr_shard_data[self.curr_elem_idx]
-            result_elem_idx = self.curr_elem_idx
-            result_shard_idx = self.curr_shard_idx
 
             self.curr_elem_idx += 1
         except IndexError:
@@ -404,13 +426,11 @@ class MultilingualDatasetIterator(IterableDataset):
                 self.curr_elem_idx = 0
 
                 result_data = self.curr_shard_data[self.curr_elem_idx]
-                result_elem_idx = self.curr_elem_idx
-                result_shard_idx = self.curr_shard_idx
 
                 self.curr_elem_idx += 1
 
-        epoch_idx = self.prev_shard_sum_len + result_elem_idx
-        return result_data, epoch_idx, result_elem_idx, result_shard_idx
+        index_in_epoch = self.prev_shard_sum_len + self.curr_elem_idx
+        return result_data, index_in_epoch
 
     def __len__(self):
         return self.data_len
