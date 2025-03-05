@@ -73,7 +73,8 @@ class SwitchingAccelerator:
 
         num_warmup = int(train_len * 0.01)
 
-        log(f"Warmup steps: {num_warmup}, epoch len: {epoch_len}, train len: {train_len}")
+        if self.accelerator.is_main_process:
+            log(f"Warmup steps: {num_warmup}, epoch len: {epoch_len}, train len: {train_len}")
 
         optimizer = torch.optim.AdamW(chain_params(self.coupling_specs), lr=self.kwargs.lr)
         lr_scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=num_warmup,
@@ -87,7 +88,8 @@ class SwitchingAccelerator:
 
         if self.kwargs.continue_training:
             self.accelerator.load_state(self.kwargs.mdl_id)
-            log(f"Reloaded data state: {self.data_state}")
+            if self.accelerator.is_main_process:
+                log(f"Reloaded data state: {self.data_state}")
 
     def train(self):
         self._main_loop()
@@ -124,8 +126,9 @@ class SwitchingAccelerator:
 
         _batch_idx = self.train_set.maybe_skip_ahead(self.data_state)
 
-        print(f"Batching from idx {self.data_state.batch_idx + 1}")
-        print(f"Starting from epoch {self.data_state.epoch_idx} and running up to {self.kwargs.epochs-1}")
+        if self.accelerator.is_main_process:
+            print(f"Batching from idx {self.data_state.batch_idx + 1}")
+            print(f"Starting from epoch {self.data_state.epoch_idx} and running up to {self.kwargs.epochs-1}")
 
         for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
             for batch_with_bin_idxs in self.train_set:
