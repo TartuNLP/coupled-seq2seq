@@ -384,7 +384,7 @@ class MultilingualDatasetIterator(IterableDataset):
 
     def _init_curr_shard(self):
         cache_location = self.metainfo[self.curr_shard_idx]['shard_filename']
-        print(f"LOAD {cache_location}")
+
         self.curr_shard_data = torch.load(cache_location, weights_only=False)
 
         assert len(self.curr_shard_data) == self.metainfo[self.curr_shard_idx]['shard_size']
