@@ -359,55 +359,58 @@ class MultilingualDatasetIterator(IterableDataset):
     def _load_metafile(self, cache_metafile):
         with open(cache_metafile, 'r') as f:
             self.metainfo = json.load(f)
+            self.data_len = sum([e['shard_size'] for e in self.metainfo])
 
     def _init_curr_shard(self):
         cache_location = self.metainfo[self.curr_shard_idx]['shard_filename']
 
         self.curr_shard_data = torch.load(cache_location, weights_only=False)
 
-    def _reset(self):
-        self.data_len = sum([e['shard_size'] for e in self.metainfo])
-
-        self.curr_shard_idx = 0
-        self._init_curr_shard()
-
-        self.curr_elem_idx = 0
+        assert len(self.curr_shard_data) == self.metainfo[self.curr_shard_idx]['shard_size']
 
     def __init__(self, filename):
-        self._load_metafile(filename)
+        self.curr_shard_idx = 0
+        self.curr_elem_idx = 0
+        self.prev_shard_sum_len = 0
 
-        self._reset()
+        if filename is not None:
+            self._load_metafile(filename)
 
     def __iter__(self):
+        self._init_curr_shard()
         return self
 
-    def maybe_skip_ahead(self, data_state):
-        curr_full_len_batch_idx = data_state.batch_idx + 1
-
-        to_skip = self.data_len * data_state.epoch_idx
-        result = curr_full_len_batch_idx - to_skip
-
-        assert result >= 0
-
-        return result, to_skip
+    def skip_ahead(self, data_state):
+        self.curr_shard_idx = data_state.shard_idx
+        self.curr_elem_idx = data_state.elem_idx
+        self.prev_shard_sum_len = sum([e['shard_size'] for i, e in enumerate(self.metainfo) if i < self.curr_shard_idx])
 
     def __next__(self):
         try:
-            result = self.curr_shard_data[self.curr_elem_idx]
+            result_data = self.curr_shard_data[self.curr_elem_idx]
+            result_elem_idx = self.curr_elem_idx
+            result_shard_idx = self.curr_shard_idx
+
             self.curr_elem_idx += 1
         except IndexError:
+            self.prev_shard_sum_len += self.metainfo[self.curr_shard_idx]['shard_size']
             self.curr_shard_idx += 1
 
             if self.curr_shard_idx >= len(self.metainfo):
-                self._reset()
+                self.__init__(None)
                 raise StopIteration
             else:
                 self._init_curr_shard()
                 self.curr_elem_idx = 0
-                result = self.curr_shard_data[self.curr_elem_idx]
+
+                result_data = self.curr_shard_data[self.curr_elem_idx]
+                result_elem_idx = self.curr_elem_idx
+                result_shard_idx = self.curr_shard_idx
+
                 self.curr_elem_idx += 1
 
-        return result
+        epoch_idx = self.prev_shard_sum_len + result_elem_idx
+        return result_data, epoch_idx, result_elem_idx, result_shard_idx
 
     def __len__(self):
         return self.data_len
