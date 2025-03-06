@@ -230,7 +230,7 @@ def and_i_called_this_function_do_main_too(iv):
     log(f"Inputs: {inputs}")
 
     main_model, module_config = load_and_init_module_config(args.mdl_id)
-
+    log("Model loaded, starting to translate")
     outputs = coupled_translate(module_config, inputs, args.from_lang, args.to_lang)
 
     print("\n".join(outputs))
