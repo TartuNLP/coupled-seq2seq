@@ -66,7 +66,7 @@ def load_module_config(model_dir):
     return result if result is not None else [{"model_id": model_dir, "lang_set": {}}]
 
 
-def save_all_models(location, model, tokenizer, cpl_specs, loss_list, trainer=None, data_state=None):
+def save_all_models(location, model, tokenizer, cpl_specs, trainer=None):
     if not os.path.exists(location):
         os.makedirs(location)
 

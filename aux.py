@@ -67,17 +67,12 @@ class SameLineLogger:
     def line_start(self):
         _same_line_log(str(datetime.now()) + ": training batches ")
 
-    def step(self, batch_i, loss, lr, grad):
+    def step(self, global_batch_idx, epoch_batch_idx, epoch_idx, loss, lr, grad):
         passed_time = datetime.now() - self.start_time
+        time_per_batch = passed_time / global_batch_idx
+        prediction = time_per_batch * (self.totalx - global_batch_idx)
 
-        time_per_batch = passed_time / (batch_i + 1)
-
-        prediction = time_per_batch * (self.totalx - batch_i - 1)
-
-        batch_i_in_epoch = batch_i % self.epoch_len
-        curr_epoch_i = batch_i // self.epoch_len
-
-        msg = f"{batch_i_in_epoch + 1} / {self.epoch_len}, epoch {curr_epoch_i+1} / {self.epoch_num}, loss={loss}, {time_per_batch}/iter, {prediction} to finish, LR={lr:.2e}, grad={grad:.2e}        "
+        msg = f"{epoch_batch_idx} / {self.epoch_len}, epoch {epoch_idx + 1} / {self.epoch_num}, loss={loss}, {time_per_batch}/iter, {prediction} to finish, LR={lr:.2e}, grad={grad:.2e}        "
 
         new_len = _same_line_log(msg, self.log_len)
 
@@ -207,6 +202,4 @@ if __name__ == "__main__":
     for dname in sys.argv[1:]:
         d = np.load(dname + "/custom_checkpoint_1.pkl", allow_pickle=True)
         p = pickle.loads(d['custom_checkpoint_1/data.pkl'])
-        #print(dname, p)
-        nn = re.sub(r'^.*-b', '', dname)
-        print(dname, (("?", p['batch_idx']) if "full" in dname else int(nn) - p['batch_idx']))
+        print(dname, p)

@@ -369,6 +369,13 @@ class DataState:
         self.shard_idx = state_dict['shard_idx']
         self.epoch_idx = state_dict['epoch_idx']
 
+    def copy_from(self, src_ds, epoch_idx = None):
+        self.shard_idx = src_ds.shard_idx
+        self.elem_idx = src_ds.elem_idx
+
+        if epoch_idx is not None:
+            self.epoch_idx = epoch_idx
+
     def __str__(self):
         return 'DataState(elem_idx={}, shard_idx={}, epoch_idx={})'.format(self.elem_idx, self.shard_idx, self.epoch_idx)
 
