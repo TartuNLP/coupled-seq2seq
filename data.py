@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import math
 import os
 import sys
 import torch
@@ -52,7 +53,7 @@ def clean_entry(entry, leave_out):
     return result
 
 
-def load_json_datax(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
+def load_json_data(path, leave_out={}, skip_cats=True, load_mono=True):
     with open(path, 'r') as f:
         data = json.load(f)
 
@@ -72,7 +73,7 @@ def load_json_datax(path, leave_out={"fr"}, skip_cats=True, load_mono=True):
 
 def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, model_type=None):
     if filename is not None:
-        raw_data = load_json_datax(filename)
+        raw_data = load_json_data(filename)
 
     if raw_data is None:
         raise ValueError("Neither file nor data are provided")
@@ -484,7 +485,7 @@ def dump_to_stdout():
 
 def do_stats(filename):
     stats = defaultdict(int)
-    raw_data = load_json_datax(filename)
+    raw_data = load_json_data(filename)
 
     for data in raw_data:
         langs = sorted([k for k in data.keys() if data[k].strip() != ""])
@@ -550,10 +551,43 @@ def combine_jsons(filelist):
     json.dumps(result)
 
 
+def dev_to_dict(filename):
+    result = defaultdict(lambda: defaultdict(int))
+
+    for dev_sample in load_json_data(filename):
+        for lang in dev_sample:
+            if not "dia" in lang:
+                result[lang][dev_sample[lang]] += 1
+
+    return result
+
+
+def check_cross_pollination(small_path, large_path):
+    dct = dev_to_dict(small_path)
+
+    for train_sample in load_json_data(large_path):
+        for lang in train_sample:
+            if not "dia" in lang and lang in dct:
+                snt = train_sample[lang]
+
+                if snt in dct[lang]:
+                    dct[lang][snt] = -abs(dct[lang][snt])
+
+    for lang in dct:
+        pos_counts = 0
+        neg_counts = 0
+
+        for snt in dct[lang]:
+            if dct[lang][snt] < 0:
+                neg_counts += 1
+            elif dct[lang][snt] > 0:
+                pos_counts += 1
+
+        print(f"{lang}: unseen {pos_counts}, seen {neg_counts}, contaminated: {100*neg_counts/float(neg_counts+pos_counts):.1f}%")
+
 if __name__ == "__main__":
-    dump_to_stdout()
+    check_cross_pollination(sys.argv[1], sys.argv[2])
+    # dump_to_stdout()
     # multi_moses_to_json(sys.argv[1], sys.argv[2], group_tuples(sys.argv[3:]))
-
     # combine_jsons(sys.argv[1:])
-
     # do_stats("data/train.json")
