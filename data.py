@@ -563,16 +563,22 @@ def dev_to_dict(filename):
 
 
 def check_cross_pollination(small_path, large_path):
+    print("preparing dev set")
     dct = dev_to_dict(small_path)
 
+    print("reading train set")
     for train_sample in load_json_data(large_path):
         for lang in train_sample:
+            print(f"-- train set lang {lang}")
             if not "dia" in lang and lang in dct:
                 snt = train_sample[lang]
 
                 if snt in dct[lang]:
                     dct[lang][snt] = -abs(dct[lang][snt])
 
+    print("---------------------")
+    print("contamination report:")
+    print("---------------------")
     for lang in dct:
         pos_counts = 0
         neg_counts = 0
