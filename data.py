@@ -91,7 +91,7 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, 
                                 log(f"Loaded {i/1000000}M pairs")
                             dia_key = f"{l2}-dia"
 
-                            if not input in exclude_set[l1] and not tup[l2] in exclude_set[l2]:
+                            if not tup[l1] in exclude_set[l1] and not tup[l2] in exclude_set[l2]:
                                 input = tup[l1]
                                 if dia_key in tup:
                                     input = f"<{tup[dia_key]}> {input}"
@@ -194,7 +194,7 @@ class MultilingualBatchingCachingDataset:
     def _fill_bins(self):
         bins = defaultdict(lambda: defaultdict(list))
 
-        for tr_pair in get_tr_pairs(filename=self.filename, model_type=self.model_type):
+        for tr_pair in get_tr_pairs(filename=self.filename, model_type=self.model_type, exclude_set=self.exclude_set):
             src_bin_idx, tgt_bin_idx = self._get_idxs(tr_pair)
 
             if src_bin_idx is not None and tgt_bin_idx is not None:
