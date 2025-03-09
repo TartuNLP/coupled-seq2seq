@@ -569,7 +569,6 @@ def check_cross_pollination(small_path, large_path):
     print("reading train set")
     for train_sample in load_json_data(large_path):
         for lang in train_sample:
-            print(f"-- train set lang {lang}")
             if not "dia" in lang and lang in dct:
                 snt = train_sample[lang]
 
