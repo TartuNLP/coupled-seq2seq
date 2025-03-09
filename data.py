@@ -71,7 +71,7 @@ def load_json_data(path, leave_out={}, skip_cats=True, load_mono=True):
         return res
 
 
-def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, model_type=None):
+def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, model_type=None, exclude_set={}):
     if filename is not None:
         raw_data = load_json_data(filename)
 
@@ -91,14 +91,15 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, 
                                 log(f"Loaded {i/1000000}M pairs")
                             dia_key = f"{l2}-dia"
 
-                            input = tup[l1]
-                            if dia_key in tup:
-                                input = f"<{tup[dia_key]}> {input}"
+                            if not input in exclude_set[l1] and not tup[l2] in exclude_set[l2]:
+                                input = tup[l1]
+                                if dia_key in tup:
+                                    input = f"<{tup[dia_key]}> {input}"
 
-                            conv_l1 = any_to_mdl_type(model_type, l1)
-                            conv_l2 = any_to_mdl_type(model_type, l2)
+                                conv_l1 = any_to_mdl_type(model_type, l1)
+                                conv_l2 = any_to_mdl_type(model_type, l2)
 
-                            yield TrPair(conv_l1, conv_l2, input, tup[l2])
+                                yield TrPair(conv_l1, conv_l2, input, tup[l2])
 
 
 def split_by_lang(filename, model_type):
@@ -342,6 +343,8 @@ class MultilingualBatchingCachingDataset:
         self.filename = tr_file
         self.coupling_specs = coupling_specs
 
+        self.exclude_set = args.exclude_set
+
         self.model_type = self.set_model_type()
 
         # init lang to idx
@@ -551,7 +554,7 @@ def combine_jsons(filelist):
     json.dumps(result)
 
 
-def dev_to_dict(filename):
+def _dev_to_dict(filename):
     result = defaultdict(lambda: defaultdict(int))
 
     for dev_sample in load_json_data(filename):
@@ -564,7 +567,7 @@ def dev_to_dict(filename):
 
 def check_cross_pollination(small_path, large_path):
     print("preparing dev set")
-    dct = dev_to_dict(small_path)
+    dct = _dev_to_dict(small_path)
 
     print("reading train set")
     for train_sample in load_json_data(large_path):
