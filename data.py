@@ -557,7 +557,7 @@ def dev_to_dict(filename):
     for dev_sample in load_json_data(filename):
         for lang in dev_sample:
             if not "dia" in lang:
-                result[lang][dev_sample[lang]] += 1
+                result[lang][dev_sample[lang]] = 1
 
     return result
 
@@ -573,22 +573,23 @@ def check_cross_pollination(small_path, large_path):
                 snt = train_sample[lang]
 
                 if snt in dct[lang]:
-                    dct[lang][snt] = -abs(dct[lang][snt])
+                    dct[lang][snt] += 1
 
     print("---------------------")
     print("contamination report:")
     print("---------------------")
     for lang in dct:
-        pos_counts = 0
-        neg_counts = 0
+        total = 0
+        counts = 0
+        freqs = 0
 
         for snt in dct[lang]:
-            if dct[lang][snt] < 0:
-                neg_counts += 1
-            elif dct[lang][snt] > 0:
-                pos_counts += 1
+            total += 1
+            if dct[lang][snt] > 1:
+                counts += 1
+                freqs += (dct[lang][snt] - 1)
 
-        print(f"{lang}: unseen {pos_counts}, seen {neg_counts}, contaminated: {100*neg_counts/float(neg_counts+pos_counts):.1f}%")
+        print(f"{lang}: contaminated: {counts} ({100*counts/float(total):.1f}%), total occurrence: {freqs}")
 
 if __name__ == "__main__":
     check_cross_pollination(sys.argv[1], sys.argv[2])
