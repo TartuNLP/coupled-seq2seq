@@ -343,7 +343,7 @@ class MultilingualBatchingCachingDataset:
         self.filename = tr_file
         self.coupling_specs = coupling_specs
 
-        self.exclude_set = args.exclude_set
+        self.exclude_set = _dev_to_dict(args.exclude_set) if args.exclude_set is not None else None
 
         self.model_type = self.set_model_type()
 
