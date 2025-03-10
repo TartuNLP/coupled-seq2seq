@@ -106,18 +106,19 @@ class SwitchingAccelerator:
 
         for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
             for batch_with_bin_idxs, epoch_batch_idx in self.train_set:
-                inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
+                with self.accelerator.accumulate(*self.models):
+                    inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
 
-                encoder_vecs = encode(self.models[src_k], inputs)
-                outputs = self.models[tgt_k](attention_mask=inputs['attention_mask'], labels=inputs['labels'], encoder_outputs=encoder_vecs)
+                    encoder_vecs = encode(self.models[src_k], inputs)
+                    outputs = self.models[tgt_k](attention_mask=inputs['attention_mask'], labels=inputs['labels'], encoder_outputs=encoder_vecs)
 
-                loss = outputs.loss
+                    loss = outputs.loss
 
-                self.train_loss_list.append(loss.item(), src_k, tgt_k)
+                    self.train_loss_list.append(loss.item(), src_k, tgt_k)
 
-                self.accelerator.backward(loss)
+                    self.accelerator.backward(loss)
 
-                self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
+                    self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
 
         if self.accelerator.is_main_process:
             logger.line_break()
