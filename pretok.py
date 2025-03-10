@@ -63,5 +63,4 @@ def oh_look_another_do_main_function():
 
 
 if __name__ == "__main__":
-    sys.argv = "x models/smol data/smugri4a-dev.json smugri data/tmp/tmp.json shard_size=1000 exclude_set=data/flt.json".split()
     oh_look_another_do_main_function()
