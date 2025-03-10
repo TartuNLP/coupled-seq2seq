@@ -71,7 +71,7 @@ def load_json_data(path, leave_out={}, skip_cats=True, load_mono=True):
         return res
 
 
-def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, model_type=None, exclude_set={}):
+def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, model_type=None, exclude_set=None):
     if filename is not None:
         raw_data = load_json_data(filename)
 
@@ -91,7 +91,7 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, 
                                 log(f"Loaded {i/1000000}M pairs")
                             dia_key = f"{l2}-dia"
 
-                            if not tup[l1] in exclude_set[l1] and not tup[l2] in exclude_set[l2]:
+                            if exclude_set is None or (tup[l1] not in exclude_set[l1] and tup[l2] not in exclude_set[l2]):
                                 input = tup[l1]
                                 if dia_key in tup:
                                     input = f"<{tup[dia_key]}> {input}"
