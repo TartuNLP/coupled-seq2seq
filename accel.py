@@ -44,7 +44,7 @@ class SwitchingAccelerator:
         self._init_acc_and_stuff()
 
     def _init_acc_and_stuff(self):
-        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=DistributedDataParallelKwargs(find_unused_parameters=True))
+        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
 
         epoch_len = len(self.train_set)
         train_len = epoch_len * self.kwargs.epochs
