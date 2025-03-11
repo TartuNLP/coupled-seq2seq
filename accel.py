@@ -56,9 +56,9 @@ class SwitchingAccelerator:
         opt = torch.optim.AdamW(chain_params(self.coupling_specs), lr=self.kwargs.lr)
         lr_scheduler = get_scheduler("linear", optimizer=opt, num_warmup_steps=num_warmup,
                                      num_training_steps=train_len * self.accelerator.num_processes)
-        models = [s.model for s in self.coupling_specs]
+        self.models = [s.model for s in self.coupling_specs]
 
-        self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare(opt, lr_scheduler, *models)
+        self.optimizer, self.lr_scheduler, self.models[0] = self.accelerator.prepare(opt, lr_scheduler, self.models[0])
 
         self.accelerator.register_for_checkpointing(self.lr_scheduler, self.data_state, self.train_loss_list)
 
