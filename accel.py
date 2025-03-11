@@ -68,7 +68,11 @@ class SwitchingAccelerator:
                 log(f"Reloaded data state: {self.data_state}")
 
     def train(self):
-        self._main_loop()
+        try:
+            self._main_loop()
+        except Exception as e:
+            if self.accelerator.is_main_process:
+                raise e
 
         self.accelerator.wait_for_everyone()
 
