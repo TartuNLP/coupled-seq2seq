@@ -12,7 +12,7 @@ from random import randrange, shuffle
 from pathlib import Path
 
 from aux import log
-from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type
+from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_llama
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 
@@ -173,6 +173,11 @@ def get_data_cache_location(cache_meta_path, idx):
         raise ValueError(f"Expected a json file for the cache meta-location ({cache_meta_path})")
 
 
+def make_gen_text(elem, tok, for_inference=False):
+    return (f"== From: {elem.src_lang}\n== To: {elem.tgt_lang}\n== Input: {elem.input}\n== Output: " +
+            ("" if for_inference else "{elem.output}{tok.eos_token}"))
+
+
 class MultilingualBatchingCachingDataset:
     def _post_proc_bins(self, bins):
         for src_k in bins:
@@ -255,6 +260,17 @@ class MultilingualBatchingCachingDataset:
 
         return labels
 
+    def tokenize_gen_batch(self, raw_batch):
+        tokenizer = self.coupling_specs[0].tokenizer
+        tokenizer.pad_token = '<|reserved_special_token_0|>'
+        tokenizer.padding_side = 'left'
+
+        texts = [make_gen_text(e, tokenizer) for e in raw_batch]
+
+        batch = tokenizer(texts, return_tensors="pt", max_length=512, truncation=True, add_special_tokens=True, padding=True)
+
+        return batch
+
     def tokenize_and_pad(self, raw_batch, src_k, tgt_k):
         tgt_tokenizer = self.coupling_specs[tgt_k].tokenizer
 
@@ -289,8 +305,12 @@ class MultilingualBatchingCachingDataset:
             if not batch_i % 10000:
                 log(f"Tokenized {batch_i + shard_i * self.args.shard_size} batches (shard {shard_i})")
 
-            prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
-            data.append((prepared_batch, src_k, tgt_k, total_i))
+            if is_llama(self.coupling_specs[tgt_k].tokenizer):
+                prepared_batch = self.tokenize_gen_batch(raw_batch)
+                data.append((prepared_batch, total_i))
+            else:
+                prepared_batch = self.tokenize_and_pad(raw_batch, src_k, tgt_k)
+                data.append((prepared_batch, src_k, tgt_k, total_i))
 
             if batch_i >= self.args.shard_size:
                 shard_i += 1
@@ -333,7 +353,7 @@ class MultilingualBatchingCachingDataset:
             if result is None:
                 result = this_type
             else:
-                assert result == this_type, "in this implementation model types (NLLB/MADLAD) must be the same for all included models"
+                assert result == this_type, "in this implementation model types (NLLB/MADLAD/...) must be the same for all included models"
 
         return result
 

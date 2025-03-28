@@ -7,6 +7,7 @@ from transformers import get_scheduler
 
 from aux import SameLineLogger, log
 from data import DataState
+from langconv import is_llama
 from modelops import save_all_models
 from translate import encode
 
@@ -37,6 +38,8 @@ class SwitchingAccelerator:
 
         self.train_set = train_set
         self.kwargs = train_kwargs
+
+        self.is_generative = is_llama(self.coupling_specs[0].tokenizer)
 
         self.train_loss_list = TrainLossList()
         self.data_state = DataState(epoch_idx=0)
@@ -83,7 +86,12 @@ class SwitchingAccelerator:
         return unwr_coupled_model, self.train_loss_list
 
     def _prepare_inputs(self, batch_with_idxs):
-        weird_inputs, src_k, tgt_k, _ = batch_with_idxs
+        if self.is_generative:
+            weird_inputs, _ = batch_with_idxs
+            src_k = 0
+            tgt_k = 0
+        else:
+            weird_inputs, src_k, tgt_k, _ = batch_with_idxs
 
         batch_size = weird_inputs['input_ids'].size()[0]
 
@@ -115,8 +123,12 @@ class SwitchingAccelerator:
                 with self.accelerator.accumulate(*self.models):
                     inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
 
-                    encoder_vecs = encode(self.models[src_k], inputs)
-                    outputs = self.models[tgt_k](attention_mask=inputs['attention_mask'], labels=inputs['labels'], encoder_outputs=encoder_vecs)
+                    if self.is_generative:
+                        inputs['labels'] = inputs['input_ids']
+                        outputs = self.models[0](**inputs)
+                    else:
+                        encoder_vecs = encode(self.models[src_k], inputs)
+                        outputs = self.models[tgt_k](attention_mask=inputs['attention_mask'], labels=inputs['labels'], encoder_outputs=encoder_vecs)
 
                     loss = outputs.loss
 

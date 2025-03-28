@@ -108,3 +108,8 @@ def report_devices(accelerator = None, mdl = None):
 
     if mdl is not None:
         log(f"Model device: {mdl.device}")
+
+
+def is_gen_ai(mdl_id):
+    lc = mdl_id.lower()
+    return not ("madlad" in lc or "nllb" in lc or "m2m" in lc or "bart" in lc)

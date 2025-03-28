@@ -1,4 +1,5 @@
 import torch
+from accelerate.state import AcceleratorState
 
 from torch.utils.data import DataLoader
 from transformers import (
@@ -7,7 +8,7 @@ from transformers import (
     DataCollatorForSeq2Seq,
     get_scheduler
 )
-from datasets import load_dataset
+from datasets import load_dataset, get_dataset_config_names
 from accelerate import Accelerator
 from evaluate import load as load_metric
 
@@ -244,4 +245,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    #main()
+    data_id = "tartuNLP/smugri-flores-testset"
+    langs = get_dataset_config_names("tartuNLP/smugri-flores-testset")
+    raw_data = [load_dataset("tartuNLP/smugri-flores-testset", lang) for lang in langs]
+
+    lps = [l1 + "-" + l2 for l1 in langs for l2 in langs if l1 != l2]
+
+    #for i in range(len(raw_data[0]['test'])):
+    AcceleratorState
+

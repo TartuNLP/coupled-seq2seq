@@ -3,13 +3,13 @@
 import os
 import sys
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 
 from accel import SwitchingAccelerator
 from translate import hf_tok
 from data import MultilingualDatasetIterator
 from aux import log, CmdlineArgs
-from langconv import lang_set_maybe_smugri
+from langconv import lang_set_maybe_smugri, is_llama
 from modelops import mdl_param_count, to_cpl_spec, save_all_models
 
 def freeze_model(model):
@@ -22,7 +22,11 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
         tok_id = mdl_id
 
     tokenizer = AutoTokenizer.from_pretrained(tok_id, token=hf_tok)
-    model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok)
+
+    if is_llama(tokenizer):
+        model = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok)
+    else:
+        model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok)
 
     if verbose:
         mdl_size, _ = mdl_param_count(model)
@@ -79,4 +83,5 @@ def yes_i_called_this_function_do_main():
 
 if __name__ == "__main__":
     #sys.argv = ". models/smol models/smol_next data/smugri4a-dev.json-tokcache/thiscache.json smugri log_steps=1 lr=1e-5".split()
+    #sys.argv = ". models/llama3.2-1b models/llama-tuned data/smugri4a-dev.json-tokcache/llama.json smugri".split()
     yes_i_called_this_function_do_main()

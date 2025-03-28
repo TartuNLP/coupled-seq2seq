@@ -27,6 +27,7 @@ NLLB_CODES = ['ace_Arab', 'ace_Latn', 'acm_Arab', 'acq_Arab', 'aeb_Arab', 'afr_L
 MDL_NLLB = "MDL_NLLB"
 MDL_MADLAD = "MDL_MADLAD"
 MDL_NEUROTOLGE = "MDL_NEUROTÕLGE"
+MDL_LLAMA = "MDL_LLAMA"
 
 _iso3_to_script = dict([nllb_code.split("_") for nllb_code in NLLB_CODES])
 
@@ -157,6 +158,8 @@ def any_to_mdl_type(mdl_type, lang):
         return any_to_madlad(lang)
     elif mdl_type is None:
         return lang
+    elif mdl_type == MDL_LLAMA:
+        return lang
     else:
         raise ValueError(f"Unknown mdl_type {mdl_type}")
 
@@ -190,6 +193,10 @@ def is_madlad(object):
     return "t5" in object.__class__.__name__.lower()
 
 
+def is_llama(obj):
+    return "pretrainedtokenizerfast" in obj.__class__.__name__.lower()
+
+
 def get_mdl_type(obj):
     obj = obj.module if hasattr(obj, "module") else obj
 
@@ -197,8 +204,10 @@ def get_mdl_type(obj):
         return MDL_NLLB
     elif is_madlad(obj):
         return MDL_MADLAD
+    elif is_llama(obj):
+        return MDL_LLAMA
     else:
-        raise ValueError(f"Object {obj} is not supported")
+        raise ValueError(f"Object {str(obj)[:200]} is not supported")
 
 
 def langs_to_mdl_type(mdl_type, lang_set):
@@ -206,6 +215,8 @@ def langs_to_mdl_type(mdl_type, lang_set):
         return langs_to_nllb(lang_set)
     elif mdl_type == MDL_MADLAD:
         return langs_to_madlad(lang_set)
+    elif mdl_type == MDL_LLAMA:
+        return lang_set
     else:
         raise ValueError(f"Model type {mdl_type} is not supported")
 

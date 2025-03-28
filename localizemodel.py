@@ -3,11 +3,12 @@
 import sys
 import os
 
-from transformers import AutoModelForSeq2SeqLM
-from modelops import mdl_param_count
+from transformers import AutoModelForSeq2SeqLM, AutoModelForCausalLM
+from modelops import mdl_param_count, is_gen_ai
 from tokops import train_or_extend_tokenizer_and_upd_model
 from aux import CmdlineArgs, log
 from langconv import lang_set_maybe_smugri
+from translate import hf_tok
 
 
 def i_dont_like_global_scope_variable_dangers():
@@ -27,7 +28,10 @@ def i_dont_like_global_scope_variable_dangers():
     if args.new_langs:
         args.new_langs = lang_set_maybe_smugri(args.new_langs)
 
-    model = AutoModelForSeq2SeqLM.from_pretrained(args.mdl_id)
+    if is_gen_ai(args.mdl_id):
+        model = AutoModelForCausalLM.from_pretrained(args.mdl_id, token=hf_tok)
+    else:
+        model = AutoModelForSeq2SeqLM.from_pretrained(args.mdl_id, token=hf_tok)
 
     tokenizer = train_or_extend_tokenizer_and_upd_model(args, model)
 

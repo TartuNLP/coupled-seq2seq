@@ -57,7 +57,7 @@ def oh_look_another_do_main_function():
         anchor_tokenizer = load_hf_tok(args.anchor_mdl_id, verbose=True)
 
         coupling_specs += to_cpl_spec(args.anchor_langs, None, anchor_tokenizer, None)
-
+ 
     mbd = MultilingualBatchingCachingDataset(args.train_file, coupling_specs, args)
     mbd.load_and_cache_data(args.cache_path)
 
