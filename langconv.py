@@ -33,6 +33,7 @@ _iso3_to_script = dict([nllb_code.split("_") for nllb_code in NLLB_CODES])
 iso3_to_nllb = { code: f"{code}_{_iso3_to_script[code]}" for code in _iso3_to_script }
 
 iso3_to_nllb['lav'] = "lvs_Latn"
+iso3_to_nllb['nor'] = "nob_Latn"
 iso3_to_nllb['yid'] = "ydd_Hebr"
 
 for lang in "fkv izh krl liv lud olo sje sju sma sme smj smn sms vep vot vro".split():

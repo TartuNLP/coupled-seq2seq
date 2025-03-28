@@ -8,8 +8,9 @@ import sys
 from datetime import datetime
 
 
-def log(msg):
-    sys.stderr.write(str(datetime.now()) + ": " + msg + '\n')
+def log(msg, accelerator=None):
+    if accelerator is None or accelerator.is_main_process:
+        sys.stderr.write(str(datetime.now()) + ": " + msg + '\n')
 
 
 def _same_line_log(msg, len_to_del=0):
