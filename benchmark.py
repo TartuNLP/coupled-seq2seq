@@ -70,7 +70,7 @@ def load_or_translate(mod_config, input_output_list, lp, model_location, benchma
             save_hyps_to_file(hypos, cache_filename)
             save_hyps_to_file(inputs, src_filename)
 
-    return hypos
+    return zip(inputs, hypos)
 
 
 def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accelerator=None):
@@ -106,11 +106,13 @@ def get_all_scores(hyps_dict, lp_test_sets, metric_dict):
 
         _, outputs = zip(*lp_test_sets[lp])
 
+        preds = None if hyps_dict[lp] is None else [hyp for _, hyp in hyps_dict[lp]]
+
         for metric_name in metric_dict:
             metric_func = metric_dict[metric_name]
 
-            if hyps_dict[lp] is not None:
-                metric_value = metric_func.compute(predictions=hyps_dict[lp], references=outputs)
+            if preds is not None:
+                metric_value = metric_func.compute(predictions=preds, references=outputs)
 
                 scores[lp + "-" + metric_name] = metric_value['score']
 

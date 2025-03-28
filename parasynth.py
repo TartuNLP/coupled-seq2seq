@@ -5,7 +5,7 @@ import json
 
 from collections import defaultdict
 
-from benchmark import load_or_translate, get_hyp_cache_dir, translate_all_hyps
+from benchmark import get_hyp_cache_dir, translate_all_hyps
 from translate import load_and_init_module_config
 from langconv import get_high_set, any_to_mdl_type, get_mdl_type
 from accelerate import Accelerator
@@ -113,10 +113,8 @@ def add_hires_synth_data(mdl_id, corpus_in, corpus_out):
         out_tr_dict_list = translate_all_hyps(in_tr_dict_list, module_config, mdl_id, corpus_in)
 
         for lp in out_tr_dict_list:
-            for i_raw, o in zip(in_tr_dict_list[lp], out_tr_dict_list[lp]):
-                inp = i_raw[0]
-
-                tr_dict[lp][inp] = o
+            for inp, outp in out_tr_dict_list[lp]:
+                tr_dict[lp][inp] = outp
 
         # put translations back into data structure
         logg(f"Integrating part {i+1}/{l}", accelerator)
