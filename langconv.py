@@ -56,6 +56,10 @@ def guess_script(lang):
     return "Unk"
 
 
+def get_high_set():
+    return set(SMUGRI_HIGH.split(",")) - {"deu", "swe"}
+
+
 def clean_lang(raw_lang):
     if "<2" in raw_lang:
         raw_lang = raw_lang[2:-1]

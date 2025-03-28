@@ -72,6 +72,7 @@ class SwitchingAccelerator:
         try:
             self._main_loop()
         except Exception as e:
+            #in multi-process scenarios it is hard to read the stack trace, so just show one:
             if self.accelerator.is_main_process:
                 raise e
 
