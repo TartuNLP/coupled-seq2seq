@@ -107,7 +107,7 @@ def add_hires_synth_data(mdl_id, corpus_in, corpus_out):
 
         logg(f"Translating part {i+1}/{l}", accelerator)
         #translate_cache_dict(tr_dict, mdl_id, module_config, corpus_in, accelerator)
-        translate_all_hyps(in_tr_dict_list, module_config, mdl_id, corpus_in, accelerator)
+        translate_all_hyps(in_tr_dict_list, module_config, mdl_id, f"{corpus_in}-{i}", accelerator)
 
         logg(f"Collecting part {i+1}/{l}", accelerator)
         out_tr_dict_list = translate_all_hyps(in_tr_dict_list, module_config, mdl_id, corpus_in)
