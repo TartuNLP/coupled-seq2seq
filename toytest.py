@@ -2,6 +2,7 @@ from time import sleep
 
 import torch.optim
 from accelerate import Accelerator
+from accelerate.state import AcceleratorState
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler
 
 from modelops import report_devices
@@ -43,6 +44,9 @@ def main(mdl_id = "meta-llama/Llama-3.2-1B"):
 
     report_devices("batch loaded:", accelerator=acc)
     sleep(3)
+
+    state = AcceleratorState()
+    print(f"Num proc: {acc.num_processes}, proc ID: {acc.process_index}, num proc per node {state.num_processes_per_node}, node rank {state.node_rank}, num nodes {state.num_nodes}")
 
     for _ in range(10):
         outputs = m(**inp)
