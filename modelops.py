@@ -81,13 +81,13 @@ def save_all_models(location, model, tokenizer, cpl_specs, trainer=None):
     save_module_config(location, cpl_specs)
 
 
-def report_devices(accelerator = None, mdl = None):
+def report_devices(msg = "", accelerator = None, mdl = None):
     if torch.cuda.is_available():
         # Get the visible devices from CUDA
         visible_devices = torch.cuda.device_count()
 
         #log(f"Number of visible GPUs: {visible_devices}")
-        msg = f"{visible_devices} GPUs:"
+        msg = f"{msg} {visible_devices} GPUs:"
 
         # List the actual GPUs being used
         gpu_names = [torch.cuda.get_device_name(i) for i in range(visible_devices)]
@@ -97,12 +97,10 @@ def report_devices(accelerator = None, mdl = None):
 
             msg += f"  {i}: alloc {mem_alloc:.2f} Mb / res {mem_res:.2f} Mb;"
 
-            #log(f"  GPU {i}: {name}, alloc: {mem_alloc:.2f} Mb (reserved: {mem_res:.2f} Mb)")
-
         log(msg)
     elif accelerator is not None and accelerator.device.type == "mps":
         mem_alloc = torch.mps.current_allocated_memory() / 1024**2
-        log(f"Device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
+        log(f"{msg}, device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
     else:
         log(f"No acceleration")
 
