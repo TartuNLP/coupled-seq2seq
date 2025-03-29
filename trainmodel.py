@@ -6,6 +6,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 
 from accel import SwitchingAccelerator
+from accelerate import Accelerator
 from translate import hf_tok
 from data import MultilingualDatasetIterator
 from aux import log, CmdlineArgs
@@ -59,14 +60,15 @@ def _cmdline_args():
 
 def yes_i_called_this_function_do_main():
     args = _cmdline_args()
+    tmp_acc = Accelerator()
 
-    log("loading coupled model and tokenizer")
+    log("loading coupled model and tokenizer", accelerator=tmp_acc)
     main_model, main_tokenizer = load_hf_mdl_and_tok(args.mdl_id, verbose=True)
 
     coupling_specs = to_cpl_spec(args.langs, main_model, main_tokenizer, args.save_location)
 
     if args.anchor_mdl_id:
-        log("loading anchor model and tokenizer")
+        log("loading anchor model and tokenizer", accelerator=tmp_acc)
         anchor_model, anchor_tokenizer = load_hf_mdl_and_tok(args.anchor_mdl_id, verbose=True)
         freeze_model(anchor_model)
 

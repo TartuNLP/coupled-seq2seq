@@ -84,7 +84,7 @@ def translate_all_hyps(lp_test_set_dict, module_conf, model_id, corpus_id, accel
     else:
         result = dict()
         for i, lp in enumerate(lp_test_set_dict.keys()):
-            log(f"Translating {lp}, {i+1}/{len(lp_test_set_dict)}")
+            log(f"Translating {lp}, {i + 1}/{len(lp_test_set_dict)}")
             result[lp] = load_or_translate(module_conf, lp_test_set_dict[lp], lp, model_id, corpus_id)
         return result
 
@@ -155,17 +155,17 @@ def benchmark_local_model(mdl_id, corpus):
 
     main_model, module_config = load_and_init_module_config(mdl_id, accelerator)
 
-    log("Loading data")
+    log("Loading data", accelerator=accelerator)
     lp_test_sets = split_by_lang(filename=corpus, model_type=get_mdl_type(main_model))
 
-    log("Loading metrics")
+    log("Loading metrics", accelerator=accelerator)
     exp_id = make_path_compatible(mdl_id) + "---" + make_path_compatible(corpus)
 
     metric_dict = {
         'bleu': load_metric("sacrebleu", experiment_id=exp_id),
         'chrf': load_metric("chrf", experiment_id=exp_id) }
 
-    log("Starting benchmarking")
+    log("Starting benchmarking", accelerator=accelerator)
 
     if accelerator.is_main_process:
         _ = get_hyp_cache_dir(mdl_id, create=True)

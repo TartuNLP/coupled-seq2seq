@@ -47,15 +47,15 @@ class SwitchingAccelerator:
         self._init_acc_and_stuff()
 
     def _init_acc_and_stuff(self):
-        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
+        #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
+        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps)
 
         epoch_len = len(self.train_set)
         train_len = epoch_len * self.kwargs.epochs
 
         num_warmup = int(train_len * 0.01)
 
-        if self.accelerator.is_main_process:
-            log(f"Warmup steps: {num_warmup}, epoch len: {epoch_len}, train len: {train_len}")
+        log(f"Warmup steps: {num_warmup}, epoch len: {epoch_len}, train len: {train_len}", accelerator=self.accelerator)
 
         opt = torch.optim.AdamW(chain_params(self.coupling_specs), lr=self.kwargs.lr)
         lr_scheduler = get_scheduler("linear", optimizer=opt, num_warmup_steps=num_warmup,
@@ -68,8 +68,7 @@ class SwitchingAccelerator:
 
         if self.kwargs.continue_training:
             self.accelerator.load_state(self.kwargs.mdl_id)
-            if self.accelerator.is_main_process:
-                log(f"Reloaded data state: {self.data_state}")
+            log(f"Reloaded data state: {self.data_state}", accelerator=self.accelerator)
 
     def train(self):
         try:
@@ -174,7 +173,7 @@ class SwitchingAccelerator:
 
             if self.accelerator.is_main_process:
                 logger.line_break()
-                log(f"Saving at {epoch_batch_idx} steps, epoch {epoch_i + 1} ({global_batch_idx} global steps)")
+                log(f"Saving at {epoch_batch_idx} steps, epoch {epoch_i + 1} ({global_batch_idx} global steps)", accelerator=self.accelerator)
 
                 self._save_all(global_batch_idx, epoch_i)
 
