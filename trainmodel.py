@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import os
-import sys
+import torch
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 
@@ -24,9 +24,9 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
     tokenizer = AutoTokenizer.from_pretrained(tok_id, token=hf_tok)
 
     if is_llama(tokenizer):
-        model = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok)
+        model = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
     else:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok)
+        model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
 
     if verbose:
         mdl_size, _ = mdl_param_count(model)

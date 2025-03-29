@@ -87,7 +87,7 @@ def report_devices(msg = "", accelerator = None, mdl = None):
         visible_devices = torch.cuda.device_count()
 
         #log(f"Number of visible GPUs: {visible_devices}")
-        msg = f"{msg} {visible_devices} GPUs:"
+        msg = f"{msg:30} {visible_devices} GPUs:"
 
         # List the actual GPUs being used
         gpu_names = [torch.cuda.get_device_name(i) for i in range(visible_devices)]
@@ -100,7 +100,7 @@ def report_devices(msg = "", accelerator = None, mdl = None):
         log(msg)
     elif accelerator is not None and accelerator.device.type == "mps":
         mem_alloc = torch.mps.current_allocated_memory() / 1024**2
-        log(f"{msg}, device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
+        log(f"{msg:30} device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
     else:
         log(f"No acceleration")
 

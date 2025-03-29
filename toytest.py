@@ -13,7 +13,7 @@ def main(mdl_id = "meta-llama/Llama-3.2-1B"):
     report_devices("Initial state:", accelerator=acc)
     sleep(3)
 
-    m = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok)
+    m = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
     t = AutoTokenizer.from_pretrained(mdl_id)
 
     report_devices("Model and tokenizer loaded:", accelerator=acc)
