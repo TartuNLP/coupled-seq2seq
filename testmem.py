@@ -10,15 +10,14 @@ from aux import CmdlineArgs, log
 from modelops import report_devices
 from translate import hf_tok
 
-def run_test(mdl_id, batch_sizes, ctxlen):
-    acc = Accelerator()
+def run_test(mdl_id, batch_sizes, ctxlen, acc):
     #state = AcceleratorState()
     log(f"Num proc: {acc.num_processes}, proc ID: {acc.process_index}")
 
     report_devices("Initial state:", accelerator=acc)
 
     m = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
-    t = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B" if mdl_id == "meta-llama/Llama-3.2-3B" else mdl_id)
+    t = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B" if mdl_id == "meta-llama/Llama-3.2-3B" else mdl_id)
 
     opt = torch.optim.AdamW(m.parameters(), lr=1e-5)
     lrs = get_scheduler("linear", optimizer=opt, num_warmup_steps=100, num_training_steps=1000)
@@ -65,5 +64,9 @@ if __name__ == "__main__":
         clean_bs = [16, 32, 64]
         ctxlen = 2048
 
-    run_test(mdl_id, clean_bs, ctxlen)
-
+    acc = Accelerator()
+    try:
+        run_test(mdl_id, clean_bs, ctxlen)
+    except Exception as e:
+        if acc.is_main_process:
+            raise e
