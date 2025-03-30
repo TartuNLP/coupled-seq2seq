@@ -13,7 +13,7 @@ from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type, any_to_n
 
 hf_tok = None
 with open("hf_token", 'r') as fh:
-    hf_tok = fh.read()
+    hf_tok = fh.read().strip()
 
 
 def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None, device=None):
