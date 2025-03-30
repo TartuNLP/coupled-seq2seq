@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     acc = Accelerator()
     try:
-        run_test(mdl_id, clean_bs, ctxlen)
+        run_test(mdl_id, clean_bs, ctxlen, acc)
     except Exception as e:
         if acc.is_main_process:
             raise e
