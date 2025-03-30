@@ -18,7 +18,7 @@ def run_test(mdl_id, batch_sizes, ctxlen):
     report_devices("Initial state:", accelerator=acc)
 
     m = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
-    t = AutoTokenizer.from_pretrained(mdl_id)
+    t = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B" if mdl_id == "meta-llama/Llama-3.2-3B" else mdl_id)
 
     opt = torch.optim.AdamW(m.parameters(), lr=1e-5)
     lrs = get_scheduler("linear", optimizer=opt, num_warmup_steps=100, num_training_steps=1000)
@@ -43,7 +43,9 @@ def run_test(mdl_id, batch_sizes, ctxlen):
             acc.backward(loss)
             sys.stdout.write(".")
 
-        report_devices("Models gradients in VRAM:", accelerator=acc)
+        report_devices(f"Models gradients in VRAM, batch size {batch_size}:", accelerator=acc)
+
+
 
     print(f"Testing {mdl_id} with batch size {batch_size}: success!")
 
