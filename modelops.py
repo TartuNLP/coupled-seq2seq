@@ -95,7 +95,8 @@ def report_devices(msg = "", accelerator = None, mdl = None):
             mem_alloc = torch.cuda.memory_allocated(i) / 1024**2
             mem_res = torch.cuda.memory_reserved(i) / 1024**2
 
-            msg += f"  {i}: alloc {mem_alloc:.2f} Mb / res {mem_res:.2f} Mb;"
+            if mem_alloc > 0.01 or mem_res > 0.01:
+                msg += f"  {i}: alloc {mem_alloc:.2f} Mb / res {mem_res:.2f} Mb;"
 
         log(msg)
     elif accelerator is not None and accelerator.device.type == "mps":
