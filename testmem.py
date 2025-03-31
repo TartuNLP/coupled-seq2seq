@@ -57,8 +57,9 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
         report_devices(f"Models gradients in VRAM, batch size {batch_size}:", accelerator=acc)
 
     try:
-        result = subprocess.run(['rocm-smi'], capture_output=True, text=True)
-        print(result.stdout)
+        if acc.is_main_process:
+            result = subprocess.run(['rocm-smi'], capture_output=True, text=True)
+            print(result.stdout)
     except:
         pass
 
