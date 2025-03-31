@@ -193,8 +193,9 @@ def is_madlad(object):
     return "t5" in object.__class__.__name__.lower()
 
 
-def is_llama(obj):
-    return "pretrainedtokenizerfast" in obj.__class__.__name__.lower()
+def is_dec_only_llm(obj):
+    lcname = obj.__class__.__name__.lower()
+    return "pretrainedtokenizerfast" in lcname or "llama" in lcname
 
 
 def get_mdl_type(obj):
@@ -204,7 +205,7 @@ def get_mdl_type(obj):
         return MDL_NLLB
     elif is_madlad(obj):
         return MDL_MADLAD
-    elif is_llama(obj):
+    elif is_dec_only_llm(obj):
         return MDL_LLAMA
     else:
         raise ValueError(f"Object {str(obj)[:200]} is not supported")

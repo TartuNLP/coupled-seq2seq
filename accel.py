@@ -7,7 +7,7 @@ from transformers import get_scheduler
 
 from aux import SameLineLogger, log
 from data import DataState
-from langconv import is_llama
+from langconv import is_dec_only_llm
 from modelops import save_all_models
 from translate import encode
 
@@ -39,7 +39,7 @@ class SwitchingAccelerator:
         self.train_set = train_set
         self.kwargs = train_kwargs
 
-        self.is_generative = is_llama(self.coupling_specs[0].tokenizer)
+        self.is_generative = is_dec_only_llm(self.coupling_specs[0].tokenizer)
 
         self.train_loss_list = TrainLossList()
         self.data_state = DataState(epoch_idx=0)

@@ -11,7 +11,7 @@ from random import randrange, shuffle
 from pathlib import Path
 
 from aux import log
-from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_llama
+from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_dec_only_llm
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 
@@ -304,7 +304,7 @@ class MultilingualBatchingCachingDataset:
             if not batch_i % 10000:
                 log(f"Tokenized {batch_i + shard_i * self.args.shard_size} batches (shard {shard_i})")
 
-            if is_llama(self.coupling_specs[tgt_k].tokenizer):
+            if is_dec_only_llm(self.coupling_specs[tgt_k].tokenizer):
                 prepared_batch = self.tokenize_gen_batch(raw_batch)
                 data.append((prepared_batch, total_i))
             else:
