@@ -19,7 +19,7 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
     report_devices("Initial state:", accelerator=acc)
 
     t = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok)
-    if is_dec_only_llm(mdl_id):
+    if is_dec_only_llm(t):
         m = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
         log("Decoder-only model")
     else:
@@ -38,7 +38,7 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
     for batch_size in batch_sizes:
         print("")
         raw_inp = [txt] * batch_size
-        if is_dec_only_llm(mdl_id):
+        if is_dec_only_llm(t):
             t.pad_token = '<|reserved_special_token_0|>'
             inp = t(raw_inp, return_tensors="pt", max_length=ctxlen, truncation=True, add_special_tokens=True, padding=True, padding_side='left')
         else:
