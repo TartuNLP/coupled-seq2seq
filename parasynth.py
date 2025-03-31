@@ -9,7 +9,7 @@ from benchmark import get_hyp_cache_dir, translate_all_hyps
 from translate import load_and_init_module_config
 from langconv import get_high_set, any_to_mdl_type, get_mdl_type
 from accelerate import Accelerator
-from aux import log as logg
+from aux import log
 
 
 def load_raw_data(path):
@@ -39,89 +39,86 @@ def apply_func_to_hires_snts(snt_set, func):
                     func(tupl, lang, revlang)
 
 
-"""
-def translate_cache_dict(tr_dict, model_id, module_config, corpus_path, accelerator):
-    if accelerator is None:
-        for idx, lp in enumerate(sorted(tr_dict.keys())):
-            if idx % accelerator.num_processes == accelerator.process_index:
-                logg(f"Process {accelerator.process_index} translating {lp}", accelerator)
+def report_part_stats(part, part_index, num_parts):
+    hi_set = get_high_set()
 
-                inputs = sorted(tr_dict[lp].items())
+    num_snts = len(part['sentences'])
+    hires_langs = {k for k in part['sentences'][0] if "dia" not in k and k in hi_set}
+    num_hires_langs = len(hires_langs)
+    langs_to_do = hi_set - hires_langs
+    num_to_translate = num_hires_langs * len(langs_to_do)
 
-                hypos = load_or_translate(module_config, inputs, lp, model_id, corpus_path)
+    log(f"Part {part_index + 1}/{num_parts}; {num_snts} sentences, num hires: {num_hires_langs}, to translate: {num_to_translate}")
 
-                for i, o in zip(inputs, hypos):
-                    tr_dict[lp][i] = o
-    else:
-        for idx, lp in enumerate(sorted(tr_dict.keys())):
-            if idx % accelerator.num_processes == accelerator.process_index:
-                logg(f"Process {accelerator.process_index} translating {lp}", accelerator)
-    
-                inputs = sorted(tr_dict[lp].items())
-    
-                hypos = load_or_translate(module_config, inputs, lp, model_id, corpus_path)
-    
-                for i, o in zip(inputs, hypos):
-                    tr_dict[lp][i] = o
-    
-        accelerator.wait_for_everyone()
-"""
+    return num_snts * num_hires_langs, num_snts * num_to_translate
 
 
-def add_hires_synth_data(mdl_id, corpus_in, corpus_out):
+def add_hires_synth_data(mdl_id, corpus_in, corpus_out, dry=False):
     accelerator = Accelerator()
 
-    logg("Loading data", accelerator)
+    log("Loading data", accelerator)
     data = load_raw_data(corpus_in)
 
 
-    logg("Loading model", accelerator)
-    main_model, module_config = load_and_init_module_config(mdl_id, accelerator)
-
-    mdl_type = get_mdl_type(main_model)
+    log("Loading model", accelerator)
+    if dry:
+        main_model, module_config = None, None
+        mdl_type = None
+    else:
+        main_model, module_config = load_and_init_module_config(mdl_id, accelerator)
+        mdl_type = get_mdl_type(main_model)
 
     if accelerator.is_main_process:
         _ = get_hyp_cache_dir(mdl_id, create=True)
     l = len(data)
 
+    tot_snt = 0
+    tot_tr = 0
+
     for i, part in enumerate(data):
         tr_dict = defaultdict(lambda: defaultdict(lambda: None))
 
-        logg(f"Preparing part {i+1}/{l}", accelerator)
-        def _transfer(tup, src, tgt):
-            srcm = any_to_mdl_type(mdl_type, src)
-            tgtm = any_to_mdl_type(mdl_type, tgt)
+        num_snt, num_tr = report_part_stats(part, i, l)
+        tot_snt += num_snt
+        tot_tr += num_tr
 
-            lp = f"{srcm}-{tgtm}"
-            inp_snt = tup[src]
+        if not dry:
+            def _transfer(tup, src, tgt):
+                srcm = any_to_mdl_type(mdl_type, src)
+                tgtm = any_to_mdl_type(mdl_type, tgt)
 
-            # this "touches" the value: if it was not there, now it is None
-            # and if it was there, then we use it
-            if tr_dict[lp][inp_snt] is not None:
-                tup[tgt] = tr_dict[lp][inp_snt]
+                lp = f"{srcm}-{tgtm}"
+                inp_snt = tup[src]
 
-        # collect sentences to translate
-        apply_func_to_hires_snts(part['sentences'], _transfer)
+                # this "touches" the value: if it was not there, now it is None
+                # and if it was there, then we use it
+                if tr_dict[lp][inp_snt] is not None:
+                    tup[tgt] = tr_dict[lp][inp_snt]
 
-        in_tr_dict_list = { lp: sorted(tr_dict[lp].items()) for lp in tr_dict }
+            # collect sentences to translate
+            apply_func_to_hires_snts(part['sentences'], _transfer)
 
-        logg(f"Translating part {i+1}/{l}", accelerator)
-        #translate_cache_dict(tr_dict, mdl_id, module_config, corpus_in, accelerator)
-        translate_all_hyps(in_tr_dict_list, module_config, mdl_id, f"{corpus_in}-{i}", accelerator)
+            in_tr_dict_list = { lp: sorted(tr_dict[lp].items()) for lp in tr_dict }
 
-        logg(f"Collecting part {i+1}/{l}", accelerator)
-        out_tr_dict_list = translate_all_hyps(in_tr_dict_list, module_config, mdl_id, corpus_in)
+            log(f"Translating part {i+1}/{l}", accelerator)
+            #translate_cache_dict(tr_dict, mdl_id, module_config, corpus_in, accelerator)
+            translate_all_hyps(in_tr_dict_list, module_config, mdl_id, f"{corpus_in}-{i}", accelerator)
 
-        for lp in out_tr_dict_list:
-            for inp, outp in out_tr_dict_list[lp]:
-                tr_dict[lp][inp] = outp
+            log(f"Collecting part {i+1}/{l}", accelerator)
+            out_tr_dict_list = translate_all_hyps(in_tr_dict_list, module_config, mdl_id, corpus_in)
 
-        # put translations back into data structure
-        logg(f"Integrating part {i+1}/{l}", accelerator)
-        apply_func_to_hires_snts(part['sentences'], _transfer)
+            for lp in out_tr_dict_list:
+                for inp, outp in out_tr_dict_list[lp]:
+                    tr_dict[lp][inp] = outp
 
-    logg("Saving data", accelerator)
-    save_raw_data(corpus_out, data)
+            # put translations back into data structure
+            log(f"Integrating part {i+1}/{l}", accelerator)
+            apply_func_to_hires_snts(part['sentences'], _transfer)
+
+    log(f"Total sentences: {tot_snt}, total to generate: {tot_tr}", accelerator)
+    if not dry:
+        log("Saving data", accelerator)
+        save_raw_data(corpus_out, data)
 
 if __name__ == '__main__':
     try:
@@ -133,4 +130,10 @@ if __name__ == '__main__':
         corpus_param = "data/flt.json"
         corpus_output_param = "data/fltout.json"
 
-    add_hires_synth_data(mdl_id_param, corpus_param, corpus_output_param)
+    try:
+        _ = sys.argv[4]
+        dry_run = True
+    except IndexError:
+        dry_run = False
+
+    add_hires_synth_data(mdl_id_param, corpus_param, corpus_output_param, dry_run)
