@@ -2,6 +2,7 @@
 
 import torch.optim
 import sys
+import subprocess
 
 from accelerate import Accelerator
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler, AutoModelForSeq2SeqLM
@@ -55,6 +56,11 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
 
         report_devices(f"Models gradients in VRAM, batch size {batch_size}:", accelerator=acc)
 
+    try:
+        result = subprocess.run(['rocm-smi'], capture_output=True, text=True)
+        print(result.stdout)
+    except:
+        pass
 
 
     print(f"Testing {mdl_id} with batch size {batch_size}: success!")
