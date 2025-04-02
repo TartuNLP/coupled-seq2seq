@@ -73,7 +73,7 @@ def encode(model, input_batch):
     return enc(**inputs_without_labels)
 
 
-def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts):
+def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts, debug=False):
 
     mdl_type = get_mdl_type(coupling_specs[0].model)
     conv_input_lang = any_to_mdl_type(mdl_type, input_lang)
@@ -83,6 +83,9 @@ def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts):
     # 0. input text --> input token IDs
     these_inputs, _ = prepare_for_translation(input_texts, this.tokenizer, conv_input_lang, device=this.model.device)
     attention_mask = these_inputs["attention_mask"]
+    if debug:
+        print(this.tokenizer.convert_ids_to_tokens(these_inputs['input_ids'][0]))
+
 
     # 1. input token IDs --> encoder vectors
     #embeddings = this.model.model.encoder(**these_inputs)
@@ -178,7 +181,7 @@ def coupled_translate(coupling_specs, input_texts, input_language, output_langua
     all_outputs = list()
 
     for inp_batch in do_list_in_batches(input_texts, 32):
-        encoder_embeddings, att_mask = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch)
+        encoder_embeddings, att_mask = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch, debug=debug)
 
         these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings, att_mask, debug=debug)
 
