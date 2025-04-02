@@ -48,7 +48,8 @@ class SwitchingAccelerator:
 
     def _init_acc_and_stuff(self):
         #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
-        self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps)
+        #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps)
+        self.accelerator = Accelerator()
 
         epoch_len = len(self.train_set)
         train_len = epoch_len * self.kwargs.epochs
@@ -84,7 +85,7 @@ class SwitchingAccelerator:
 
         return unwr_coupled_model, self.train_loss_list
 
-    def _prepare_inputs(self, batch_with_idxs):
+    def _prepare_inputs(self, batch_with_idxs, accum_idx):
         if self.is_generative:
             weird_inputs, _ = batch_with_idxs
             src_k = 0
@@ -94,10 +95,14 @@ class SwitchingAccelerator:
 
         batch_size = weird_inputs['input_ids'].size()[0]
 
-        proc_batch_size = batch_size / self.accelerator.num_processes
+        split_into = self.accelerator.num_processes * self.kwargs.accum_steps
 
-        from_proc_idx = int(self.accelerator.process_index * proc_batch_size)
-        to_proc_idx = int((self.accelerator.process_index + 1) * proc_batch_size)
+        assert batch_size % split_into == 0, "Batch size must be divisible by number of processes X accumulation steps."
+
+        proc_batch_size = batch_size / split_into
+
+        from_proc_idx = int((accum_idx * self.accelerator.num_processes + self.accelerator.process_index) * proc_batch_size)
+        to_proc_idx = int((accum_idx * self.accelerator.num_processes + self.accelerator.process_index + 1) * proc_batch_size)
 
         unweird_inputs = {k: weird_inputs[k][from_proc_idx:to_proc_idx].to(self.accelerator.device)
                           for k in weird_inputs}
@@ -119,8 +124,8 @@ class SwitchingAccelerator:
 
         for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
             for batch_with_bin_idxs, epoch_batch_idx in self.train_set:
-                with self.accelerator.accumulate(*self.models):
-                    inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs)
+                for accum_idx in range(self.kwargs.accum_steps):
+                    inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs, accum_idx)
 
                     if self.is_generative:
                         inputs['labels'] = inputs['input_ids']
@@ -135,7 +140,7 @@ class SwitchingAccelerator:
 
                     self.accelerator.backward(loss)
 
-                    self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
+                self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
 
         if self.accelerator.is_main_process:
             logger.line_break()
