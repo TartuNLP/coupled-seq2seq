@@ -47,7 +47,7 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
 
         inp['labels'] = inp['input_ids']
         inp.to(m.device)
-        log(f"Starting training simulation")
+        log(f"Starting training simulation, {m.device}")
         for _ in range(3):
             outputs = m(**inp)
             log(f"1")
