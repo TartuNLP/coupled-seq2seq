@@ -34,7 +34,7 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
     m.train()
 
     txt = "Kui ma laulan, kui me leelon, laulan lained laksuma, siis jääb küla kuulamaie"
-    log(f"Starting batch size evaluation, {batch_sizes};")
+
     for batch_size in batch_sizes:
         print("")
         raw_inp = [txt] * batch_size
@@ -47,16 +47,12 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
 
         inp['labels'] = inp['input_ids']
         inp.to(m.device)
-        log(f"Starting training simulation, {m.device}")
+
         for _ in range(3):
             outputs = m(**inp)
-            log(f"1")
             loss = outputs.loss
-            log(f"2")
             acc.backward(loss)
-            log(f"3")
             acc.wait_for_everyone()
-            log(f"4")
 
         report_devices(f"Models gradients in VRAM, batch size {batch_size}:", accelerator=acc)
 
