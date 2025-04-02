@@ -3,6 +3,7 @@
 import sys
 import requests
 import re
+import torch
 
 from aux import CmdlineArgs, log
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
@@ -49,10 +50,10 @@ def loadtokenizer(mdlname="facebook/m2m100_418M"):
 
 def loadmodel(mdlname="facebook/m2m100_418M", accelerator=None):
     if accelerator is not None:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok)
+        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, torch_dtype=torch.bfloat16)
         model = accelerator.prepare(model)
     else:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, device_map="auto")
+        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, torch_dtype=torch.bfloat16, device_map="auto")
 
     return model
 
@@ -88,7 +89,7 @@ def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts):
     return encode(this.model, these_inputs), attention_mask
 
 
-def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embeddings, att_mask):
+def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embeddings, att_mask, debug=False):
     mdl_type = get_mdl_type(coupling_specs[0].model)
     conv_output_lang = any_to_mdl_type(mdl_type, output_lang)
 
@@ -102,6 +103,8 @@ def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embedding
     obj = obj.module if hasattr(obj, "module") else obj
 
     raw_outputs = obj.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings, attention_mask=att_mask)
+    if debug:
+        print(tokenizer.convert_ids_to_tokens(raw_outputs[0]))
 
     # 3. output token IDs --> output text
     result = finalize_translation(raw_outputs, tokenizer, conv_output_lang)
@@ -169,7 +172,7 @@ def neurotolge_in_batches(input_texts, src_lang, tgt_lang):
         return None
 
 
-def coupled_translate(coupling_specs, input_texts, input_language, output_language):
+def coupled_translate(coupling_specs, input_texts, input_language, output_language, debug=False):
     lang_to_bin = make_uniq(lang_bin_mapping(coupling_specs))
 
     all_outputs = list()
@@ -177,7 +180,7 @@ def coupled_translate(coupling_specs, input_texts, input_language, output_langua
     for inp_batch in do_list_in_batches(input_texts, 32):
         encoder_embeddings, att_mask = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch)
 
-        these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings, att_mask)
+        these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings, att_mask, debug=debug)
 
         all_outputs += these_outputs
 
@@ -214,7 +217,7 @@ def _cmdline_args(input_values):
     pos_args = ["mdl_id", "from_lang", "to_lang"]
 
     #post-process the arguments
-    args = CmdlineArgs(description, pos_args, input_args=input_values)
+    args = CmdlineArgs(description, pos_args, input_args=input_values, kw_arg_dict={"debug": False})
 
     log(f"Launched as {args}")
 
@@ -231,7 +234,7 @@ def and_i_called_this_function_do_main_too(iv):
 
     main_model, module_config = load_and_init_module_config(args.mdl_id)
     log("Model loaded, starting to translate")
-    outputs = coupled_translate(module_config, inputs, args.from_lang, args.to_lang)
+    outputs = coupled_translate(module_config, inputs, args.from_lang, args.to_lang, debug=args.debug)
 
     print("\n".join(outputs))
 
