@@ -614,8 +614,8 @@ def check_cross_pollination(small_path, large_path):
         print(f"{lang}: contaminated: {counts} ({100*counts/float(total):.1f}%), total occurrence: {freqs}")
 
 if __name__ == "__main__":
-    check_cross_pollination(sys.argv[1], sys.argv[2])
-    # dump_to_stdout()
+    # check_cross_pollination(sys.argv[1], sys.argv[2])
+    dump_to_stdout()
     # multi_moses_to_json(sys.argv[1], sys.argv[2], group_tuples(sys.argv[3:]))
     # combine_jsons(sys.argv[1:])
     # do_stats("data/train.json")
