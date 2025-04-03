@@ -228,7 +228,7 @@ if __name__ == "__main__":
     with open(args.txt_file, "r", encoding="utf-8") as f:
         snts = f.read().split("\n")
 
-        toks = tokenizeit(tokenizer, snts, False, 1024)
+        toks = tokenizeit(tokenizer, snts, 1024, False)
 
         i = 0
 
