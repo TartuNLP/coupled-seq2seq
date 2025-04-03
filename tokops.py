@@ -232,9 +232,7 @@ if __name__ == "__main__":
 
         print(len(snts))
 
-        i = 0
-
-        for tok, snt in zip(toks, snts):
+        for i, snt in enumerate(snts):
             tok_ids = toks['input_ids'][i]
 
             detoks = tokenizer.decode(tok_ids, skip_special_tokens=True)
