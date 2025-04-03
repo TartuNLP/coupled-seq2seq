@@ -201,6 +201,7 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
                 toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
 
             toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
+            log(f"Adding tokeins: {toks_to_add}")
 
             new_tok_num = tokenizer.add_tokens(toks_to_add)
             log(f"Added {new_tok_num} tokens")
