@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
-import tempfile
-
+import sys
+import torch
 import sentencepiece as spm
 import json
 
@@ -159,7 +159,7 @@ def do_new_tok(tokargs):
 
 
 def remove_known_toks(toks, tokenizer):
-    return [t for t in toks if not t in tokenizer.vocab]
+    return [t for t in toks if not t in tokenizer.get_vocab()]
 
 def train_or_extend_tokenizer_and_upd_model(args, model):
     # train a new sentence-piece tokenizer
@@ -176,7 +176,7 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
     # possibly adding new languages and tokens
     else:
         log("Reusing existing tokenizer")
-        tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok)
+        tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok, use_fast=False)
         old_len = len(tokenizer)
 
         if args.new_langs is not None:
@@ -215,25 +215,57 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
 
     return tokenizer
 
+
+def tokenizeit(tokenizer, sntlist, maxlen, is_target):
+    if is_target:
+        orig_toks = tokenizer(text_target=sntlist, return_tensors="pt", return_offsets_mapping=True,
+                              padding="longest", truncation=True, max_length=maxlen)
+    else:
+        orig_toks = tokenizer(text=sntlist, return_tensors="pt", return_offsets_mapping=True,
+                              padding="longest", truncation=True, max_length=maxlen)
+
+    for snt_idx in range(len(orig_toks['input_ids'])):
+        curr_toks = tokenizer.convert_ids_to_tokens(orig_toks['input_ids'][snt_idx])
+        right_toks = [sntlist[snt_idx][i:j] for i, j in orig_toks['offset_mapping'][snt_idx]]
+
+        corr_toks = [ct if i == j else (ct if (ct == rt or rt.startswith(" ")) else rt) for ct, rt, (i, j) in zip(curr_toks, right_toks, orig_toks['offset_mapping'][snt_idx])]
+        corr_ids = torch.tensor(tokenizer.convert_tokens_to_ids(corr_toks))
+
+        orig_toks['input_ids'][snt_idx] = corr_ids
+
+    return orig_toks
+
+
 if __name__ == "__main__":
+    sys.argv = [0, 'models/nllb600m-xt', 'data/tok-test.txt']
     args = CmdlineArgs("Test a tokenizer: tokenize & de-tokenize some text and check if these match",
                        pos_arg_list=["tok_mdl_id", "txt_file"])
 
     tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok)
 
-    success = True
+    success = 0
+    failure = 0
 
     with open(args.txt_file, "r", encoding="utf-8") as f:
-        for raw_line in f:
-            snt = raw_line.strip()
+        snts = f.read().split("\n")
 
-            toks = tokenizer(snt, return_tensors="pt")
+        toks = tokenizeit(tokenizer, snts)
 
-            detoks = tokenizer.decode(toks['input_ids'][0], skip_special_tokens=True)
+        i = 0
+
+        for tok, snt in zip(toks, snts):
+            tok_ids = toks['input_ids'][i]
+
+            detoks = tokenizer.decode(tok_ids, skip_special_tokens=True)
+
+            log(f"Sentence: {snt}")
+            log(f"Tokens:   {tokenizer.convert_ids_to_tokens(toks['input_ids'][0])}")
 
             if detoks != snt:
-                success = False
+                failure += 1
                 log(f"Test failed:\n{snt} !=\n{detoks}")
-                log(f"Tokens: {tokenizer.convert_ids_to_tokens(toks['input_ids'][0])}")
+            else:
+                success += 1
+            i += 1
 
-    log(f"Test was a {'success' if success else 'failure'}")
+    log(f"Test result: {success} successful / {failure} failed")

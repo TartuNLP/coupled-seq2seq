@@ -12,6 +12,7 @@ from pathlib import Path
 
 from aux import log
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_dec_only_llm
+from tokops import tokenizeit
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 
@@ -238,8 +239,10 @@ class MultilingualBatchingCachingDataset:
     def tokenize_input(self, cplspec, input_list, rawbatch):
         src_tokenizer = cplspec.tokenizer
         src_tokenizer.src_lang = rawbatch[0].src_lang
-        prep_batch_grouped = src_tokenizer(text=input_list, return_tensors="pt",
-                                           padding="longest", truncation=True, max_length=self.args.max_snt_len)
+        #prep_batch_grouped = src_tokenizer(text=input_list, return_tensors="pt",
+        #                                   padding="longest", truncation=True, max_length=self.args.max_snt_len)
+        prep_batch_grouped = tokenizeit(src_tokenizer, input_list, self.args.max_snt_len, False)
+
         if is_nllb(src_tokenizer):
             src_lang_list = [any_to_nllb(e.src_lang) for e in rawbatch]
             src_lang_vec = src_tokenizer.convert_tokens_to_ids(src_lang_list)
@@ -250,8 +253,10 @@ class MultilingualBatchingCachingDataset:
     def tokenize_output(self, tgttokenizer, rawbatch):
         outputs = [e.output for e in rawbatch]
         tgttokenizer.tgt_lang = rawbatch[0].tgt_lang
-        labels = tgttokenizer(text_target=outputs, return_tensors="pt", padding="longest", truncation=True,
-                               max_length=self.args.max_snt_len)
+        #labels = tgttokenizer(text_target=outputs, return_tensors="pt",
+        #                      padding="longest", truncation=True, max_length=self.args.max_snt_len)
+        labels = tokenizeit(tgttokenizer, outputs, self.args.max_snt_len, True)
+
         if is_nllb(tgttokenizer):
             tgt_lang_list = [any_to_nllb(e.tgt_lang) for e in rawbatch]
             tgt_lang_vec = tgttokenizer.convert_tokens_to_ids(tgt_lang_list)
