@@ -12,7 +12,6 @@ from pathlib import Path
 
 from aux import log
 from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_dec_only_llm
-from tokops import tokenizeit
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
 
@@ -624,3 +623,23 @@ if __name__ == "__main__":
     # multi_moses_to_json(sys.argv[1], sys.argv[2], group_tuples(sys.argv[3:]))
     # combine_jsons(sys.argv[1:])
     # do_stats("data/train.json")
+
+
+def tokenizeit(tokenizer, sntlist, maxlen, is_target):
+    if is_target:
+        orig_toks = tokenizer(text_target=sntlist, return_tensors="pt", return_offsets_mapping=True,
+                              padding="longest", truncation=True, max_length=maxlen)
+    else:
+        orig_toks = tokenizer(text=sntlist, return_tensors="pt", return_offsets_mapping=True,
+                              padding="longest", truncation=True, max_length=maxlen)
+
+    for snt_idx in range(len(orig_toks['input_ids'])):
+        curr_toks = tokenizer.convert_ids_to_tokens(orig_toks['input_ids'][snt_idx])
+        right_toks = [sntlist[snt_idx][i:j] for i, j in orig_toks['offset_mapping'][snt_idx]]
+
+        corr_toks = [ct if i == j else (ct if (ct == rt or rt.startswith(" ")) else rt) for ct, rt, (i, j) in zip(curr_toks, right_toks, orig_toks['offset_mapping'][snt_idx])]
+        corr_ids = torch.tensor(tokenizer.convert_tokens_to_ids(corr_toks))
+
+        orig_toks['input_ids'][snt_idx] = corr_ids
+
+    return orig_toks

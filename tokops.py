@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-import torch
 import sentencepiece as spm
 import json
 
@@ -11,6 +10,7 @@ from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
 from aux import log, CmdlineArgs
+from data import tokenizeit
 from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad
 from translate import hf_tok
 
@@ -214,26 +214,6 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
     log(f"Increased tokens from {old_len} to {new_len}")
 
     return tokenizer
-
-
-def tokenizeit(tokenizer, sntlist, maxlen, is_target):
-    if is_target:
-        orig_toks = tokenizer(text_target=sntlist, return_tensors="pt", return_offsets_mapping=True,
-                              padding="longest", truncation=True, max_length=maxlen)
-    else:
-        orig_toks = tokenizer(text=sntlist, return_tensors="pt", return_offsets_mapping=True,
-                              padding="longest", truncation=True, max_length=maxlen)
-
-    for snt_idx in range(len(orig_toks['input_ids'])):
-        curr_toks = tokenizer.convert_ids_to_tokens(orig_toks['input_ids'][snt_idx])
-        right_toks = [sntlist[snt_idx][i:j] for i, j in orig_toks['offset_mapping'][snt_idx]]
-
-        corr_toks = [ct if i == j else (ct if (ct == rt or rt.startswith(" ")) else rt) for ct, rt, (i, j) in zip(curr_toks, right_toks, orig_toks['offset_mapping'][snt_idx])]
-        corr_ids = torch.tensor(tokenizer.convert_tokens_to_ids(corr_toks))
-
-        orig_toks['input_ids'][snt_idx] = corr_ids
-
-    return orig_toks
 
 
 if __name__ == "__main__":
