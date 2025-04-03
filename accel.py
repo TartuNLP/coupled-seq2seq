@@ -8,7 +8,7 @@ from transformers import get_scheduler
 from aux import SameLineLogger, log
 from data import DataState
 from langconv import is_dec_only_llm
-from modelops import save_all_models
+from modelops import save_all_models, report_devices
 from translate import encode
 
 
@@ -110,6 +110,8 @@ class SwitchingAccelerator:
         return unweird_inputs, src_k, tgt_k
 
     def _main_loop(self):
+        do_it_once_thing_already_done = False
+
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
             logger.line_start()
@@ -141,6 +143,10 @@ class SwitchingAccelerator:
                     self.accelerator.backward(loss)
 
                 self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
+
+                if not do_it_once_thing_already_done:
+                    report_devices("training memory usage", self.accelerator, self.models[0])
+                    do_it_once_thing_already_done = True
 
         if self.accelerator.is_main_process:
             logger.line_break()
