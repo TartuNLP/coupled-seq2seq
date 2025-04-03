@@ -230,6 +230,8 @@ if __name__ == "__main__":
 
         toks = tokenizeit(tokenizer, snts, 1024, False)
 
+        print(len(snts))
+
         i = 0
 
         for tok, snt in zip(toks, snts):
@@ -238,7 +240,7 @@ if __name__ == "__main__":
             detoks = tokenizer.decode(tok_ids, skip_special_tokens=True)
 
             log(f"Sentence: {snt}")
-            log(f"Tokens:   {tokenizer.convert_ids_to_tokens(toks['input_ids'][0])}")
+            log(f"Tokens:   {tokenizer.convert_ids_to_tokens(tok_ids)}")
 
             if detoks != snt:
                 failure += 1
