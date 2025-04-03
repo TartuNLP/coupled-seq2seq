@@ -217,7 +217,6 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
 
 
 if __name__ == "__main__":
-    sys.argv = [0, 'models/nllb600m-xt', 'data/tok-test.txt']
     args = CmdlineArgs("Test a tokenizer: tokenize & de-tokenize some text and check if these match",
                        pos_arg_list=["tok_mdl_id", "txt_file"])
 
