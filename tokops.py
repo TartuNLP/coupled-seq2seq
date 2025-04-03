@@ -10,7 +10,7 @@ from transformers.models.nllb import NllbTokenizer
 from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
-from aux import log
+from aux import log, CmdlineArgs
 from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad
 from translate import hf_tok
 
@@ -183,6 +183,12 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
             log("Extending existing tokenizer with languages")
             extend_tok_langs(tokenizer, args.new_langs)
 
+        if args.merge_tokenizers or args.merge_tok_mdl_id:
+            assert args.tok_train_file is not None, "For merging tokenizers a text file must be provided" \
+                                                    + " to find the top N tokens to merge"
+            assert args.merge_tokenizers is not None and args.merge_tok_mdl_id is not None, \
+                "Both merge_tokenizers and merge_tok_mdl_id must be provided"
+
         if args.tok_train_file:
             if args.merge_tokenizers:
                 merge_tok_max = int(args.merge_tokenizers)
@@ -207,3 +213,25 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
     log(f"Increased tokens from {old_len} to {new_len}")
 
     return tokenizer
+
+if __name__ == "__main__":
+    args = CmdlineArgs("Test a tokenizer: tokenize & de-tokenize some text and check if these match",
+                       pos_arg_list=["tok_mdl_id", "txt_file"])
+
+    tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok)
+
+    success = True
+
+    with open(args.txt_file, "r", encoding="utf-8") as f:
+        for raw_line in f:
+            snt = raw_line.strip()
+
+            toks = tokenizer(snt, return_tensors="pt")
+
+            detoks = tokenizer.decode(toks['input_ids'][0], skip_special_tokens=True)
+
+            if detoks != snt:
+                success = False
+                log(f"Test failed: {snt} != {detoks}")
+
+    log(f"Test was a {'success' if success else 'failure'}")
