@@ -27,7 +27,8 @@ def _cmdline_args():
     pos_args = ["mdl_id", "train_file", "langs", "cache_path"]
     pos_types = [str, str, lang_set_maybe_smugri, str]
 
-    kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "batch_size": 16, "shard_size": 100000, "exclude_set": None }
+    kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "batch_size": 16, "shard_size": 100000,
+                "exclude_set": None, "max_snt_len": 1024 }
 
     #post-process the arguments
     args = CmdlineArgs(description, pos_arg_list=pos_args, pos_arg_types=pos_types, kw_arg_dict=kw_args)

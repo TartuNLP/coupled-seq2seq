@@ -239,7 +239,7 @@ class MultilingualBatchingCachingDataset:
         src_tokenizer = cplspec.tokenizer
         src_tokenizer.src_lang = rawbatch[0].src_lang
         prep_batch_grouped = src_tokenizer(text=input_list, return_tensors="pt",
-                                           padding="longest", truncation=True, max_length=512)
+                                           padding="longest", truncation=True, max_length=self.args.max_snt_len)
         if is_nllb(src_tokenizer):
             src_lang_list = [any_to_nllb(e.src_lang) for e in rawbatch]
             src_lang_vec = src_tokenizer.convert_tokens_to_ids(src_lang_list)
@@ -251,7 +251,7 @@ class MultilingualBatchingCachingDataset:
         outputs = [e.output for e in rawbatch]
         tgttokenizer.tgt_lang = rawbatch[0].tgt_lang
         labels = tgttokenizer(text_target=outputs, return_tensors="pt", padding="longest", truncation=True,
-                               max_length=256)
+                               max_length=self.args.max_snt_len)
         if is_nllb(tgttokenizer):
             tgt_lang_list = [any_to_nllb(e.tgt_lang) for e in rawbatch]
             tgt_lang_vec = tgttokenizer.convert_tokens_to_ids(tgt_lang_list)
