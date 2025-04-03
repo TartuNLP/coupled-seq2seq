@@ -110,7 +110,7 @@ class CmdlineArgs:
 
     @staticmethod
     def _to_kwargs(arg_list):
-        key_args = dict(raw_entry.split("=") for raw_entry in arg_list if "=" in raw_entry)
+        key_args = dict(raw_entry.lstrip("-").split("=") for raw_entry in arg_list if "=" in raw_entry)
         filtered_arg_list = [arg for arg in arg_list if "=" not in arg]
 
         return key_args, filtered_arg_list
