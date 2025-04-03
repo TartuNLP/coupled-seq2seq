@@ -237,11 +237,9 @@ if __name__ == "__main__":
 
             detoks = tokenizer.decode(tok_ids, skip_special_tokens=True)
 
-            log(f"Sentence: {snt}")
-            log(f"Tokens:   {tokenizer.convert_ids_to_tokens(tok_ids)}")
-
             if detoks != snt:
                 failure += 1
+                log(f"Tokens:   {tokenizer.convert_ids_to_tokens(tok_ids)}")
                 log(f"Test failed:\n{snt} !=\n{detoks}")
             else:
                 success += 1
