@@ -233,5 +233,6 @@ if __name__ == "__main__":
             if detoks != snt:
                 success = False
                 log(f"Test failed: {snt} != {detoks}")
+                log(f"Tokens: {tokenizer.convert_ids_to_tokens(toks['input_ids'][0])}")
 
     log(f"Test was a {'success' if success else 'failure'}")
