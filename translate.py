@@ -8,13 +8,9 @@ import torch
 from aux import CmdlineArgs, log
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from data import do_list_in_batches, lang_bin_mapping
-from modelops import to_cpl_spec, load_module_config
+from modelops import to_cpl_spec, load_module_config, hf_tok
 from collections import defaultdict
 from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type, any_to_neurotolge
-
-hf_tok = None
-with open("hf_token", 'r') as fh:
-    hf_tok = fh.read().strip()
 
 
 def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None, device=None):

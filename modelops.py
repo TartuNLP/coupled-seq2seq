@@ -9,6 +9,12 @@ from langconv import get_mdl_type, langs_to_mdl_type
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "model_id", "model"])
 
+hf_tok = None
+with open("hf_token", 'r') as fh:
+    hf_tok = fh.read().strip()
+
+
+
 MODULE_CONFIG_FILE = "coupled_module_config.json"
 DATA_STATE_FILE = "data_state.json"
 LOSS_LIST_FILE = "loss_list.json"
@@ -112,3 +118,5 @@ def report_devices(msg = "", accelerator = None, mdl = None):
 def is_gen_ai(mdl_id):
     lc = mdl_id.lower()
     return not ("madlad" in lc or "nllb" in lc or "m2m" in lc or "bart" in lc)
+
+

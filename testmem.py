@@ -9,8 +9,8 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler, Aut
 
 from aux import CmdlineArgs, log
 from langconv import is_dec_only_llm
-from modelops import report_devices
-from translate import hf_tok
+from modelops import report_devices, hf_tok
+
 
 def run_test(mdl_id, batch_sizes, ctxlen, acc):
     #state = AcceleratorState()

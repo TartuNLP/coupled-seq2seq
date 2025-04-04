@@ -5,11 +5,10 @@ import sys
 
 from transformers import AutoTokenizer
 
-from translate import hf_tok
 from data import MultilingualBatchingCachingDataset
 from aux import log, CmdlineArgs
 from langconv import lang_set_maybe_smugri
-from modelops import to_cpl_spec
+from modelops import to_cpl_spec, hf_tok
 
 
 def load_hf_tok(mdl_id, tok_id=None, verbose=False):

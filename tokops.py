@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
-import sys
 import sentencepiece as spm
 import json
+import sys
 
 from transformers import AutoTokenizer
 from transformers.models.nllb import NllbTokenizer
@@ -10,9 +10,8 @@ from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
 from aux import log, CmdlineArgs
-from data import tokenizeit
 from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad
-from translate import hf_tok
+from modelops import hf_tok
 
 
 def test_tok(tok, snt, lang):
@@ -161,66 +160,151 @@ def do_new_tok(tokargs):
 def remove_known_toks(toks, tokenizer):
     return [t for t in toks if not t in tokenizer.get_vocab()]
 
-def train_or_extend_tokenizer_and_upd_model(args, model):
-    # train a new sentence-piece tokenizer
-    if hasattr(args, "vocab_size") and args.vocab_size:
-        assert args.new_langs is not None, "lang_set must be provided"
-        assert args.tok_train_file is not None, "tok_train_file must be provided"
-        args.vocab_size = int(args.vocab_size)
 
-        log("Training new tokenizer")
-        tokenizer = do_new_tok(args)
-        old_len = len(tokenizer)
+def _handle_new_tokenizer(args):
+    assert args.new_langs is not None, "lang_set must be provided"
+    assert args.tok_train_file is not None, "tok_train_file must be provided"
+    args.vocab_size = int(args.vocab_size)
 
-    # save the pre-trained model's tokenizer,
-    # possibly adding new languages and tokens
-    else:
-        log("Reusing existing tokenizer")
-        tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok, use_fast=False)
-        old_len = len(tokenizer)
-
-        if args.new_langs is not None:
-            log("Extending existing tokenizer with languages")
-            extend_tok_langs(tokenizer, args.new_langs)
-
-        if args.merge_tokenizers or args.merge_tok_mdl_id:
-            assert args.tok_train_file is not None, "For merging tokenizers a text file must be provided" \
-                                                    + " to find the top N tokens to merge"
-            assert args.merge_tokenizers is not None and args.merge_tok_mdl_id is not None, \
-                "Both merge_tokenizers and merge_tok_mdl_id must be provided"
-
-        if args.tok_train_file:
-            if args.merge_tokenizers:
-                merge_tok_max = int(args.merge_tokenizers)
-                log(f"Extending existing tokenizer ({args.merge_tok_mdl_id}) with up to {merge_tok_max} top tokens" +
-                    f" from another tokenizer and corpus ({args.tok_train_file})")
-                new_tok = AutoTokenizer.from_pretrained(args.merge_tok_mdl_id, token=hf_tok)
-                toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, merge_tok_max)
-            else:
-                log(f"Extending existing tokenizer with UNK tokens from corpus ({args.tok_train_file})")
-                toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
-
-            toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
-            log(f"Adding tokeins: {toks_to_add}")
-
-            new_tok_num = tokenizer.add_tokens(toks_to_add)
-            log(f"Added {new_tok_num} tokens")
-
-    upd_amt = get_stupid_correction(args.mdl_id)
-    new_len = len(tokenizer)
-
-    model.resize_token_embeddings(new_len + upd_amt)
-
-    log(f"Increased tokens from {old_len} to {new_len}")
+    log("Training new tokenizer")
+    tokenizer = do_new_tok(args)
 
     return tokenizer
 
 
-if __name__ == "__main__":
+def get_postoken_filename(save_location):
+    return os.path.join(save_location, "postokens.json")
+
+
+def _handle_adding_tokens(tokenizer, toks_to_add, args):
+    if len(toks_to_add) == 0:
+        return
+
+    log(f"Adding tokens: {toks_to_add}")
+
+    base_idx = len(tokenizer)
+
+    added_tok_dict = { t: (base_idx + i) for i, t in enumerate(toks_to_add) }
+    added_tok_rev_dict = { int(i): t for t, i in added_tok_dict.items() }
+
+    os.makedirs(args.save_location, exist_ok=True)
+    with open(get_postoken_filename(args.save_location), "w") as f:
+        json.dump({ 'tok2idx': added_tok_dict, 'idx2tok': added_tok_rev_dict }, f)
+
+
+def _handle_existing_tokenizer(args):
+    log("Reusing existing tokenizer")
+    tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok, use_fast=False)
+
+    if args.new_langs is not None:
+        log("Extending existing tokenizer with languages")
+        extend_tok_langs(tokenizer, args.new_langs)
+
+    if args.merge_tokenizers or args.merge_tok_mdl_id:
+        """
+        assert args.tok_train_file is not None, "For merging tokenizers a text file must be provided" \
+                                                + " to find the top N tokens to merge"
+        assert args.merge_tokenizers is not None and args.merge_tok_mdl_id is not None, \
+            "Both merge_tokenizers and merge_tok_mdl_id must be provided"
+        """
+        raise NotImplementedError("Merging is currently not supported")
+
+    added_tok_count = 0
+    if args.tok_train_file:
+        if args.merge_tokenizers:
+            """
+            merge_tok_max = int(args.merge_tokenizers)
+            log(f"Extending existing tokenizer ({args.merge_tok_mdl_id}) with up to {merge_tok_max} top tokens" +
+                f" from another tokenizer and corpus ({args.tok_train_file})")
+            new_tok = AutoTokenizer.from_pretrained(args.merge_tok_mdl_id, token=hf_tok)
+            toks_to_maybe_add = get_top_toks(new_tok, args.tok_train_file, merge_tok_max)
+            """
+            raise NotImplementedError("Merging is currently not supported")
+
+        else:
+            log(f"Extending existing tokenizer with UNK tokens from corpus ({args.tok_train_file})")
+            toks_to_maybe_add = get_unk_toks(tokenizer, args.tok_train_file, verbose=True)
+
+        toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
+        added_tok_count = len(toks_to_add)
+        _handle_adding_tokens(tokenizer, toks_to_add, args)
+
+    return tokenizer, added_tok_count
+
+
+def train_or_extend_tokenizer_and_upd_model(args, model):
+    if hasattr(args, "vocab_size") and args.vocab_size:
+        # train a new sentence-piece tokenizer
+        tokenizer = _handle_new_tokenizer(args)
+        added_tok_count = 0
+    else:
+        # save the pre-trained model's tokenizer, possibly adding new languages and tokens
+        tokenizer, added_tok_count = _handle_existing_tokenizer(args)
+
+    upd_amt = get_stupid_correction(args.mdl_id)
+    new_len = len(tokenizer) + added_tok_count
+
+    model.resize_token_embeddings(new_len + upd_amt)
+
+    return tokenizer
+
+
+def load_tokenizer(tok_mdl_id):
+    orig_tokenizer = AutoTokenizer.from_pretrained(tok_mdl_id, token=hf_tok, use_fast=False)
+
+    postoken_file = get_postoken_filename(tok_mdl_id)
+    if os.path.exists(postoken_file):
+        with open(postoken_file, "r") as f:
+            postokens = json.load(f)
+    else:
+        postokens = None
+
+    return orig_tokenizer, postokens
+
+
+def detokenizeit(toktup, tok_ids):
+    #return toktup[0].decode(tok_ids, skip_special_tokens=True)
+
+    toks = []
+
+    for tok_id_tensor in tok_ids:
+        tok_id = tok_id_tensor.item()
+        try:
+            if tok_id not in toktup[0].added_tokens_decoder:
+                toks.append(toktup[0].convert_ids_to_tokens(tok_id))
+        except IndexError:
+            toks.append(toktup[1]['idx2tok'][str(tok_id)])
+
+    result = "".join(toks).replace("▁", " ")[1:]
+
+    return result, toks
+
+def tokenizeit(toktup, sntlist, maxlen, is_target):
+    tokenizer, postokens = toktup
+
+    if is_target:
+        orig_toks = tokenizer(text_target=sntlist, return_tensors="pt",
+                              padding="longest", truncation=True, max_length=maxlen)
+    else:
+        orig_toks = tokenizer(text=sntlist, return_tensors="pt",
+                              padding="longest", truncation=True, max_length=maxlen)
+
+    #specials_without_unk = set(tokenizer.all_special_ids) - set([tokenizer.unk_token_id])
+    for idx, snt in enumerate(sntlist):
+        true_toks = tokenizer.tokenize(snt)
+        for ord_idx, tok_idx in enumerate(orig_toks['input_ids'][idx]):
+            if ord_idx > 0 and tok_idx == tokenizer.unk_token_id and true_toks[ord_idx - 1] in postokens['tok2idx']:
+                orig_toks['input_ids'][idx][ord_idx] = postokens['tok2idx'][true_toks[ord_idx - 1]]
+
+    return orig_toks
+
+
+def run_tokenizer_testing():
     args = CmdlineArgs("Test a tokenizer: tokenize & de-tokenize some text and check if these match",
                        pos_arg_list=["tok_mdl_id", "txt_file"])
 
-    tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok)
+    #tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok)    if os.path.exists()
+    toktup = load_tokenizer(args.tok_mdl_id)
 
     success = 0
     failure = 0
@@ -228,21 +312,26 @@ if __name__ == "__main__":
     with open(args.txt_file, "r", encoding="utf-8") as f:
         snts = f.read().split("\n")
 
-        toks = tokenizeit(tokenizer, snts, 1024, False)
-
-        print(len(snts))
+        toks = tokenizeit(toktup, snts, 1024, False)
 
         for i, snt in enumerate(snts):
             tok_ids = toks['input_ids'][i]
 
-            detoks = tokenizer.decode(tok_ids, skip_special_tokens=True)
+            #detoks = toktup[0].decode(tok_ids, skip_special_tokens=True)
+            detoks, tok_strs = detokenizeit(toktup, tok_ids)
 
             if detoks != snt:
                 failure += 1
-                log(f"Tokens:   {tokenizer.convert_ids_to_tokens(tok_ids)}")
+                #log(f"Tokens:   {toktup[0].convert_ids_to_tokens(tok_ids)}")
+                log(f"Tokens:   {tok_strs}")
                 log(f"Test failed:\n{snt} !=\n{detoks}")
             else:
                 success += 1
             i += 1
 
     log(f"Test result: {success} successful / {failure} failed")
+
+
+if __name__ == "__main__":
+    sys.argv = ['', 'models/nllbxt', 'data/tok-test.txt']
+    run_tokenizer_testing()

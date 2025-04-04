@@ -4,11 +4,10 @@ import sys
 import os
 
 from transformers import AutoModelForSeq2SeqLM, AutoModelForCausalLM
-from modelops import mdl_param_count, is_gen_ai
+from modelops import mdl_param_count, is_gen_ai, hf_tok
 from tokops import train_or_extend_tokenizer_and_upd_model
 from aux import CmdlineArgs, log
 from langconv import lang_set_maybe_smugri
-from translate import hf_tok
 
 
 def i_dont_like_global_scope_variable_dangers():

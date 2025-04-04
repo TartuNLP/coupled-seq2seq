@@ -7,11 +7,11 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausa
 
 from accel import SwitchingAccelerator
 from accelerate import Accelerator
-from translate import hf_tok
 from data import MultilingualDatasetIterator
 from aux import log, CmdlineArgs
 from langconv import lang_set_maybe_smugri, is_dec_only_llm
-from modelops import mdl_param_count, to_cpl_spec, save_all_models
+from modelops import mdl_param_count, to_cpl_spec, save_all_models, hf_tok
+
 
 def freeze_model(model):
     for n, p in model.named_parameters():
