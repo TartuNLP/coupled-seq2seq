@@ -293,7 +293,7 @@ def tokenizeit(toktup, sntlist, maxlen, is_target):
     for idx, snt in enumerate(sntlist):
         true_toks = tokenizer.tokenize(snt)
         for ord_idx, tok_idx in enumerate(orig_toks['input_ids'][idx]):
-            if ord_idx > 0 and tok_idx == tokenizer.unk_token_id and true_toks[ord_idx - 1] in postokens['tok2idx']:
+            if ord_idx > 0 and tok_idx == tokenizer.unk_token_id and postokens is not None and true_toks[ord_idx - 1] in postokens['tok2idx']:
                 orig_toks['input_ids'][idx][ord_idx] = postokens['tok2idx'][true_toks[ord_idx - 1]]
 
     return orig_toks
