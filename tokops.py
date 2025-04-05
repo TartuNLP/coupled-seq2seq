@@ -279,17 +279,20 @@ def detokenizeit(toktup, tok_ids):
 
     return result, toks
 
-def tokenizeit(toktup, sntlist, maxlen, is_target):
+def tokenizeit(toktup, sntlist, maxlen, is_target, preset_toks=None):
     tokenizer, postokens = toktup
 
-    if is_target:
-        orig_toks = tokenizer(text_target=sntlist, return_tensors="pt",
-                              padding="longest", truncation=True, max_length=maxlen)
+    if preset_toks is None:
+        if is_target:
+            orig_toks = tokenizer(text_target=sntlist, return_tensors="pt",
+                                  padding="longest", truncation=True, max_length=maxlen)
+        else:
+            orig_toks = tokenizer(text=sntlist, return_tensors="pt",
+                                  padding="longest", truncation=True, max_length=maxlen)
     else:
-        orig_toks = tokenizer(text=sntlist, return_tensors="pt",
-                              padding="longest", truncation=True, max_length=maxlen)
+        orig_toks = preset_toks
 
-    if tokenizer.unk_token_id in orig_toks['input_ids']:
+    if postokens is not None and tokenizer.unk_token_id in orig_toks['input_ids']:
 
         #specials_without_unk = set(tokenizer.all_special_ids) - set([tokenizer.unk_token_id])
         for idx, snt in enumerate(sntlist):
