@@ -11,6 +11,7 @@ from data import MultilingualDatasetIterator
 from aux import log, CmdlineArgs
 from langconv import lang_set_maybe_smugri, is_dec_only_llm
 from modelops import mdl_param_count, to_cpl_spec, save_all_models, hf_tok
+from tokops import load_tokenizer
 
 
 def freeze_model(model):
@@ -22,9 +23,9 @@ def load_hf_mdl_and_tok(mdl_id, tok_id=None, verbose=False):
     if tok_id is None:
         tok_id = mdl_id
 
-    tokenizer = AutoTokenizer.from_pretrained(tok_id, token=hf_tok)
+    tokenizer = load_tokenizer(tok_id) # AutoTokenizer.fromm_pretrained(tok_id, token=hf_tok)
 
-    if is_dec_only_llm(tokenizer):
+    if is_dec_only_llm(tokenizer[0]):
         model = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)

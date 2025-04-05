@@ -7,7 +7,7 @@ import torch
 from aux import log
 from langconv import get_mdl_type, langs_to_mdl_type
 
-CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "model_id", "model"])
+CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "postokenizer", "model_id", "model"])
 
 hf_tok = None
 with open("hf_token", 'r') as fh:
@@ -40,11 +40,11 @@ def mdl_param_count(model):
     return result, embedding_size
 
 
-def to_cpl_spec(langs, model, tokenizer, location):
+def to_cpl_spec(langs, model, tokenizer, postokenizer, location):
     mdl_type = get_mdl_type(tokenizer)
     cpl_langs = set(langs_to_mdl_type(mdl_type, langs))
 
-    return [CouplingSpecTuple(cpl_langs, tokenizer, location, model)]
+    return [CouplingSpecTuple(cpl_langs, tokenizer, postokenizer, location, model)]
 
 
 def _save_json_config(model_dir, filename, data):

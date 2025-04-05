@@ -241,7 +241,7 @@ class MultilingualBatchingCachingDataset:
         src_tokenizer.src_lang = rawbatch[0].src_lang
         #prep_batch_grouped = src_tokenizer(text=input_list, return_tensors="pt",
         #                                   padding="longest", truncation=True, max_length=self.args.max_snt_len)
-        prep_batch_grouped = tokenizeit(src_tokenizer, input_list, self.args.max_snt_len, False)
+        prep_batch_grouped = tokenizeit((src_tokenizer, cplspec.postokenizer), input_list, self.args.max_snt_len, False)
 
         if is_nllb(src_tokenizer):
             src_lang_list = [any_to_nllb(e.src_lang) for e in rawbatch]
@@ -250,12 +250,12 @@ class MultilingualBatchingCachingDataset:
 
         return prep_batch_grouped
 
-    def tokenize_output(self, tgttokenizer, rawbatch):
+    def tokenize_output(self, tgttokenizer, tgtposttok, rawbatch):
         outputs = [e.output for e in rawbatch]
         tgttokenizer.tgt_lang = rawbatch[0].tgt_lang
         #labels = tgttokenizer(text_target=outputs, return_tensors="pt",
         #                      padding="longest", truncation=True, max_length=self.args.max_snt_len)
-        labels = tokenizeit(tgttokenizer, outputs, self.args.max_snt_len, True)
+        labels = tokenizeit((tgttokenizer, tgtposttok), outputs, self.args.max_snt_len, True)
 
         if is_nllb(tgttokenizer):
             tgt_lang_list = [any_to_nllb(e.tgt_lang) for e in rawbatch]
@@ -277,6 +277,7 @@ class MultilingualBatchingCachingDataset:
 
     def tokenize_and_pad(self, raw_batch, src_k, tgt_k):
         tgt_tokenizer = self.coupling_specs[tgt_k].tokenizer
+        tgt_postok = self.coupling_specs[tgt_k].postokenizer
 
         if is_madlad(tgt_tokenizer):
             inputs = [f"{any_to_madlad(e.tgt_lang)} {e.input}" for e in raw_batch]
@@ -284,7 +285,7 @@ class MultilingualBatchingCachingDataset:
             inputs = [e.input for e in raw_batch]
 
         prep_batch_grouped = self.tokenize_input(self.coupling_specs[src_k], inputs, raw_batch)
-        labels = self.tokenize_output(tgt_tokenizer, raw_batch)
+        labels = self.tokenize_output(tgt_tokenizer, tgt_postok, raw_batch)
         prep_batch_grouped['labels'] = labels['input_ids']
 
         # inject_bin_indices(prep_batch_grouped, src_k, tgt_k)

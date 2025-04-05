@@ -303,7 +303,7 @@ def run_tokenizer_testing():
     args = CmdlineArgs("Test a tokenizer: tokenize & de-tokenize some text and check if these match",
                        pos_arg_list=["tok_mdl_id", "txt_file"])
 
-    #tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok)    if os.path.exists()
+    #tokenizer = AutoTokenizer.fromm_pretrained(args.tok_mdl_id, token=hf_tok)    if os.path.exists()
     toktup = load_tokenizer(args.tok_mdl_id)
 
     success = 0

@@ -10,6 +10,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler, Aut
 from aux import CmdlineArgs, log
 from langconv import is_dec_only_llm
 from modelops import report_devices, hf_tok
+from tokops import load_tokenizer
 
 
 def run_test(mdl_id, batch_sizes, ctxlen, acc):
@@ -18,7 +19,7 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
 
     report_devices("Initial state:", accelerator=acc)
 
-    t = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok)
+    t = load_tokenizer(mdl_id) # AutoTokenizer.from_mpretrained(mdl_id, token=hf_tok)
     if is_dec_only_llm(t):
         m = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
         log("Decoder-only model")

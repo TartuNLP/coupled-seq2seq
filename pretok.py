@@ -9,15 +9,17 @@ from data import MultilingualBatchingCachingDataset
 from aux import log, CmdlineArgs
 from langconv import lang_set_maybe_smugri
 from modelops import to_cpl_spec, hf_tok
+from tokops import load_tokenizer
 
-
+"""
 def load_hf_tok(mdl_id, tok_id=None, verbose=False):
     if tok_id is None:
         tok_id = mdl_id
 
-    tokenizer = AutoTokenizer.from_pretrained(tok_id, token=hf_tok)
+    tokenizer = AutoTokenizer.fromm_pretrained(tok_id, token=hf_tok)
 
     return tokenizer
+"""
 
 
 def _cmdline_args():
@@ -48,15 +50,15 @@ def oh_look_another_do_main_function():
     args = _cmdline_args()
 
     log("loading tokenizer")
-    main_tokenizer = load_hf_tok(args.mdl_id, verbose=True)
+    main_tokenizer, main_postok = load_tokenizer(args.mdl_id) #load_hf_tok(args.mdl_id, verbose=True)
 
-    coupling_specs = to_cpl_spec(args.langs, None, main_tokenizer, None)
+    coupling_specs = to_cpl_spec(args.langs, None, main_tokenizer, main_postok, None)
 
     if args.anchor_mdl_id is not None:
         log("loading anchor model tokenizer")
-        anchor_tokenizer = load_hf_tok(args.anchor_mdl_id, verbose=True)
+        anchor_tokenizer, anc_postok = load_tokenizer(args.anchor_mdl_id)
 
-        coupling_specs += to_cpl_spec(args.anchor_langs, None, anchor_tokenizer, None)
+        coupling_specs += to_cpl_spec(args.anchor_langs, None, anchor_tokenizer, anc_postok, None)
  
     mbd = MultilingualBatchingCachingDataset(args.train_file, coupling_specs, args)
     mbd.load_and_cache_data(args.cache_path)
