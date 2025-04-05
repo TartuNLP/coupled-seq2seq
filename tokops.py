@@ -289,12 +289,15 @@ def tokenizeit(toktup, sntlist, maxlen, is_target):
         orig_toks = tokenizer(text=sntlist, return_tensors="pt",
                               padding="longest", truncation=True, max_length=maxlen)
 
-    #specials_without_unk = set(tokenizer.all_special_ids) - set([tokenizer.unk_token_id])
-    for idx, snt in enumerate(sntlist):
-        true_toks = tokenizer.tokenize(snt)
-        for ord_idx, tok_idx in enumerate(orig_toks['input_ids'][idx]):
-            if ord_idx > 0 and tok_idx == tokenizer.unk_token_id and postokens is not None and true_toks[ord_idx - 1] in postokens['tok2idx']:
-                orig_toks['input_ids'][idx][ord_idx] = postokens['tok2idx'][true_toks[ord_idx - 1]]
+    if tokenizer.unk_token_id in orig_toks['input_ids']:
+
+        #specials_without_unk = set(tokenizer.all_special_ids) - set([tokenizer.unk_token_id])
+        for idx, snt in enumerate(sntlist):
+            if tokenizer.unk_token_id in orig_toks['input_ids'][idx]:
+                true_toks = tokenizer.tokenize(snt)
+                for ord_idx, tok_idx in enumerate(orig_toks['input_ids'][idx]):
+                    if ord_idx > 0 and tok_idx == tokenizer.unk_token_id and postokens is not None and true_toks[ord_idx - 1] in postokens['tok2idx']:
+                        orig_toks['input_ids'][idx][ord_idx] = postokens['tok2idx'][true_toks[ord_idx - 1]]
 
     return orig_toks
 
