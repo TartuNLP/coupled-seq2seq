@@ -195,7 +195,7 @@ def is_madlad(object):
 
 def is_dec_only_llm(obj):
     lcname = obj.__class__.__name__.lower()
-    return "pretrainedtokenizerfast" in lcname or "llama" in lcname
+    return any(k in lcname for k in ["pretrainedtokenizerfast", "llama", "gemma"])
 
 
 def get_mdl_type(obj):
