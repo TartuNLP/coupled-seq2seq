@@ -66,14 +66,14 @@ def yes_i_called_this_function_do_main():
     log("loading coupled model and tokenizer", accelerator=tmp_acc)
     main_model, main_tokenizer = load_hf_mdl_and_tok(args.mdl_id, verbose=True)
 
-    coupling_specs = to_cpl_spec(args.langs, main_model, main_tokenizer, args.save_location)
+    coupling_specs = to_cpl_spec(args.langs, main_model, main_tokenizer[0], main_tokenizer[1], args.save_location)
 
     if args.anchor_mdl_id:
         log("loading anchor model and tokenizer", accelerator=tmp_acc)
         anchor_model, anchor_tokenizer = load_hf_mdl_and_tok(args.anchor_mdl_id, verbose=True)
         freeze_model(anchor_model)
 
-        coupling_specs += to_cpl_spec(args.anchor_langs, anchor_model, anchor_tokenizer, args.anchor_mdl_id)
+        coupling_specs += to_cpl_spec(args.anchor_langs, anchor_model, anchor_tokenizer[0], anchor_tokenizer[1], args.anchor_mdl_id)
 
     train_set = MultilingualDatasetIterator(args.train_pretok_file)
 
