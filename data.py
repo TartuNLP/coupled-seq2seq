@@ -101,7 +101,8 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, 
                                 conv_l1 = any_to_mdl_type(model_type, l1)
                                 conv_l2 = any_to_mdl_type(model_type, l2)
 
-                                yield TrPair(conv_l1, conv_l2, input, tup[l2])
+                                if not snt_is_fishy(input, conv_l1) and not snt_is_fishy(tup[l2], conv_l2):
+                                    yield TrPair(conv_l1, conv_l2, input, tup[l2])
 
 
 def split_by_lang(filename, model_type):
@@ -632,6 +633,32 @@ def char_class(c):
         return "other"
 
 
+def snt_is_fishy(snt_raw, lang, detailed=False):
+    snt = re.sub(r'^<[^>]+> ', '', snt_raw)
+
+    snt_db = defaultdict(int)
+    for c in snt:
+        c_c = char_class(c)
+        snt_db[c_c] += 1
+
+    tot = snt_db['latn'] + snt_db['cyrl']
+
+    if tot > 0:
+        if snt_db['latn'] / tot > 0.7:
+            this_is = 'latn'
+        elif snt_db['cyrl'] / tot > 0.7:
+            this_is = 'cyrl'
+        else:
+            this_is = 'mix'
+
+        should_be = any_to_nllb(lang).split("_")[1].lower()
+
+        if should_be != this_is:
+            return (True, this_is, should_be) if detailed else True
+
+    return (False, None, None) if detailed else False
+
+
 def script_stats():
     db = defaultdict(lambda: defaultdict(int))
 
@@ -640,33 +667,9 @@ def script_stats():
     for raw_line in sys.stdin:
         lang, snt_raw = raw_line.strip().split("\t")
 
-        snt = re.sub(r'^<[^>]+> ', '', snt_raw)
-
-        snt_db = defaultdict(int)
-
-        for c in snt:
-            c_c = char_class(c)
-            snt_db[c_c] += 1
-
-        tot = snt_db['latn'] + snt_db['cyrl']
-
-        if tot > 0:
-            if snt_db['latn']/tot > 0.7:
-                this_is = 'latn'
-            elif snt_db['cyrl']/tot > 0.7:
-                this_is = 'cyrl'
-            else:
-                this_is = 'mix'
-
-            db[lang][this_is] += 1
-            should_be = base_to_nllb(lang_code=lang).split("_")[1].lower()
-
-            if should_be != this_is:
-                print(f"{lang}: should be {should_be}, is actually {this_is} (cyrl: {100*snt_db['cyrl']/tot:.2f}%, latn: {100*snt_db['latn']/tot:.2f}%):\n{snt}")
-
-    """for lang in db:
-        should_be = base_to_nllb(lang_code=lang).split("_")[1].lower()
-        print(lang, should_be, db[lang])"""
+        is_fishy, this_is, should_be = snt_is_fishy(snt_raw, lang, detailed=True)
+        if is_fishy:
+            print(f"{lang}: should be {should_be}, is actually {this_is}:\n{snt_raw}")
 
 
 if __name__ == "__main__":
