@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import torch
+import re
 
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
@@ -11,7 +12,8 @@ from random import randrange, shuffle
 from pathlib import Path
 
 from aux import log
-from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_dec_only_llm
+from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_dec_only_llm, \
+    base_to_nllb
 from tokops import tokenizeit
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
@@ -619,11 +621,59 @@ def check_cross_pollination(small_path, large_path):
 
         print(f"{lang}: contaminated: {counts} ({100*counts/float(total):.1f}%), total occurrence: {freqs}")
 
+
+def char_class(c):
+    lc = c.lower()
+    if re.match("[a-z]", lc):
+        return "latn"
+    elif re.match("[а-я]", lc):
+        return "cyrl"
+    else:
+        return "other"
+
+
+def script_stats():
+    db = defaultdict(lambda: defaultdict(int))
+
+    # corp = []
+
+    for raw_line in sys.stdin:
+        lang, snt_raw = raw_line.strip().split("\t")
+
+        snt = re.sub(r'^<[^>]+> ', '', snt_raw)
+
+        snt_db = defaultdict(int)
+
+        for c in snt:
+            c_c = char_class(c)
+            snt_db[c_c] += 1
+
+        tot = snt_db['latn'] + snt_db['cyrl']
+
+        if tot > 0:
+            if snt_db['latn']/tot > 0.7:
+                this_is = 'latn'
+            elif snt_db['cyrl']/tot > 0.7:
+                this_is = 'cyrl'
+            else:
+                this_is = 'mix'
+
+            db[lang][this_is] += 1
+            should_be = base_to_nllb(lang_code=lang).split("_")[1].lower()
+
+            if should_be != this_is:
+                print(f"{lang}: should be {should_be}, is actually {this_is} (cyrl: {100*snt_db['cyrl']/tot:.2f}%, latn: {100*snt_db['latn']/tot:.2f}%):\n{snt}")
+
+    """for lang in db:
+        should_be = base_to_nllb(lang_code=lang).split("_")[1].lower()
+        print(lang, should_be, db[lang])"""
+
+
 if __name__ == "__main__":
     # check_cross_pollination(sys.argv[1], sys.argv[2])
-    dump_to_stdout()
     # multi_moses_to_json(sys.argv[1], sys.argv[2], group_tuples(sys.argv[3:]))
     # combine_jsons(sys.argv[1:])
     # do_stats("data/train.json")
 
-
+    # dump_to_stdout()
+    script_stats()
