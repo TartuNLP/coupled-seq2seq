@@ -219,6 +219,8 @@ def _handle_existing_tokenizer(args):
         raise NotImplementedError("Merging is currently not supported")
 
     added_tok_count = 0
+    added_tokens = None
+
     if args.tok_train_file:
         if args.merge_tokenizers:
             """
@@ -237,9 +239,6 @@ def _handle_existing_tokenizer(args):
         toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
         added_tok_count = len(toks_to_add)
         added_tokens = _handle_adding_tokens(tokenizer, toks_to_add, args)
-    else:
-        added_tok_count = None
-        added_tokens = None
 
     return tokenizer, added_tok_count, added_tokens
 
