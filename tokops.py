@@ -176,9 +176,16 @@ def get_postoken_filename(save_location):
     return os.path.join(save_location, "postokens.json")
 
 
+def save_postokens(added_tokens, location):
+    if added_tokens is not None:
+        os.makedirs(location, exist_ok=True)
+        with open(get_postoken_filename(location), "w") as f:
+            json.dump(added_tokens, f)
+
+
 def _handle_adding_tokens(tokenizer, toks_to_add, args):
     if len(toks_to_add) == 0:
-        return
+        return None
 
     log(f"Adding tokens: {toks_to_add}")
 
@@ -187,9 +194,11 @@ def _handle_adding_tokens(tokenizer, toks_to_add, args):
     added_tok_dict = { t: (base_idx + i) for i, t in enumerate(toks_to_add) }
     added_tok_rev_dict = { int(i): t for t, i in added_tok_dict.items() }
 
-    os.makedirs(args.save_location, exist_ok=True)
-    with open(get_postoken_filename(args.save_location), "w") as f:
-        json.dump({ 'tok2idx': added_tok_dict, 'idx2tok': added_tok_rev_dict }, f)
+    comb_dict = { 'tok2idx': added_tok_dict, 'idx2tok': added_tok_rev_dict }
+
+    save_postokens(comb_dict, args.save_location)
+
+    return comb_dict
 
 
 def _handle_existing_tokenizer(args):
@@ -227,9 +236,9 @@ def _handle_existing_tokenizer(args):
 
         toks_to_add = remove_known_toks(toks_to_maybe_add, tokenizer)
         added_tok_count = len(toks_to_add)
-        _handle_adding_tokens(tokenizer, toks_to_add, args)
+        added_tokens = _handle_adding_tokens(tokenizer, toks_to_add, args)
 
-    return tokenizer, added_tok_count
+    return tokenizer, added_tok_count, added_tokens
 
 
 def train_or_extend_tokenizer_and_upd_model(args, model):
@@ -239,14 +248,14 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
         added_tok_count = 0
     else:
         # save the pre-trained model's tokenizer, possibly adding new languages and tokens
-        tokenizer, added_tok_count = _handle_existing_tokenizer(args)
+        tokenizer, added_tok_count, added_dict = _handle_existing_tokenizer(args)
 
     upd_amt = get_stupid_correction(args.mdl_id)
     new_len = len(tokenizer) + added_tok_count
 
     model.resize_token_embeddings(new_len + upd_amt)
 
-    return tokenizer
+    return tokenizer, added_dict
 
 
 def load_tokenizer(tok_mdl_id):
