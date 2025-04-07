@@ -203,7 +203,7 @@ def _handle_adding_tokens(tokenizer, toks_to_add, args):
 
 def _handle_existing_tokenizer(args):
     log("Reusing existing tokenizer")
-    tokenizer, added = load_tokenizer(args.tok_mdl_id)
+    tokenizer, added_tokens = load_tokenizer(args.tok_mdl_id)
 
     if args.new_langs is not None:
         log("Extending existing tokenizer with languages")
