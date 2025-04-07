@@ -203,7 +203,7 @@ def _handle_adding_tokens(tokenizer, toks_to_add, args):
 
 def _handle_existing_tokenizer(args):
     log("Reusing existing tokenizer")
-    tokenizer = AutoTokenizer.from_pretrained(args.tok_mdl_id, token=hf_tok, use_fast=False)
+    tokenizer, added = load_tokenizer(args.tok_mdl_id)
 
     if args.new_langs is not None:
         log("Extending existing tokenizer with languages")
@@ -219,7 +219,6 @@ def _handle_existing_tokenizer(args):
         raise NotImplementedError("Merging is currently not supported")
 
     added_tok_count = 0
-    added_tokens = None
 
     if args.tok_train_file:
         if args.merge_tokenizers:
@@ -248,6 +247,7 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
         # train a new sentence-piece tokenizer
         tokenizer = _handle_new_tokenizer(args)
         added_tok_count = 0
+        added_dict = None
     else:
         # save the pre-trained model's tokenizer, possibly adding new languages and tokens
         tokenizer, added_tok_count, added_dict = _handle_existing_tokenizer(args)
