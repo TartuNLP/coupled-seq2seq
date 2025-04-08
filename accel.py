@@ -110,7 +110,7 @@ class SwitchingAccelerator:
         return unweird_inputs, src_k, tgt_k
 
     def _main_loop(self):
-        do_it_once_thing_already_done = False
+        countdown_till_do_it_once = 3
 
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
@@ -127,6 +127,9 @@ class SwitchingAccelerator:
         for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
             for batch_with_bin_idxs, epoch_batch_idx in self.train_set:
                 for accum_idx in range(self.kwargs.accum_steps):
+                    if self.kwargs.mem_debug:
+                        report_devices(f"TRAINING 1:", accelerator=self.accelerator)
+
                     inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs, accum_idx)
 
                     if self.is_generative:
@@ -138,15 +141,23 @@ class SwitchingAccelerator:
 
                     loss = outputs.loss
 
+                    if self.kwargs.mem_debug:
+                        report_devices(f"TRAINING 2:", accelerator=self.accelerator)
+                        log(f"Batches    : {[inputs[k].size() for k in 'input_ids labels attention_mask'.split(' ')]}")
+                        log(f"Batch total: {sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])}")
+                    else:
+                        if countdown_till_do_it_once > 0:
+                            countdown_till_do_it_once -= 1
+                        elif countdown_till_do_it_once == 0:
+                            batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
+                            report_devices(f"training memory usage (batch size: {batch_size})", self.accelerator, self.models[0])
+                            countdown_till_do_it_once = -1
+
                     self.train_loss_list.append(loss.item(), src_k, tgt_k)
 
                     self.accelerator.backward(loss)
 
                 self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
-
-                if not do_it_once_thing_already_done:
-                    report_devices("training memory usage", self.accelerator, self.models[0])
-                    do_it_once_thing_already_done = True
 
         if self.accelerator.is_main_process:
             logger.line_break()

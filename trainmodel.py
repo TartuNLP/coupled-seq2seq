@@ -44,7 +44,7 @@ def _cmdline_args():
     pos_types = [str, str, str, lang_set_maybe_smugri]
 
     kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "continue_training": False,
-                "save_steps": 100000, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4  }
+                "save_steps": 100000, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4, "mem_debug": False }
 
     #post-process the arguments
     args = CmdlineArgs(description, pos_arg_list=pos_args, pos_arg_types=pos_types, kw_arg_dict=kw_args)

@@ -34,7 +34,8 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
     report_devices("Models in VRAM:", accelerator=acc)
     m.train()
 
-    txt = "Kui ma laulan, kui me leelon, laulan lained laksuma, siis jääb küla kuulamaie"
+    txt0 = "Kui ma laulan, kui me leelon, laulan lained laksuma, siis jääb küla kuulamaie. "
+    txt = txt0 + txt0 + txt0 + txt0 + txt0 + txt0 + txt0 + txt0
 
     for batch_size in batch_sizes:
         print("")
@@ -52,6 +53,9 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
         for _ in range(3):
             outputs = m(**inp)
             loss = outputs.loss
+            report_devices(f"While training:", accelerator=acc)
+            log(f"Batches    : {[inp[k].size() for k in 'input_ids labels attention_mask'.split(' ')]}")
+            log(f"Batch total: {sum([inp[k].size()[0] * inp[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])}")
             acc.backward(loss)
             acc.wait_for_everyone()
 
