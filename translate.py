@@ -11,37 +11,33 @@ from data import do_list_in_batches, lang_bin_mapping
 from modelops import to_cpl_spec, load_module_config, hf_tok
 from collections import defaultdict
 from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type, any_to_neurotolge
+from tokops import load_tokenizer, tokenizeit, detokenizemany
 
 
-def prepare_for_translation(provided_inputs, tokenizer, input_language, output_language=None, device=None):
-    if is_nllb(tokenizer):
-        tokenizer.src_lang = input_language
+def prepare_for_translation(provided_inputs, toktup, input_language, output_language=None, device=None):
+    if is_nllb(toktup[0]):
+        toktup[0].src_lang = input_language
         inputs_to_process = provided_inputs
-    elif is_madlad(tokenizer):
+    elif is_madlad(toktup[0]):
         madlad_tgt_lang = output_language
         inputs_to_process = [f"{madlad_tgt_lang} {inp}" for inp in provided_inputs]
     else:
         raise NotImplementedError("Model type not supported")
 
-    prepared_inputs = tokenizer(inputs_to_process, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    prepared_inputs = tokenizeit(toktup, inputs_to_process, 1024, False) #tokenizer(inputs_to_process, return_tensors="pt", padding=True, truncation=True, max_length=512)
 
     if device is not None:
         prepared_inputs.to(device)
 
-    frc_bos = tokenizer.get_lang_id(output_language) if output_language is not None else None
+    frc_bos = toktup[0].get_lang_id(output_language) if output_language is not None else None
 
     return prepared_inputs, frc_bos
 
 
-def finalize_translation(outputs, tokenizer, output_language):
-    result = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+def finalize_translation(outputs, toktup):
+    result = detokenizemany(toktup, outputs) # tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
     return result
-
-
-def loadtokenizer(mdlname="facebook/m2m100_418M"):
-    tokenizer = AutoTokenizer.from_pretrained(mdlname, token=hf_tok)
-    return tokenizer
 
 
 def loadmodel(mdlname="facebook/m2m100_418M", accelerator=None):
@@ -77,11 +73,17 @@ def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts, debug=F
     this = coupling_specs[lang_to_bin[conv_input_lang]]
 
     # 0. input text --> input token IDs
-    these_inputs, _ = prepare_for_translation(input_texts, this.tokenizer, conv_input_lang, device=this.model.device)
+    these_inputs, _ = prepare_for_translation(input_texts, (this.tokenizer, this.postokenizer), conv_input_lang, device=this.model.device)
     attention_mask = these_inputs["attention_mask"]
     if debug:
-        print(this.tokenizer.convert_ids_to_tokens(these_inputs['input_ids'][0]))
-
+        toklist = []
+        for tok_idx in these_inputs['input_ids'][0]:
+            try:
+                tok = this.tokenizer.convert_ids_to_tokens([tok_idx])[0]
+            except IndexError:
+                tok = this.postokenizer['idx2tok'][str(tok_idx.item())]
+            toklist.append(tok)
+        print(toklist)
 
     # 1. input token IDs --> encoder vectors
     #embeddings = this.model.model.encoder(**these_inputs)
@@ -106,7 +108,7 @@ def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embedding
         print(tokenizer.convert_ids_to_tokens(raw_outputs[0]))
 
     # 3. output token IDs --> output text
-    result = finalize_translation(raw_outputs, tokenizer, conv_output_lang)
+    result = finalize_translation(raw_outputs, (tokenizer, coupling_specs[dec_idx].postokenizer))
 
     return result
 
@@ -199,13 +201,13 @@ def load_and_init_module_config(model_id, accelerator=None):
 
         log(f"Loading model and tokenizer from '{model_id}'")
         model = loadmodel(model_id, accelerator)
-        tokenizer = loadtokenizer(model_id)
+        tokenizer, postok = load_tokenizer(model_id)
 
         if i == 0:
             main_model = model
 
         #(langs, model, tokenizer, location):
-        coupling_specs += to_cpl_spec(lang_set, model, tokenizer, model_id)
+        coupling_specs += to_cpl_spec(lang_set, model, tokenizer, postok, model_id)
 
     return main_model, coupling_specs
 

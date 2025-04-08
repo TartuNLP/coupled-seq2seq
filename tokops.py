@@ -292,6 +292,13 @@ def detokenizeit(toktup, tok_ids):
 
     return result, toks
 
+
+def detokenizemany(toktup, tok_mtx):
+    result = [detokenizeit(toktup, tok_ids)[0] for tok_ids in tok_mtx]
+
+    return result
+
+
 def tokenizeit(toktup, sntlist, maxlen, is_target, preset_toks=None):
     tokenizer, postokens = toktup
 
