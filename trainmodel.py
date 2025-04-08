@@ -43,7 +43,7 @@ def _cmdline_args():
     pos_args = ["mdl_id", "save_location", "train_pretok_file", "langs"]
     pos_types = [str, str, str, lang_set_maybe_smugri]
 
-    kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "batch_size": 16, "continue_training": False,
+    kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "continue_training": False,
                 "save_steps": 100000, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4  }
 
     #post-process the arguments
