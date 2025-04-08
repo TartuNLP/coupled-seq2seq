@@ -63,6 +63,8 @@ def yes_i_called_this_function_do_main():
     args = _cmdline_args()
     tmp_acc = Accelerator()
 
+    log(f"Num proc: {tmp_acc.num_processes}, proc ID: {tmp_acc.process_index}")
+
     log("loading coupled model and tokenizer", accelerator=tmp_acc)
     main_model, main_tokenizer = load_hf_mdl_and_tok(args.mdl_id, verbose=True)
 
