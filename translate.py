@@ -78,14 +78,15 @@ def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts, debug=F
     these_inputs, _ = prepare_for_translation(input_texts, (this.tokenizer, this.postokenizer), conv_input_lang, device=this.model.device)
     attention_mask = these_inputs["attention_mask"]
     if debug:
-        toklist = []
-        for tok_idx in these_inputs['input_ids'][0]:
-            try:
-                tok = this.tokenizer.convert_ids_to_tokens([tok_idx])[0]
-            except IndexError:
-                tok = this.postokenizer['idx2tok'][str(tok_idx.item())]
-            toklist.append(tok)
-        print(toklist)
+        for iii in range(len(input_texts)):
+            toklist = []
+            for tok_idx in these_inputs['input_ids'][iii]:
+                try:
+                    tok = this.tokenizer.convert_ids_to_tokens([tok_idx])[0]
+                except IndexError:
+                    tok = this.postokenizer['idx2tok'][str(tok_idx.item())]
+                toklist.append(tok)
+            print(toklist)
 
     # 1. input token IDs --> encoder vectors
     #embeddings = this.model.model.encoder(**these_inputs)
@@ -155,7 +156,8 @@ def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embedding
 
     raw_outputs = obj.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings, attention_mask=att_mask)
     if debug:
-        print(tokenizer.convert_ids_to_tokens(raw_outputs[0]))
+        for rwout in raw_outputs:
+            print(tokenizer.convert_ids_to_tokens(rwout))
 
     # 3. output token IDs --> output text
     result = finalize_translation(raw_outputs, (tokenizer, coupling_specs[dec_idx].postokenizer))
