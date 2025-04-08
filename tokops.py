@@ -10,7 +10,7 @@ from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
 from aux import log, CmdlineArgs
-from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad
+from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad, is_dec_only_llm
 from modelops import hf_tok
 
 
@@ -101,6 +101,8 @@ def extend_tok_langs(tokenizer, lang_set_raw):
         lang_set = langs_to_nllb(lang_set_raw)
     elif is_madlad(tokenizer):
         lang_set = langs_to_madlad(lang_set_raw)
+    elif is_dec_only_llm(tokenizer):
+        return
     else:
         raise NotImplementedError
 
