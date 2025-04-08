@@ -25,7 +25,7 @@ def _same_line_log(msg, len_to_del=0):
 
         return new_len
     else:"""
-    sys.stderr.write(msg + "\n")
+    log(msg)
 
 
 def debug(msg):
