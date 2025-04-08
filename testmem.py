@@ -56,18 +56,18 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
             report_devices(f"While training:", accelerator=acc)
             log(f"Batches    : {[inp[k].size() for k in 'input_ids labels attention_mask'.split(' ')]}")
             log(f"Batch total: {sum([inp[k].size()[0] * inp[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])}")
+
+            try:
+                if acc.is_main_process:
+                    result = subprocess.run(['rocm-smi'], capture_output=True, text=True)
+                    print(result.stdout)
+            except:
+                pass
+
             acc.backward(loss)
             acc.wait_for_everyone()
 
         report_devices(f"Models gradients in VRAM, batch size {batch_size}:", accelerator=acc)
-
-    try:
-        if acc.is_main_process:
-            result = subprocess.run(['rocm-smi'], capture_output=True, text=True)
-            print(result.stdout)
-    except:
-        pass
-
 
     print(f"Testing {mdl_id} with batch size {batch_size}: success!")
 
