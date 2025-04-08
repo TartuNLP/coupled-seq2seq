@@ -176,9 +176,19 @@ def get_data_cache_location(cache_meta_path, idx):
         raise ValueError(f"Expected a json file for the cache meta-location ({cache_meta_path})")
 
 
-def make_gen_text(elem, tok, for_inference=False):
-    return (f"== From: {elem.src_lang}\n== To: {elem.tgt_lang}\n== Input: {elem.input}\n== Output: " +
-            ("" if for_inference else "{elem.output}{tok.eos_token}"))
+def make_gen_text(src_lang, tgt_lang, input_text, output_text=None, tok=None):
+    if input_text.startswith("<"):
+        posit = input_text.find(">") + 1
+        dialect = input_text[1:posit-1]
+        diatxt = f", variety: {dialect}"
+        txt = input_text[posit+1:]
+    else:
+        dialect = None
+        diatxt = ""
+        txt = input_text
+
+    return (f"Translate:\n== From: {src_lang}\n== To: {tgt_lang}{diatxt}\n== Input: {txt}\n== Output: " +
+            ("" if (output_text is None or tok is None) else f"{output_text}{tok.eos_token}"))
 
 
 class MultilingualBatchingCachingDataset:
@@ -272,9 +282,10 @@ class MultilingualBatchingCachingDataset:
         tokenizer.pad_token = '<|reserved_special_token_0|>'
         tokenizer.padding_side = 'left'
 
-        texts = [make_gen_text(e, tokenizer) for e in raw_batch]
+        texts = [make_gen_text(e.src_lang, e.tgt_lang, e.input, e.output, tokenizer) for e in raw_batch]
 
-        batch = tokenizer(texts, return_tensors="pt", max_length=512, truncation=True, add_special_tokens=True, padding=True)
+        #batch = tokenizer(texts, return_tensors="pt", max_length=512, truncation=True, add_special_tokens=True, padding=True)
+        batch = tokenizeit((tokenizer, self.coupling_specs[0].postokenizer), texts, self.args.max_snt_len, False)
 
         return batch
 

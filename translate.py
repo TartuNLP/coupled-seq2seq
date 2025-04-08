@@ -6,11 +6,11 @@ import re
 import torch
 
 from aux import CmdlineArgs, log
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from data import do_list_in_batches, lang_bin_mapping
-from modelops import to_cpl_spec, load_module_config, hf_tok
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, AutoModelForCausalLM
+from data import do_list_in_batches, lang_bin_mapping, make_gen_text
+from modelops import to_cpl_spec, load_module_config, hf_tok, is_gen_ai
 from collections import defaultdict
-from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type, any_to_neurotolge
+from langconv import is_nllb, is_madlad, any_to_mdl_type, get_mdl_type, any_to_neurotolge, is_dec_only_llm
 from tokops import load_tokenizer, tokenizeit, detokenizemany
 
 
@@ -41,11 +41,13 @@ def finalize_translation(outputs, toktup):
 
 
 def loadmodel(mdlname="facebook/m2m100_418M", accelerator=None):
+    cl = AutoModelForCausalLM if is_gen_ai(mdlname) else AutoModelForSeq2SeqLM
+
     if accelerator is not None:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, torch_dtype=torch.bfloat16)
+        model = cl.from_pretrained(mdlname, token=hf_tok, torch_dtype=torch.bfloat16)
         model = accelerator.prepare(model)
     else:
-        model = AutoModelForSeq2SeqLM.from_pretrained(mdlname, token=hf_tok, torch_dtype=torch.bfloat16, device_map="auto")
+        model = cl.from_pretrained(mdlname, token=hf_tok, torch_dtype=torch.bfloat16, device_map="auto")
 
     return model
 
@@ -89,6 +91,54 @@ def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts, debug=F
     #embeddings = this.model.model.encoder(**these_inputs)
     return encode(this.model, these_inputs), attention_mask
 
+
+def postproc_llm_output(raw_outputs, tok):
+    eos_id = tok.convert_tokens_to_ids(tok.eos_token)
+
+    for i, _ in enumerate(raw_outputs):
+        repl = None
+        for ii, t in enumerate(raw_outputs[i]):
+            if t.item() == eos_id:
+                repl = eos_id
+            if repl is not None:
+                raw_outputs[i][ii] = repl
+
+    return raw_outputs
+
+
+def llm_generate(coupling_specs, input_language, output_language, input_texts, debug=False):
+    mdl_type = get_mdl_type(coupling_specs[0].model)
+    conv_input_lang = any_to_mdl_type(mdl_type, input_language)
+    conv_output_lang = any_to_mdl_type(mdl_type, output_language)
+
+    tokenizer = coupling_specs[0].tokenizer
+
+    prep_texts = [make_gen_text(conv_input_lang, conv_output_lang, input_txt, None) for input_txt in input_texts]
+
+    tokenized = tokenizeit((tokenizer, None), prep_texts, 1024, is_target=False, is_llm=True)
+
+    obj = coupling_specs[0].model
+    obj = obj.module if hasattr(obj, "module") else obj
+
+    tokenized['input_ids'] = tokenized['input_ids'].to(obj.device)
+    tokenized['attention_mask'] = tokenized['attention_mask'].to(obj.device)
+
+    raw_outputs = obj.generate(**tokenized)
+
+    # 3. output token IDs --> output text
+    pre_result = tokenizer.batch_decode(postproc_llm_output(raw_outputs, tokenizer), skip_special_tokens=True)
+
+    result = [raw_out[len(prep_texts[i]):].split("\n")[0] for i, raw_out in enumerate(pre_result)]
+    """
+    for i, raw_out in enumerate(pre_result):
+        print("====")
+        print(i, raw_out)
+        print("%%%%")
+        print(raw_out[len(prep_texts[i])-3:])
+        print("----")
+    """
+
+    return result
 
 def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embeddings, att_mask, debug=False):
     mdl_type = get_mdl_type(coupling_specs[0].model)
@@ -179,9 +229,11 @@ def coupled_translate(coupling_specs, input_texts, input_language, output_langua
     all_outputs = list()
 
     for inp_batch in do_list_in_batches(input_texts, 32):
-        encoder_embeddings, att_mask = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch, debug=debug)
-
-        these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings, att_mask, debug=debug)
+        if is_dec_only_llm(coupling_specs[0].tokenizer):
+            these_outputs = llm_generate(coupling_specs, input_language, output_language, input_texts, debug=debug)
+        else:
+            encoder_embeddings, att_mask = coupled_encode(coupling_specs, lang_to_bin, input_language, inp_batch, debug=debug)
+            these_outputs = coupled_generate(coupling_specs, lang_to_bin, output_language, encoder_embeddings, att_mask, debug=debug)
 
         all_outputs += these_outputs
 

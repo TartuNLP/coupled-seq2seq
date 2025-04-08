@@ -41,11 +41,9 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
         print("")
         raw_inp = [txt] * batch_size
         if is_dec_only_llm(t):
-            t.pad_token = '<|reserved_special_token_0|>'
-            inp_raw = t(raw_inp, return_tensors="pt", max_length=ctxlen, truncation=True, add_special_tokens=True, padding=True, padding_side='left')
+            inp = tokenizeit((t, pt), raw_inp, ctxlen, is_target=False, is_llm=True)
         else:
-            inp_raw = t(raw_inp, return_tensors="pt", max_length=ctxlen, truncation=True, add_special_tokens=True, padding=True)
-        inp = tokenizeit((t, pt), inp_raw, ctxlen, False, preset_toks=inp_raw)
+            inp = tokenizeit((t, pt), raw_inp, ctxlen, is_target=False, is_llm=False)
 
         inp['labels'] = inp['input_ids']
         inp.to(m.device)

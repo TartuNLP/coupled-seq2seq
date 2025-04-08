@@ -299,18 +299,20 @@ def detokenizemany(toktup, tok_mtx):
     return result
 
 
-def tokenizeit(toktup, sntlist, maxlen, is_target, preset_toks=None):
+def tokenizeit(toktup, sntlist, maxlen, is_target=False, is_llm=False):
     tokenizer, postokens = toktup
 
-    if preset_toks is None:
+    if is_llm:
+        tokenizer.pad_token = '<|reserved_special_token_0|>'
+        orig_toks = tokenizer(sntlist, return_tensors="pt", max_length=maxlen, truncation=True, add_special_tokens=True,
+                              padding=True, padding_side='left')
+    else:
         if is_target:
             orig_toks = tokenizer(text_target=sntlist, return_tensors="pt",
                                   padding="longest", truncation=True, max_length=maxlen)
         else:
             orig_toks = tokenizer(text=sntlist, return_tensors="pt",
                                   padding="longest", truncation=True, max_length=maxlen)
-    else:
-        orig_toks = preset_toks
 
     if postokens is not None and tokenizer.unk_token_id in orig_toks['input_ids']:
 
