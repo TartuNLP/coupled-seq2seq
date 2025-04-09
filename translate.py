@@ -86,6 +86,7 @@ def coupled_encode(coupling_specs, lang_to_bin, input_lang, input_texts, debug=F
                 except IndexError:
                     tok = this.postokenizer['idx2tok'][str(tok_idx.item())]
                 toklist.append(tok)
+            print(these_inputs['input_ids'][iii])
             print(toklist)
 
     # 1. input token IDs --> encoder vectors
