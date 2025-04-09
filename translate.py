@@ -158,6 +158,7 @@ def coupled_generate(coupling_specs, lang_to_bin, output_lang, encoder_embedding
     raw_outputs = obj.generate(forced_bos_token_id=frc_bos, encoder_outputs=encoder_embeddings, attention_mask=att_mask)
     if debug:
         for rwout in raw_outputs:
+            print(rwout)
             print(tokenizer.convert_ids_to_tokens(rwout))
 
     # 3. output token IDs --> output text
