@@ -30,7 +30,7 @@ def do_list_in_batches(data, batch_size):
         i += batch_size
 
 
-def do_bins_in_shuffled_batches(bins, batch_size):
+def do_bins_in_batches(bins, batch_size, sort_by_length):
     result_list = []
 
     for src_k in bins:
@@ -38,7 +38,8 @@ def do_bins_in_shuffled_batches(bins, batch_size):
             if src_k == 0 or tgt_k == 0:
                 result_list += [(e, src_k, tgt_k) for e in do_list_in_batches(bins[src_k][tgt_k], batch_size)]
 
-    shuffle(result_list)
+    if not sort_by_length:
+        shuffle(result_list)
 
     return result_list
 
@@ -200,7 +201,10 @@ class MultilingualBatchingCachingDataset:
                     rnd_elem = bins[src_k][tgt_k][rnd_elem_idx]
                     bins[src_k][tgt_k].append(rnd_elem)
 
-                shuffle(bins[src_k][tgt_k])
+                if self.args.sort_by_len:
+                    bins[src_k][tgt_k] = sorted(bins[src_k][tgt_k], key=lambda e: len(e.input))
+                else:
+                    shuffle(bins[src_k][tgt_k])
         return bins
 
     def _get_idxs(self, tr_pair):
@@ -319,7 +323,7 @@ class MultilingualBatchingCachingDataset:
 
         log("Tokenizing data")
 
-        for raw_batch, src_k, tgt_k in do_bins_in_shuffled_batches(bins, self.args.batch_size):
+        for raw_batch, src_k, tgt_k in do_bins_in_batches(bins, self.args.batch_size, self.args.sort_by_len):
             batch_i += 1
             if not batch_i % 10000:
                 log(f"Tokenized {batch_i + shard_i * self.args.shard_size} batches (shard {shard_i})")
