@@ -38,8 +38,7 @@ def do_bins_in_batches(bins, batch_size, sort_by_length):
             if src_k == 0 or tgt_k == 0:
                 result_list += [(e, src_k, tgt_k) for e in do_list_in_batches(bins[src_k][tgt_k], batch_size)]
 
-    if not sort_by_length:
-        shuffle(result_list)
+    shuffle(result_list)
 
     return result_list
 
