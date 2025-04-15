@@ -122,7 +122,7 @@ class SwitchingAccelerator:
         return sub_batch_size, nr_steps, proc_batch_nr_snts
 
     def _main_loop(self):
-        countdown_till_do_it_once = 0
+        countdown_till_do_it_once = 5
 
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
@@ -137,6 +137,8 @@ class SwitchingAccelerator:
             for batch_with_bin_idxs, epoch_batch_idx in self.train_set:
                 batch, src_k, tgt_k = self._split_batch_and_bin_idxs(batch_with_bin_idxs)
                 sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
+
+                loss = None
 
                 for sub_batch_idx in range(nr_steps):
                     inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
@@ -155,7 +157,7 @@ class SwitchingAccelerator:
                     elif countdown_till_do_it_once == 0:
                         batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
                         report_devices(f"training memory usage (batch size: {batch_size})", self.accelerator, self.models[0])
-                        countdown_till_do_it_once = 0
+                        countdown_till_do_it_once = -1
 
                     self.train_loss_list.append(loss.item(), src_k, tgt_k)
 
