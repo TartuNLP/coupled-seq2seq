@@ -98,7 +98,7 @@ class SwitchingAccelerator:
         from_proc_idx = proc_batch_size * self.accelerator.process_index + sub_batch_size * sub_batch_idx
         to_proc_idx = from_proc_idx + sub_batch_size
 
-        log(f"----> DEBUG for sub_b idx {sub_batch_idx}, proc {self.accelerator.process_index}: {from_proc_idx}:{to_proc_idx}", accelerator=self.accelerator)
+        log(f"----> DEBUG for sub_b idx {sub_batch_idx}, proc {self.accelerator.process_index}: {from_proc_idx}:{to_proc_idx}")
 
         return {k: batch[k][from_proc_idx:to_proc_idx].to(self.accelerator.device) for k in batch}
 

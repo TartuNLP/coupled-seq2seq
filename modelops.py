@@ -111,8 +111,8 @@ def report_devices(msg = "", accelerator = None, mdl = None):
     else:
         log(f"No acceleration")
 
-    if mdl is not None:
-        log(f"Model device: {mdl.device}", accelerator=accelerator)
+    #if mdl is not None:
+    #    log(f"Model device: {mdl.device}", accelerator=accelerator)
 
 
 def is_gen_ai(mdl_id):
