@@ -98,7 +98,7 @@ class SwitchingAccelerator:
         from_proc_idx = proc_batch_size * self.accelerator.process_index + sub_batch_size * sub_batch_idx
         to_proc_idx = from_proc_idx + sub_batch_size
 
-        log(f"----> DEBUG for sub_b idx {sub_batch_idx}, proc {self.accelerator.process_index}: {from_proc_idx}:{to_proc_idx}")
+        log(f"----> DEBUG for sub_b idx {sub_batch_idx}, proc {self.accelerator.process_index}: {from_proc_idx}:{to_proc_idx}", accelerator=self.accelerator)
 
         return {k: batch[k][from_proc_idx:to_proc_idx].to(self.accelerator.device) for k in batch}
 
@@ -114,15 +114,15 @@ class SwitchingAccelerator:
             sub_batch_size = self.kwargs.nr_snts_in_batch
         else:
             sub_batch_size = max(1, self.kwargs.nr_words_in_batch // snt_nr_words)
-            log(f"DEBUG: #words/snt {snt_nr_words} X #snt in sub batch {sub_batch_size} = {snt_nr_words*sub_batch_size} ~ {self.kwargs.nr_words_in_batch}")
+            log(f"DEBUG: #words/snt {snt_nr_words} X #snt in sub batch {sub_batch_size} = {snt_nr_words*sub_batch_size} ~ {self.kwargs.nr_words_in_batch}", accelerator=self.accelerator)
 
         nr_steps = -(proc_batch_nr_snts // -sub_batch_size)
 
-        log(f"--> DEBUG: sub_batch {sub_batch_size} X steps {nr_steps} ~ {proc_batch_nr_snts} ({batch_nr_snts} / {self.accelerator.num_processes})")
+        log(f"--> DEBUG: sub_batch {sub_batch_size} X steps {nr_steps} ~ {proc_batch_nr_snts} ({batch_nr_snts} / {self.accelerator.num_processes})", accelerator=self.accelerator)
         return sub_batch_size, nr_steps, proc_batch_nr_snts
 
     def _main_loop(self):
-        countdown_till_do_it_once = 5
+        countdown_till_do_it_once = 0
 
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
@@ -157,7 +157,7 @@ class SwitchingAccelerator:
                     elif countdown_till_do_it_once == 0:
                         batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
                         report_devices(f"training memory usage (batch size: {batch_size})", self.accelerator, self.models[0])
-                        countdown_till_do_it_once = -1
+                        countdown_till_do_it_once = 0
 
                     self.train_loss_list.append(loss.item(), src_k, tgt_k)
 
