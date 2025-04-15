@@ -104,15 +104,15 @@ def report_devices(msg = "", accelerator = None, mdl = None):
             if mem_alloc > 0.01 or mem_res > 0.01:
                 msg += f"  {i}: alloc {mem_alloc:.2f} Mb / res {mem_res:.2f} Mb;"
 
-        log(msg)
+        log(msg, accelerator=accelerator)
     elif accelerator is not None and accelerator.device.type == "mps":
         mem_alloc = torch.mps.current_allocated_memory() / 1024**2
-        log(f"{msg:30} device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb")
+        log(f"{msg:30} device being used: {accelerator.device}, mem alloc: {mem_alloc} Mb", accelerator=accelerator)
     else:
         log(f"No acceleration")
 
     if mdl is not None:
-        log(f"Model device: {mdl.device}")
+        log(f"Model device: {mdl.device}", accelerator=accelerator)
 
 
 def is_gen_ai(mdl_id):
