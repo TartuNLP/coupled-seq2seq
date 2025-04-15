@@ -85,32 +85,44 @@ class SwitchingAccelerator:
 
         return unwr_coupled_model, self.train_loss_list
 
-    def _prepare_inputs(self, batch_with_idxs, accum_idx):
+    def _split_batch_and_bin_idxs(self, batch_with_idxs):
         if self.is_generative:
-            weird_inputs, _ = batch_with_idxs
+            batch, _ = batch_with_idxs
             src_k = 0
             tgt_k = 0
         else:
-            weird_inputs, src_k, tgt_k, _ = batch_with_idxs
+            batch, src_k, tgt_k, _ = batch_with_idxs
+        return batch, src_k, tgt_k
 
-        batch_size = weird_inputs['input_ids'].size()[0]
+    def _prepare_inputs(self, batch, sub_batch_idx, sub_batch_size, proc_batch_size):
+        from_proc_idx = proc_batch_size * self.accelerator.process_index + sub_batch_size * sub_batch_idx
+        to_proc_idx = from_proc_idx + sub_batch_size
 
-        split_into = self.accelerator.num_processes * self.kwargs.accum_steps
+        log(f"----> DEBUG for sub_b idx {sub_batch_idx}, proc {self.accelerator.process_index}: {from_proc_idx}:{to_proc_idx}")
 
-        assert batch_size % split_into == 0, "Batch size must be divisible by number of processes X accumulation steps."
+        return {k: batch[k][from_proc_idx:to_proc_idx].to(self.accelerator.device) for k in batch}
 
-        proc_batch_size = batch_size / split_into
+    def _get_split_batch_params(self, batch):
+        batch_nr_snts = batch['input_ids'].size()[0]
+        snt_nr_words = batch['input_ids'].size()[1]
 
-        from_proc_idx = int((accum_idx * self.accelerator.num_processes + self.accelerator.process_index) * proc_batch_size)
-        to_proc_idx = int((accum_idx * self.accelerator.num_processes + self.accelerator.process_index + 1) * proc_batch_size)
+        assert batch_nr_snts % self.accelerator.num_processes == 0, "Batch size must be divisible by number of processes."
 
-        unweird_inputs = {k: weird_inputs[k][from_proc_idx:to_proc_idx].to(self.accelerator.device)
-                          for k in weird_inputs}
+        proc_batch_nr_snts = batch_nr_snts // self.accelerator.num_processes
 
-        return unweird_inputs, src_k, tgt_k
+        if self.kwargs.nr_snts_in_batch > 0:
+            sub_batch_size = self.kwargs.nr_snts_in_batch
+        else:
+            sub_batch_size = max(1, self.kwargs.nr_words_in_batch // snt_nr_words)
+            log(f"DEBUG: #words/snt {snt_nr_words} X #snt in sub batch {sub_batch_size} = {snt_nr_words*sub_batch_size} ~ {self.kwargs.nr_words_in_batch}")
+
+        nr_steps = -(proc_batch_nr_snts // -sub_batch_size)
+
+        log(f"--> DEBUG: sub_batch {sub_batch_size} X steps {nr_steps} ~ {proc_batch_nr_snts} ({batch_nr_snts} / {self.accelerator.num_processes})")
+        return sub_batch_size, nr_steps, proc_batch_nr_snts
 
     def _main_loop(self):
-        countdown_till_do_it_once = 3
+        countdown_till_do_it_once = 300
 
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
@@ -119,18 +131,15 @@ class SwitchingAccelerator:
             logger = None
 
         self.models[0].train()
-
-        #£_batch_idx, skipped = self.train_set.maybe_skip_ahead(self.data_state)
-        #print(self.data_state, _batch_idx, skipped)
         self.train_set.thats_where(self.data_state)
 
         for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
             for batch_with_bin_idxs, epoch_batch_idx in self.train_set:
-                for accum_idx in range(self.kwargs.accum_steps):
-                    if self.kwargs.mem_debug:
-                        report_devices(f"TRAINING 1:", accelerator=self.accelerator)
+                batch, src_k, tgt_k = self._split_batch_and_bin_idxs(batch_with_bin_idxs)
+                sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
 
-                    inputs, src_k, tgt_k = self._prepare_inputs(batch_with_bin_idxs, accum_idx)
+                for sub_batch_idx in range(nr_steps):
+                    inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
 
                     if self.is_generative:
                         inputs['labels'] = inputs['input_ids']
@@ -141,17 +150,12 @@ class SwitchingAccelerator:
 
                     loss = outputs.loss
 
-                    if self.kwargs.mem_debug:
-                        report_devices(f"TRAINING 2:", accelerator=self.accelerator)
-                        log(f"Batches    : {[inputs[k].size() for k in 'input_ids labels attention_mask'.split(' ')]}")
-                        log(f"Batch total: {sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])}")
-                    else:
-                        if countdown_till_do_it_once > 0:
-                            countdown_till_do_it_once -= 1
-                        elif countdown_till_do_it_once == 0:
-                            batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
-                            report_devices(f"training memory usage (batch size: {batch_size})", self.accelerator, self.models[0])
-                            countdown_till_do_it_once = -1
+                    if countdown_till_do_it_once > 0:
+                        countdown_till_do_it_once -= 1
+                    elif countdown_till_do_it_once == 0:
+                        batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
+                        report_devices(f"training memory usage (batch size: {batch_size})", self.accelerator, self.models[0])
+                        countdown_till_do_it_once = -1
 
                     self.train_loss_list.append(loss.item(), src_k, tgt_k)
 

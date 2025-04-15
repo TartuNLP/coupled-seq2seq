@@ -44,7 +44,8 @@ def _cmdline_args():
     pos_types = [str, str, str, lang_set_maybe_smugri]
 
     kw_args = { "anchor_mdl_id": None, "anchor_langs": None, "continue_training": False,
-                "save_steps": 100000, "lr": 1.5e-5, "accum_steps": 1, "log_steps": 100, "epochs": 4, "mem_debug": False }
+                "save_steps": 100000, "lr": 1.5e-5, "nr_snts_in_batch": 0, "nr_words_in_batch": 0,
+                "log_steps": 100, "epochs": 4 }
 
     #post-process the arguments
     args = CmdlineArgs(description, pos_arg_list=pos_args, pos_arg_types=pos_types, kw_arg_dict=kw_args)
@@ -52,9 +53,12 @@ def _cmdline_args():
     if args.anchor_langs is not None:
         args.anchor_langs = lang_set_maybe_smugri(args.anchor_langs)
 
+    if (args.nr_snts_in_batch > 0) == (args.nr_words_in_batch > 0):
+        raise Exception(f"Specify the batch size either in words or in sentences.")
+
     # if the directory args.save_location already exists, raise an exception:
     if not args.continue_training and os.path.exists(args.save_location):
-        raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite")
+        raise Exception(f"Save location '{args.save_location}' already exists, don't want to overwrite.")
 
     return args
 
