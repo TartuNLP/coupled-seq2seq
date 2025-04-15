@@ -122,7 +122,7 @@ class SwitchingAccelerator:
         return sub_batch_size, nr_steps, proc_batch_nr_snts
 
     def _main_loop(self):
-        countdown_till_do_it_once = 300
+        countdown_till_do_it_once = 0
 
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
@@ -155,7 +155,7 @@ class SwitchingAccelerator:
                     elif countdown_till_do_it_once == 0:
                         batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
                         report_devices(f"training memory usage (batch size: {batch_size})", self.accelerator, self.models[0])
-                        countdown_till_do_it_once = -1
+                        countdown_till_do_it_once = 0
 
                     self.train_loss_list.append(loss.item(), src_k, tgt_k)
 
