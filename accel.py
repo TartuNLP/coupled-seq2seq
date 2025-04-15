@@ -114,7 +114,7 @@ class SwitchingAccelerator:
             sub_batch_size = self.kwargs.nr_snts_in_batch
         else:
             sub_batch_size = max(1, self.kwargs.nr_words_in_batch // snt_nr_words)
-            log(f"DEBUG: #words/snt {snt_nr_words} X #snt in sub batch {sub_batch_size} = {snt_nr_words*sub_batch_size} ~ {self.kwargs.nr_words_in_batch}", accelerator=self.accelerator)
+        log(f"DEBUG: #words/snt {snt_nr_words} X #snt in sub batch {sub_batch_size} = {snt_nr_words*sub_batch_size} ~ {self.kwargs.nr_words_in_batch}", accelerator=self.accelerator)
 
         nr_steps = -(proc_batch_nr_snts // -sub_batch_size)
 
