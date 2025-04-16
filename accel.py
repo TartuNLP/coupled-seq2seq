@@ -193,6 +193,7 @@ class SwitchingAccelerator:
 
         self.optimizer.step()
         self.lr_scheduler.step()
+        self.accelerator.wait_for_everyone()
 
         is_end_of_epoch = (epoch_batch_idx == epoch_len)
 
