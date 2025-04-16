@@ -157,7 +157,9 @@ class SwitchingAccelerator:
                     #elif countdown_till_do_it_once == 0:
                     if sub_batch_idx == 5:
                         batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
-                        report_devices(f"training memory usage (batch size: {batch_size})", self.accelerator, self.models[0])
+                        report_devices(f"training memory usage (batch size: {batch_size}; inputs:" +
+                                       f"snts {inputs['input_ids'].size()[0]} X words {inputs['input_ids'].size()[1]})",
+                                       self.accelerator, self.models[0])
                         countdown_till_do_it_once = 0
 
                     self.train_loss_list.append(loss.item(), src_k, tgt_k)
