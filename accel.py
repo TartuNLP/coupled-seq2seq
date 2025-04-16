@@ -166,6 +166,9 @@ class SwitchingAccelerator:
 
                     self.accelerator.backward(loss)
 
+                    for k in inputs:
+                        inputs[k] = inputs[k].to('cpu')
+
                 self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
 
         if self.accelerator.is_main_process:
