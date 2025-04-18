@@ -3,9 +3,11 @@
 import torch.optim
 import sys
 import subprocess
+import random
 
 from accelerate import Accelerator
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler, AutoModelForSeq2SeqLM
+from datasets import load_dataset
 
 from aux import CmdlineArgs, log
 from langconv import is_dec_only_llm
@@ -34,22 +36,27 @@ def run_test(mdl_id, batch_sizes, ctxlen, acc):
     report_devices("Models in VRAM:", accelerator=acc)
     m.train()
 
-    txt0 = "Kui ma laulan, kui me leelon, laulan lained laksuma, siis jääb küla kuulamaie. "
-    txt = txt0 + txt0 + txt0 + txt0 + txt0 + txt0 + txt0 + txt0
+    ds = load_dataset("Helsinki-NLP/europarl", "en-et")
+    max_idx = len(ds['train'])
 
     for batch_size in batch_sizes:
         print("")
-        raw_inp = [txt] * batch_size
-        if is_dec_only_llm(t):
-            inp = tokenizeit((t, pt), raw_inp, ctxlen, is_target=False, is_llm=True)
-        else:
-            inp = tokenizeit((t, pt), raw_inp, ctxlen, is_target=False, is_llm=False)
 
-        inp['labels'] = inp['input_ids']
-        inp.to(m.device)
+        for _ in range(10):
+            inp_idx = random.randint(0, max_idx-batch_size)
 
-        for _ in range(3):
+            raw_inp = [ds['train'][i]['translation']['et'] for i in range(inp_idx, inp_idx+batch_size)]
+
+            if is_dec_only_llm(t):
+                inp = tokenizeit((t, pt), raw_inp, ctxlen, is_target=False, is_llm=True)
+            else:
+                inp = tokenizeit((t, pt), raw_inp, ctxlen, is_target=False, is_llm=False)
+
+            inp['labels'] = inp['input_ids']
+            inp.to(m.device)
+
             outputs = m(**inp)
+
             loss = outputs.loss
             report_devices(f"While training:", accelerator=acc)
             log(f"Batches    : {[inp[k].size() for k in 'input_ids labels attention_mask'.split(' ')]}")
