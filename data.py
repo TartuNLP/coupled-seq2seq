@@ -5,10 +5,11 @@ import os
 import sys
 import torch
 import re
+import math
 
 from torch.utils.data import IterableDataset
 from collections import namedtuple, defaultdict
-from random import randrange, shuffle
+from random import randrange, shuffle, randint
 from pathlib import Path
 
 from aux import log
@@ -17,6 +18,21 @@ from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_typ
 from tokops import tokenizeit
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
+
+
+def prep_llm_input(ljmftpl):
+    #{'task': 'translate' / 'approx-translate' / 'generate',
+    # 'src_segm': src_segm,
+    # 'tgt_segm': tgt_segm,
+    # 'src_lang': src_lang,
+    # 'tgt_lang': tgt_lang}
+
+    if ljmftpl['task'] in {'translate', 'approx-translate'}:
+        return (f"{ljmftpl['src_segm']}\n=====\n{ljmftpl['task']} from {ljmftpl['src_lang']}; " +
+                f"to {ljmftpl['tgt_lang']}:\n{ljmftpl['tgt_segm']}")
+
+    elif ljmftpl['task'] == 'generate':
+        return (f"{ljmftpl['src_segm']}\n=====\nis in {ljmftpl['src_lang']};")
 
 
 def make_path_compatible(filename):
@@ -429,6 +445,69 @@ class DataState:
         return self.__str__()
 
 
+class BatchingIterator(IterableDataset):
+    def __init__(self, segment_list, batch_size, tokenizer, max_len=8000):
+        self.data = segment_list
+        shuffle(self.data)
+
+        self.batch_size = batch_size
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+
+        self.curr_elem_idx = 0
+
+        self.data_len = math.ceil(len(self.data) / self.batch_size)
+
+    def __len__(self):
+        return self.data_len
+
+    def __iter__(self):
+        self.curr_elem_idx = 0
+        return self
+
+    def where_are_we(self):
+        return DataState(shard_idx=0, elem_idx=self.curr_elem_idx)
+
+    def thats_where(self, data_state):
+        self.curr_elem_idx = data_state.elem_idx
+
+    def _get_properly_sized_segment_list(self):
+        i = self.curr_elem_idx * self.batch_size
+
+        segment_list = self.data[i:i + self.batch_size]
+        if len(segment_list) < self.batch_size:
+            orig_len = len(segment_list)
+            while len(segment_list) < self.batch_size:
+                segment_list.append(segment_list[randint(0, orig_len - 1)])
+
+        return segment_list
+
+    def _tokenize(self, segment_list):
+        #{'task': 'translate',
+        # 'src_segm': src_segm,
+        # 'tgt_segm': tgt_segm,
+        # 'src_lang': src_lang,
+        # 'tgt_lang': tgt_lang}
+
+        prepped_segm_list = [prep_llm_input(s) for s in segment_list]
+
+        self.tokenizer.pad_token = '<|reserved_special_token_0|>'
+        tokenized_batch = self.tokenizer(prepped_segm_list, return_tensors="pt", max_length=self.max_len,
+                                   truncation=True, add_special_tokens=True,
+                                   padding=True, padding_side='left')
+        return tokenized_batch, self.curr_elem_idx + 1
+
+    def __next__(self):
+        if self.curr_elem_idx >= self.data_len:
+            raise StopIteration
+        else:
+            segment_list = self._get_properly_sized_segment_list()
+
+            batch = self._tokenize(segment_list)
+            self.curr_elem_idx += 1
+            return batch
+
+
 class MultilingualDatasetIterator(IterableDataset):
     def _load_metafile(self, cache_metafile):
         with open(cache_metafile, 'r') as f:
@@ -686,6 +765,40 @@ def script_stats():
             print(f"{lang}: should be {should_be}, is actually {this_is}:\n{snt_raw}")
 
 
+def get_full_lang(lang, tupl):
+    dia_key = f"{lang}-dia"
+
+    if dia_key in tupl:
+        return f"{lang}, {tupl[dia_key]}"
+    else:
+        return lang
+
+
+def convert_json_to_json(src_json, dest_json):
+    raw_data = load_json_data(src_json)
+
+    output_data = []
+
+    for tupl in raw_data:
+        for l1 in tupl:
+            for l2 in tupl:
+                if l1 != l2 and not "dia" in l1 and not "dia" in l2:
+                    src_segm = tupl[l1]
+                    tgt_segm = tupl[l2]
+
+                    src_lang = get_full_lang(l1, tupl)
+                    tgt_lang = get_full_lang(l2, tupl)
+
+                    output_data.append({ 'task': 'translate',
+                                         'src_segm': src_segm,
+                                         'tgt_segm': tgt_segm,
+                                         'src_lang': src_lang,
+                                         'tgt_lang': tgt_lang})
+
+    with open(dest_json, "w") as f:
+        json.dump(output_data, f, indent=2)
+
+
 if __name__ == "__main__":
     # check_cross_pollination(sys.argv[1], sys.argv[2])
     # multi_moses_to_json(sys.argv[1], sys.argv[2], group_tuples(sys.argv[3:]))
@@ -693,4 +806,6 @@ if __name__ == "__main__":
     # do_stats("data/train.json")
 
     # dump_to_stdout()
-    script_stats()
+    # script_stats()
+
+    convert_json_to_json(sys.argv[1], sys.argv[2])

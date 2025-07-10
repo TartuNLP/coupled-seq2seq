@@ -125,7 +125,7 @@ def llm_generate(coupling_specs, input_language, output_language, input_texts, d
     tokenized['input_ids'] = tokenized['input_ids'].to(obj.device)
     tokenized['attention_mask'] = tokenized['attention_mask'].to(obj.device)
 
-    raw_outputs = obj.generate(**tokenized)
+    raw_outputs = obj.generate(**tokenized, max_length)
 
     # 3. output token IDs --> output text
     pre_result = tokenizer.batch_decode(postproc_llm_output(raw_outputs, tokenizer), skip_special_tokens=True)

@@ -1,14 +1,18 @@
 import os
 
 import torch
-import math
 
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from transformers import get_scheduler
 
 from aux import SameLineLogger, log
-from data import DataState, BatchingIterator
+from data import DataState
+from langconv import is_dec_only_llm
 from modelops import save_all_models, report_devices
+from translate import encode
+
+
+raise NotImplementedError("This is a backup package, do not run or import from it")
 
 
 def chain_params(coupling_specs):
@@ -20,8 +24,8 @@ class TrainLossList:
     def __init__(self):
         self.data = []
 
-    def append(self, loss_val, sub_batch_idx, epoch_batch_idx, _epoch_idx):
-        self.data.append((loss_val, sub_batch_idx, epoch_batch_idx, _epoch_idx))
+    def append(self, loss_val, src_k, tgt_k):
+        self.data.append((loss_val, src_k, tgt_k))
 
     def state_dict(self):
         return {'data': self.data}
@@ -32,12 +36,13 @@ class TrainLossList:
 
 
 class SwitchingAccelerator:
-    def __init__(self, train_set, train_kwargs, model, tokenizer):
-        self.kwargs = train_kwargs
-        self.train_set_iter = BatchingIterator(train_set, self.kwargs.batch_size, tokenizer)
+    def __init__(self, coupling_specs, train_set, train_kwargs):
+        self.coupling_specs = coupling_specs
 
-        self.model = model
-        self.tokenizer = tokenizer
+        self.train_set = train_set
+        self.kwargs = train_kwargs
+
+        self.is_generative = is_dec_only_llm(self.coupling_specs[0].tokenizer)
 
         self.train_loss_list = TrainLossList()
         self.data_state = DataState(epoch_idx=0)
@@ -49,18 +54,19 @@ class SwitchingAccelerator:
         #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps)
         self.accelerator = Accelerator()
 
-        epoch_len = len(self.train_set_iter)
+        epoch_len = len(self.train_set)
         train_len = epoch_len * self.kwargs.epochs
 
         num_warmup = int(train_len * 0.01)
 
         log(f"Warmup steps: {num_warmup}, epoch len: {epoch_len}, train len: {train_len}", accelerator=self.accelerator)
 
-        opt = torch.optim.AdamW(self.model.parameters(), lr=self.kwargs.lr)
+        opt = torch.optim.AdamW(chain_params(self.coupling_specs), lr=self.kwargs.lr)
         lr_scheduler = get_scheduler("linear", optimizer=opt, num_warmup_steps=num_warmup,
                                      num_training_steps=train_len * self.accelerator.num_processes)
+        models = [s.model for s in self.coupling_specs]
 
-        self.optimizer, self.lr_scheduler, self.model = self.accelerator.prepare(opt, lr_scheduler, self.model)
+        self.optimizer, self.lr_scheduler, *self.models = self.accelerator.prepare(opt, lr_scheduler, *models)
 
         self.accelerator.register_for_checkpointing(self.lr_scheduler, self.data_state, self.train_loss_list)
 
@@ -72,15 +78,24 @@ class SwitchingAccelerator:
         try:
             self._main_loop()
         except Exception as e:
-            #in multiprocess scenarios it is hard to read the stack trace, so just show one:
+            #in multi-process scenarios it is hard to read the stack trace, so just show one:
             if self.accelerator.is_main_process:
                 raise e
 
         self.accelerator.wait_for_everyone()
 
-        unwr_coupled_model = self.accelerator.unwrap_model(self.model)
+        unwr_coupled_model = self.accelerator.unwrap_model(self.models[0])
 
-        return unwr_coupled_model
+        return unwr_coupled_model, self.train_loss_list
+
+    def _split_batch_and_bin_idxs(self, batch_with_idxs):
+        if self.is_generative:
+            batch, _ = batch_with_idxs
+            src_k = 0
+            tgt_k = 0
+        else:
+            batch, src_k, tgt_k, _ = batch_with_idxs
+        return batch, src_k, tgt_k
 
     def _prepare_inputs(self, batch, sub_batch_idx, sub_batch_size, proc_batch_size):
         from_proc_idx = proc_batch_size * self.accelerator.process_index + sub_batch_size * sub_batch_idx
@@ -91,13 +106,18 @@ class SwitchingAccelerator:
         return {k: batch[k][from_proc_idx:to_proc_idx].to(self.accelerator.device) for k in batch}
 
     def _get_split_batch_params(self, batch):
-        batch_nr_snts = self.kwargs.batch_size
+        batch_nr_snts = batch['input_ids'].size()[0]
+        snt_nr_words = batch['input_ids'].size()[1]
 
         assert batch_nr_snts % self.accelerator.num_processes == 0, "Batch size must be divisible by number of processes."
 
         proc_batch_nr_snts = batch_nr_snts // self.accelerator.num_processes
 
-        sub_batch_size = self.kwargs.nr_sents_per_gpu
+        if self.kwargs.nr_snts_in_batch > 0:
+            sub_batch_size = self.kwargs.nr_snts_in_batch
+        else:
+            sub_batch_size = max(1, self.kwargs.nr_words_in_batch // snt_nr_words)
+        #log(f"DEBUG: #words/snt {snt_nr_words} X #snt in sub batch {sub_batch_size} = {snt_nr_words*sub_batch_size} ~ {self.kwargs.nr_words_in_batch}", accelerator=self.accelerator)
 
         nr_steps = -(proc_batch_nr_snts // -sub_batch_size)
 
@@ -108,16 +128,17 @@ class SwitchingAccelerator:
         #countdown_till_do_it_once = 0
 
         if self.accelerator.is_main_process:
-            logger = SameLineLogger(len(self.train_set_iter), self.kwargs.epochs)
+            logger = SameLineLogger(len(self.train_set), self.kwargs.epochs)
             logger.line_start()
         else:
             logger = None
 
-        self.model.train()
-        self.train_set_iter.thats_where(self.data_state)
+        self.models[0].train()
+        self.train_set.thats_where(self.data_state)
 
         for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
-            for batch, epoch_batch_idx in self.train_set_iter:
+            for batch_with_bin_idxs, epoch_batch_idx in self.train_set:
+                batch, src_k, tgt_k = self._split_batch_and_bin_idxs(batch_with_bin_idxs)
                 sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
 
                 loss = None
@@ -125,11 +146,18 @@ class SwitchingAccelerator:
                 for sub_batch_idx in range(nr_steps):
                     inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
 
-                    inputs['labels'] = inputs['input_ids']
-                    outputs = self.model(**inputs)
+                    if self.is_generative:
+                        inputs['labels'] = inputs['input_ids']
+                        outputs = self.models[0](**inputs)
+                    else:
+                        encoder_vecs = encode(self.models[src_k], inputs)
+                        outputs = self.models[tgt_k](attention_mask=inputs['attention_mask'], labels=inputs['labels'], encoder_outputs=encoder_vecs)
 
                     loss = outputs.loss
 
+                    #if countdown_till_do_it_once > 0:
+                    #    countdown_till_do_it_once -= 1
+                    #elif countdown_till_do_it_once == 0:
                     if sub_batch_idx == 5:
                         batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
                         report_devices(f"training memory usage (batch size: {batch_size}; inputs:" +
@@ -137,7 +165,7 @@ class SwitchingAccelerator:
                                        self.accelerator, self.models[0])
                         countdown_till_do_it_once = 0
 
-                    self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
+                    self.train_loss_list.append(loss.item(), src_k, tgt_k)
 
                     self.accelerator.backward(loss)
 
@@ -154,7 +182,7 @@ class SwitchingAccelerator:
         grad_count = 0
         all_count = 0
 
-        for p in self.model.parameters():
+        for p in self.models[0].parameters():
             if p.grad is not None:
                 result += p.grad.abs().mean().item()
                 grad_count += 1
@@ -163,7 +191,7 @@ class SwitchingAccelerator:
         return result/grad_count if grad_count > 0 else -1
 
     def _step_and_perhaps_save(self, logger, epoch_batch_idx, epoch_i, loss):
-        epoch_len = len(self.train_set_iter)
+        epoch_len = len(self.train_set)
         global_batch_idx = epoch_batch_idx + epoch_i * epoch_len
 
         self.optimizer.step()
@@ -190,7 +218,7 @@ class SwitchingAccelerator:
                 logger.line_start()
 
     def _save_all(self, global_batch_idx, epoch_i):
-        epoch_len = len(self.train_set_iter)
+        epoch_len = len(self.train_set)
 
         ckpt_name = (f"checkpoint-e{epoch_i + 1:02}-" +
                      (f"b{global_batch_idx:07}" if (global_batch_idx % epoch_len) else f"full"))
@@ -199,8 +227,9 @@ class SwitchingAccelerator:
         if os.path.exists(this_location):
             raise FileExistsError(f"Cannot overwrite existing checkpoint {this_location}!")
 
-        self.data_state.copy_from(self.train_set_iter.where_are_we(), epoch_idx=epoch_i)
+        self.data_state.copy_from(self.train_set.where_are_we(), epoch_idx=epoch_i)
 
-        model_to_save = self.accelerator.unwrap_model(self.model)
+        model_to_save = self.accelerator.unwrap_model(self.models[0])
 
-        save_all_models(this_location, model_to_save, self.tokenizer, trainer=self.accelerator)
+        save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer,
+                        self.coupling_specs, trainer=self.accelerator)

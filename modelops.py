@@ -72,7 +72,7 @@ def load_module_config(model_dir):
     return result if result is not None else [{"model_id": model_dir, "lang_set": {}}]
 
 
-def save_all_models(location, model, tokenizer, cpl_specs, trainer=None):
+def save_all_models(location, model, tokenizer, cpl_specs=None, trainer=None):
     if not os.path.exists(location):
         os.makedirs(location)
 
@@ -84,7 +84,8 @@ def save_all_models(location, model, tokenizer, cpl_specs, trainer=None):
 
     tokenizer.save_pretrained(location)
 
-    save_module_config(location, cpl_specs)
+    if cpl_specs is not None:
+        save_module_config(location, cpl_specs)
 
 
 def report_devices(msg = "", accelerator = None, mdl = None):
