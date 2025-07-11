@@ -130,7 +130,7 @@ class SwitchingAccelerator:
 
                     loss = outputs.loss
 
-                    if sub_batch_idx == 5 and countdown_till_do_it_once == 1:
+                    if epoch_batch_idx == 5 and countdown_till_do_it_once == 1:
                         batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
                         report_devices(f"training memory usage (batch size: {batch_size}; inputs:" +
                                        f"snts {inputs['input_ids'].size()[0]} X words {inputs['input_ids'].size()[1]})",
