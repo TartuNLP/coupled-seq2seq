@@ -117,11 +117,11 @@ class SwitchingAccelerator:
         self.train_set_iter.thats_where(self.data_state)
 
         for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
+            countdown_till_do_it_once = 1
             for batch, epoch_batch_idx in self.train_set_iter:
                 sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
 
                 loss = None
-
                 for sub_batch_idx in range(nr_steps):
                     inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
 
@@ -130,11 +130,11 @@ class SwitchingAccelerator:
 
                     loss = outputs.loss
 
-                    if sub_batch_idx == 5:
+                    if sub_batch_idx == 5 and countdown_till_do_it_once == 1:
                         batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
                         report_devices(f"training memory usage (batch size: {batch_size}; inputs:" +
                                        f"snts {inputs['input_ids'].size()[0]} X words {inputs['input_ids'].size()[1]})",
-                                       self.accelerator, self.models[0])
+                                       self.accelerator, self.model)
                         countdown_till_do_it_once = 0
 
                     self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
