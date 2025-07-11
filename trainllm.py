@@ -45,7 +45,7 @@ def load_hf_model(mdl_id):
 
 
 def load_hf_tokenizer(mdl_id):
-    tokenizer = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok)
+    tokenizer = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok, use_fast=False)
     return tokenizer
 
 
