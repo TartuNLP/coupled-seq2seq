@@ -53,22 +53,27 @@ def _no_globals_main():
     args = _cmdline_args()
     tmp_acc = Accelerator()
 
-    log(f"Num proc: {tmp_acc.num_processes}, proc ID: {tmp_acc.process_index}")
-    log("loading model", accelerator=tmp_acc)
-    mdl = load_hf_model(args.mdl_id)
+    try:
+        log(f"Num proc: {tmp_acc.num_processes}, proc ID: {tmp_acc.process_index}")
+        log("loading model", accelerator=tmp_acc)
+        mdl = load_hf_model(args.mdl_id)
 
-    log("loading tokenizer", accelerator=tmp_acc)
-    tok = load_hf_tokenizer(args.mdl_id)
+        log("loading tokenizer", accelerator=tmp_acc)
+        tok = load_hf_tokenizer(args.mdl_id)
 
-    log("loading data", accelerator=tmp_acc)
-    train_set = load_json_list(args.train_file)
+        log("loading data", accelerator=tmp_acc)
+        train_set = load_json_list(args.train_file)
 
-    log("training", accelerator=tmp_acc)
-    acc_trainer = SwitchingAccelerator(train_set, args, mdl, tok)
-    upd_model = acc_trainer.train()
+        log("training", accelerator=tmp_acc)
+        acc_trainer = SwitchingAccelerator(train_set, args, mdl, tok)
+        upd_model = acc_trainer.train()
 
-    log("saving", accelerator=tmp_acc)
-    save_all_models(args.save_location, upd_model, tok)
+        log("saving", accelerator=tmp_acc)
+        save_all_models(args.save_location, upd_model, tok)
+    except Exception as e:
+        # in multiprocess scenarios it is hard to read the stack trace, so just show one:
+        if tmp_acc.is_main_process:
+            raise e
 
 
 if __name__ == "__main__":
