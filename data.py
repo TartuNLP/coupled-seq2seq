@@ -13,8 +13,8 @@ from random import randrange, shuffle, randint
 from pathlib import Path
 
 from aux import log
-from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_dec_only_llm, \
-    base_to_nllb
+#from langconv import any_to_madlad, any_to_nllb, is_nllb, is_madlad, get_mdl_type, any_to_mdl_type, is_dec_only_llm, \
+#    base_to_nllb
 from tokops import tokenizeit
 
 TrPair = namedtuple('TrPair', ["src_lang", "tgt_lang", "input", "output"])
@@ -92,7 +92,7 @@ def load_json_data(path, leave_out={}, skip_cats=True, load_mono=True):
 
         return res
 
-
+"""
 def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, model_type=None, exclude_set=None):
     if filename is not None:
         raw_data = load_json_data(filename)
@@ -123,7 +123,6 @@ def get_tr_pairs(raw_data=None, filename=None, leave_out=None, leave_only=None, 
 
                                 if not snt_is_fishy(input, conv_l1) and not snt_is_fishy(tup[l2], conv_l2):
                                     yield TrPair(conv_l1, conv_l2, input, tup[l2])
-
 
 def split_by_lang(filename, model_type):
     result = defaultdict(list)
@@ -419,6 +418,7 @@ class MultilingualBatchingCachingDataset:
         self.report_update_stats(bins)
 
         self._bins_to_tokenized_batched_cached_data(bins, cache_path)
+"""
 
 
 class DataState:
@@ -588,6 +588,7 @@ def upd_lc(dct, lang, snt):
 
     return l
 
+"""
 
 def dump_to_stdout():
     filename = sys.argv[1]
@@ -767,6 +768,8 @@ def script_stats():
         is_fishy, this_is, should_be = snt_is_fishy(snt_raw, lang, detailed=True)
         if is_fishy:
             print(f"{lang}: should be {should_be}, is actually {this_is}:\n{snt_raw}")
+
+"""
 
 
 def get_full_lang(lang, tupl):
