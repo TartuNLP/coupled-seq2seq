@@ -65,8 +65,8 @@ def _no_globals_main():
         train_set = load_json_list(args.train_file)
 
         log("training", accelerator=tmp_acc)
-        accum_steps = (args.batch_size / tmp_acc.num_processes) / args.nr_sents_per_gpu
-        acc_trainer = SwitchingAccelerator(train_set, args, mdl, tok, accum_steps)
+
+        acc_trainer = SwitchingAccelerator(train_set, args, mdl, tok)
         upd_model = acc_trainer.train()
 
         log("saving", accelerator=tmp_acc)

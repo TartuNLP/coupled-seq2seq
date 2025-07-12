@@ -32,7 +32,7 @@ class TrainLossList:
 
 
 class SwitchingAccelerator:
-    def __init__(self, train_set, train_kwargs, model, tokenizer, accum_steps):
+    def __init__(self, train_set, train_kwargs, model, tokenizer):
         self.kwargs = train_kwargs
         self.train_set_iter = BatchingIterator(train_set, self.kwargs.batch_size, tokenizer)
 
@@ -42,13 +42,15 @@ class SwitchingAccelerator:
         self.train_loss_list = TrainLossList()
         self.data_state = DataState(epoch_idx=0)
 
-        self._init_acc_and_stuff(accum_steps)
+        self._init_acc_and_stuff()
 
-    def _init_acc_and_stuff(self, accum_steps):
+    def _init_acc_and_stuff(self):
         #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
 
-        self.accelerator = Accelerator(gradient_accumulation_steps=accum_steps)
-        #self.accelerator = Accelerator()
+        self.accelerator = Accelerator()
+
+        accum_steps = (self.kwargs.batch_size / self.accelerator.num_processes) / self.kwargs.nr_sents_per_gpu
+        self.accelerator.gradient_accumulation_steps = accum_steps
 
         epoch_len = len(self.train_set_iter)
         train_len = epoch_len * self.kwargs.epochs
