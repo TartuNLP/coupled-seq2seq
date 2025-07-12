@@ -32,7 +32,7 @@ class TrainLossList:
 
 
 class SwitchingAccelerator:
-    def __init__(self, train_set, train_kwargs, model, tokenizer):
+    def __init__(self, train_set, train_kwargs, model, tokenizer, accum_steps):
         self.kwargs = train_kwargs
         self.train_set_iter = BatchingIterator(train_set, self.kwargs.batch_size, tokenizer)
 
@@ -42,12 +42,13 @@ class SwitchingAccelerator:
         self.train_loss_list = TrainLossList()
         self.data_state = DataState(epoch_idx=0)
 
-        self._init_acc_and_stuff()
+        self._init_acc_and_stuff(accum_steps)
 
-    def _init_acc_and_stuff(self):
+    def _init_acc_and_stuff(self, accum_steps):
         #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
-        #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps)
-        self.accelerator = Accelerator()
+
+        self.accelerator = Accelerator(gradient_accumulation_steps=accum_steps)
+        #self.accelerator = Accelerator()
 
         epoch_len = len(self.train_set_iter)
         train_len = epoch_len * self.kwargs.epochs
@@ -105,8 +106,6 @@ class SwitchingAccelerator:
         return sub_batch_size, nr_steps, proc_batch_nr_snts
 
     def _main_loop(self):
-        #countdown_till_do_it_once = 0
-
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set_iter), self.kwargs.epochs)
             logger.line_start()
@@ -120,29 +119,28 @@ class SwitchingAccelerator:
             for batch, epoch_batch_idx in self.train_set_iter:
                 sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
 
-                loss = None
-                for sub_batch_idx in range(nr_steps):
-                    inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
+                with self.accelerator.accumulate(self.model):
+                    loss = None
+                    for sub_batch_idx in range(nr_steps):
+                        inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
 
-                    inputs['labels'] = inputs['input_ids']
-                    outputs = self.model(**inputs)
+                        inputs['labels'] = inputs['input_ids']
+                        outputs = self.model(**inputs)
 
-                    loss = outputs.loss
+                        loss = outputs.loss / self.accelerator.gradient_accumulation_steps
 
-                    if epoch_batch_idx % 5 == 0:
-                        batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
-                        report_devices(f"training memory usage (batch size: {batch_size}; inputs:" +
-                                       f"snts {inputs['input_ids'].size()[0]} X words {inputs['input_ids'].size()[1]})",
-                                       self.accelerator, self.model)
+                        if epoch_batch_idx % 5 == 0:
+                            batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
+                            report_devices(f"training memory usage (batch size: {batch_size}; inputs:" +
+                                           f"snts {inputs['input_ids'].size()[0]} X words {inputs['input_ids'].size()[1]})",
+                                           self.accelerator, self.model)
 
-                    self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
+                        self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
 
-                    self.accelerator.backward(loss)
+                        self.accelerator.backward(loss)
 
-                    for k in inputs:
-                        inputs[k] = inputs[k].to('cpu')
-
-                self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
+                    assert self.accelerator.sync_gradients()
+                    self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
 
         if self.accelerator.is_main_process:
             logger.line_break()
@@ -166,7 +164,6 @@ class SwitchingAccelerator:
 
         self.optimizer.step()
         self.lr_scheduler.step()
-        #self.accelerator.wait_for_everyone()
 
         is_end_of_epoch = (epoch_batch_idx == epoch_len)
 
