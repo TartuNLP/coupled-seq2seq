@@ -4,6 +4,7 @@ import torch
 import math
 
 from accelerate import Accelerator, DistributedDataParallelKwargs
+from sympy.matrices.kind import num_mat_mul
 from transformers import get_scheduler
 
 from aux import SameLineLogger, log
@@ -44,20 +45,29 @@ class SwitchingAccelerator:
 
         self._init_acc_and_stuff()
 
-    def _init_acc_and_stuff(self):
-        #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
+    def __handle_accum(self):
 
-        self.accelerator = Accelerator()
+        assert self.kwargs.batch_size % (self.accelerator.num_processes * self.kwargs.nr_sents_per_gpu) == 0,\
+            "batch size must be divisible by number of processes and number of segments per GPU"
 
-        accum_steps = (self.kwargs.batch_size / self.accelerator.num_processes) / self.kwargs.nr_sents_per_gpu
+        accum_steps = int((self.kwargs.batch_size / self.accelerator.num_processes) / self.kwargs.nr_sents_per_gpu)
         self.accelerator.gradient_accumulation_steps = accum_steps
 
+        log(f"Nr sents/GPU: {self.kwargs.nr_sents_per_gpu}, accum steps: {accum_steps}, " +
+            f"nr. procs: {self.accelerator.num_processes}, batch size: {self.kwargs.batch_size}")
+
+    def ___get_train_scalars(self):
         epoch_len = len(self.train_set_iter)
         train_len = epoch_len * self.kwargs.epochs
 
         num_warmup = int(train_len * 0.01)
 
         log(f"Warmup steps: {num_warmup}, epoch len: {epoch_len}, train len: {train_len}", accelerator=self.accelerator)
+
+        return train_len, num_warmup
+
+    def __init_opt_lr_and_what_else(self):
+        train_len, num_warmup = self.___get_train_scalars()
 
         opt = torch.optim.AdamW(self.model.parameters(), lr=self.kwargs.lr)
         lr_scheduler = get_scheduler("linear", optimizer=opt, num_warmup_steps=num_warmup,
@@ -66,6 +76,15 @@ class SwitchingAccelerator:
         self.optimizer, self.lr_scheduler, self.model = self.accelerator.prepare(opt, lr_scheduler, self.model)
 
         self.accelerator.register_for_checkpointing(self.lr_scheduler, self.data_state, self.train_loss_list)
+
+    def _init_acc_and_stuff(self):
+        #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
+
+        self.accelerator = Accelerator()
+
+        self.__handle_accum()
+
+        self.__init_opt_lr_and_what_else()
 
         if self.kwargs.continue_training:
             self.accelerator.load_state(self.kwargs.mdl_id)
@@ -131,7 +150,7 @@ class SwitchingAccelerator:
 
                         loss = outputs.loss
 
-                        if epoch_batch_idx % 5 == 0:
+                        if epoch_batch_idx % 5 == 0 and sub_batch_idx == 0:
                             batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
                             report_devices(f"training memory usage (batch size: {batch_size}; inputs:" +
                                            f"snts {inputs['input_ids'].size()[0]} X words {inputs['input_ids'].size()[1]})",
@@ -141,8 +160,8 @@ class SwitchingAccelerator:
 
                         self.accelerator.backward(loss)
 
-                    assert self.accelerator.sync_gradients()
-                    self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
+                #assert self.accelerator.sync_gradients, "It is not time to sync gradients yet."
+                self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
 
         if self.accelerator.is_main_process:
             logger.line_break()
