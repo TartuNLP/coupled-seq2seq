@@ -127,7 +127,7 @@ class SwitchingAccelerator:
                         inputs['labels'] = inputs['input_ids']
                         outputs = self.model(**inputs)
 
-                        loss = outputs.loss / self.accelerator.gradient_accumulation_steps
+                        loss = outputs.loss
 
                         if epoch_batch_idx % 5 == 0:
                             batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
