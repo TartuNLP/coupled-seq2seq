@@ -126,6 +126,12 @@ class SwitchingAccelerator:
         #log(f"--> DEBUG: sub_batch {sub_batch_size} X steps {nr_steps} ~ {proc_batch_nr_snts} ({batch_nr_snts} / {self.accelerator.num_processes})", accelerator=self.accelerator)
         return sub_batch_size, nr_steps, proc_batch_nr_snts
 
+    def _report_mem_every_once_in_a_while(self, sub_batch_idx, epoch_batch_idx):
+
+        if epoch_batch_idx % 5 == 0 and sub_batch_idx == 0:
+            report_devices(f"training memory usage (batch size: {self.kwargs.batch_size}",
+                           self.accelerator, self.model)
+
     def _main_loop(self):
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set_iter), self.kwargs.epochs)
@@ -149,12 +155,7 @@ class SwitchingAccelerator:
                         outputs = self.model(**inputs)
 
                         loss = outputs.loss
-
-                        if epoch_batch_idx % 5 == 0 and sub_batch_idx == 0:
-                            batch_size = sum([inputs[k].size()[0] * inputs[k].size()[1] for k in 'input_ids labels attention_mask'.split(' ')])
-                            report_devices(f"training memory usage (batch size: {batch_size}; inputs:" +
-                                           f"snts {inputs['input_ids'].size()[0]} X words {inputs['input_ids'].size()[1]})",
-                                           self.accelerator, self.model)
+                        self._report_mem_every_once_in_a_while(sub_batch_idx, epoch_batch_idx)
 
                         self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
 
@@ -185,14 +186,16 @@ class SwitchingAccelerator:
 
         self.optimizer.step()
         self.lr_scheduler.step()
+        self.optimizer.zero_grad()
 
         is_end_of_epoch = (epoch_batch_idx == epoch_len)
 
         if self.accelerator.is_main_process and (epoch_batch_idx % self.kwargs.log_steps == 0 or is_end_of_epoch):
-            grad = self.get_total_grad()
+            #grad = self.get_total_grad()
+            grad = -1
             logger.step(global_batch_idx, epoch_batch_idx, epoch_i, loss, self.lr_scheduler.get_last_lr()[0], grad)
 
-        self.optimizer.zero_grad()
+        #self.optimizer.zero_grad()
 
         if (global_batch_idx % self.kwargs.save_steps == 0) or is_end_of_epoch:
             self.accelerator.wait_for_everyone()

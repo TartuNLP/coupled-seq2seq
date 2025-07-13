@@ -73,7 +73,7 @@ class SameLineLogger:
         time_per_batch = passed_time / global_batch_idx
         prediction = time_per_batch * (self.totalx - global_batch_idx)
 
-        msg = f"{epoch_batch_idx} / {self.epoch_len}, epoch {epoch_idx + 1} / {self.epoch_num}, loss={loss}, {time_per_batch}/iter, {prediction} to finish, LR={lr:.2e}, grad={grad:.2e}        "
+        msg = f"{epoch_batch_idx} / {self.epoch_len}, epoch {epoch_idx + 1} / {self.epoch_num}, loss={loss}, avg {time_per_batch}/iter ({global_batch_idx}), {prediction} to finish, LR={lr:.2e}, grad={grad:.2e}        "
 
         new_len = _same_line_log(msg, self.log_len)
 
