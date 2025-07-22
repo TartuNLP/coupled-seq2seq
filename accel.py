@@ -142,11 +142,11 @@ class SwitchingAccelerator:
         self.model.train()
         self.train_set_iter.thats_where(self.data_state)
 
-        for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
-            for batch, epoch_batch_idx in self.train_set_iter:
-                sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
+        with self.accelerator.accumulate(self.model):
+            for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
+                for batch, epoch_batch_idx in self.train_set_iter:
+                    sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
 
-                with self.accelerator.accumulate(self.model):
                     loss = None
                     for sub_batch_idx in range(nr_steps):
                         inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
