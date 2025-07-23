@@ -164,10 +164,9 @@ class SwitchingAccelerator:
         #log(f"--> DEBUG: sub_batch {sub_batch_size} X steps {nr_steps} ~ {proc_batch_nr_snts} ({batch_nr_snts} / {self.accelerator.num_processes})", accelerator=self.accelerator)
         return sub_batch_size, nr_steps, proc_batch_nr_snts
 
-    def _report_mem_every_once_in_a_while(self, sub_batch_idx, epoch_batch_idx):
-
-        if epoch_batch_idx % 5 == 0 and sub_batch_idx == 0:
-            report_devices(f"training memory usage (batch size: {self.kwargs.batch_size}",
+    def _report_mem_every_once_in_a_while(self, sub_batch_idx, epoch_batch_idx, batch_dim):
+        if self.kwargs.log_steps < 0 or epoch_batch_idx % 5 == 0 and sub_batch_idx == 0:
+            report_devices(f"training memory usage (batch size: {self.kwargs.batch_size} / {batch_dim[1]}",
                            self.accelerator, self.model)
 
     def _main_loop(self):
@@ -203,7 +202,7 @@ class SwitchingAccelerator:
                         outputs = self.model(**inputs)
 
                         loss = outputs.loss
-                        self._report_mem_every_once_in_a_while(sub_batch_idx, epoch_batch_idx)
+                        self._report_mem_every_once_in_a_while(sub_batch_idx, epoch_batch_idx, inputs['input_ids'].size())
 
                         self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
                         self._tk_stop(tk_fw) ########
