@@ -27,14 +27,18 @@ def prep_llm_input(ljmftpl):
     # 'src_lang': src_lang,
     # 'tgt_lang': tgt_lang}
 
-    if ljmftpl['task'] in {'translate', 'approx-translate'}:
-        return (f"{ljmftpl['src_segm']}\n=====\n{ljmftpl['task']} from {ljmftpl['src_lang']}; " +
-                f"to {ljmftpl['tgt_lang']}:\n{ljmftpl['tgt_segm']}")
+    # it's a tuple
+    if "src_segm" in ljmftpl and "task" in ljmftpl:
+        if ljmftpl['task'] in {'translate', 'approx-translate'}:
+            return (f"{ljmftpl['src_segm']}\n=====\n{ljmftpl['task']} from {ljmftpl['src_lang']}; " +
+                    f"to {ljmftpl['tgt_lang']}:\n{ljmftpl['tgt_segm']}")
 
-    elif ljmftpl['task'] == 'generate':
-        return (f"{ljmftpl['src_segm']}\n=====\nis in {ljmftpl['src_lang']};")
+        elif ljmftpl['task'] == 'generate':
+            return f"{ljmftpl['src_segm']}\n=====\nis in {ljmftpl['src_lang']};"
 
-    #return ljmftpl
+    # it's a string
+    else:
+        return ljmftpl
 
 
 def make_path_compatible(filename):
