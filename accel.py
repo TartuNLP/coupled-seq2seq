@@ -202,10 +202,11 @@ class SwitchingAccelerator:
                         outputs = self.model(**inputs)
 
                         loss = outputs.loss
+                        self._tk_stop(tk_fw) ########
+
                         self._report_mem_every_once_in_a_while(sub_batch_idx, epoch_batch_idx, inputs['input_ids'].size())
 
                         self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
-                        self._tk_stop(tk_fw) ########
 
                         self._tk_start(tk_bk) ########
                         self.accelerator.backward(loss)
