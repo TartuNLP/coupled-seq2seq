@@ -6,6 +6,7 @@ import math
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from sympy.matrices.kind import num_mat_mul
 from transformers import get_scheduler
+from datetime import datetime
 
 from aux import SameLineLogger, log
 from data import DataState, BatchingIterator
@@ -44,6 +45,43 @@ class SwitchingAccelerator:
         self.data_state = DataState(epoch_idx=0)
 
         self._init_acc_and_stuff()
+
+        self._init_time_keepers()
+
+    def _init_time_keepers(self):
+        if self.kwargs.log_steps < 0:
+            t = datetime.now()
+            self._tk_zero = t - t
+
+            self._tk_stats = {}
+            self._tk_time = {}
+
+    def _add_timekeeper(self, msg):
+        if self.kwargs.log_steps < 0:
+            self._tk_stats[msg] = []
+            self._tk_time[msg] = None
+
+    def _add_timekeepers(self, msgs):
+        for msg in msgs:
+            self._add_timekeeper(msg)
+
+    def _tk_start(self, msg):
+        if self.kwargs.log_steps < 0:
+            assert self._tk_time[msg] is None
+
+            self._tk_time[msg] = datetime.now()
+
+    def _tk_stop(self, msg):
+        if self.kwargs.log_steps < 0:
+            assert self._tk_time[msg] is not None
+
+            this_time = datetime.now() - self._tk_time[msg]
+            self._tk_time[msg] = None
+            self._tk_stats[msg].append(this_time)
+
+            log(f"{msg} took {this_time}, avg time: " +
+                f" {sum(self._tk_stats[msg], self._tk_zero) / len(self._tk_stats[msg])}" +
+                f" over {len(self._tk_stats[msg])} samples")
 
     def __handle_accum(self):
 
@@ -142,24 +180,45 @@ class SwitchingAccelerator:
         self.model.train()
         self.train_set_iter.thats_where(self.data_state)
 
+        tks = "full_batch", "prep_inputs", "forward", "backward", "upd_step"
+        tk_batch, tk_prep, tk_fw, tk_bk, tk_step = tks
+        self._add_timekeepers(tks)
+
         with self.accelerator.accumulate(self.model):
             for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
                 for batch, epoch_batch_idx in self.train_set_iter:
                     sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
 
+                    self._tk_start(tk_batch)
+
                     loss = None
                     for sub_batch_idx in range(nr_steps):
+                        self._tk_start(tk_prep) ########
                         inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
 
                         inputs['labels'] = inputs['input_ids']
+                        self._tk_stop(tk_prep) ########
+
+                        self._tk_start(tk_fw) ########
                         outputs = self.model(**inputs)
 
                         loss = outputs.loss
                         self._report_mem_every_once_in_a_while(sub_batch_idx, epoch_batch_idx)
 
                         self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
+                        self._tk_stop(tk_fw) ########
 
+                        self._tk_start(tk_bk) ########
                         self.accelerator.backward(loss)
+                        self._tk_stop(tk_bk) ########
+
+                        self._tk_start(tk_step) ########
+                        self.optimizer.step()
+                        self.lr_scheduler.step()
+                        self.optimizer.zero_grad()
+                        self._tk_stop(tk_step) ########
+
+                    self._tk_stop(tk_batch)
 
                     #assert self.accelerator.sync_gradients, "It is not time to sync gradients yet."
                     self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
@@ -184,13 +243,11 @@ class SwitchingAccelerator:
         epoch_len = len(self.train_set_iter)
         global_batch_idx = epoch_batch_idx + epoch_i * epoch_len
 
-        self.optimizer.step()
-        self.lr_scheduler.step()
-        self.optimizer.zero_grad()
-
         is_end_of_epoch = (epoch_batch_idx == epoch_len)
 
-        if self.accelerator.is_main_process and (epoch_batch_idx % self.kwargs.log_steps == 0 or is_end_of_epoch):
+        if self.accelerator.is_main_process \
+                and self.kwargs.log_steps > 0 \
+                and (epoch_batch_idx % self.kwargs.log_steps == 0 or is_end_of_epoch):
             #grad = self.get_total_grad()
             grad = -1
             logger.step(global_batch_idx, epoch_batch_idx, epoch_i, loss, self.lr_scheduler.get_last_lr()[0], grad)
