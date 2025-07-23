@@ -161,8 +161,8 @@ class SwitchingAccelerator:
 
                         self.accelerator.backward(loss)
 
-                #assert self.accelerator.sync_gradients, "It is not time to sync gradients yet."
-                self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
+                    #assert self.accelerator.sync_gradients, "It is not time to sync gradients yet."
+                    self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
 
         if self.accelerator.is_main_process:
             logger.line_break()
