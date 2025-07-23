@@ -49,7 +49,7 @@ class SwitchingAccelerator:
         self._init_time_keepers()
 
     def _init_time_keepers(self):
-        if self.kwargs.log_steps < 0:
+        if self.kwargs.log_steps < 0 and self.accelerator.is_main_process:
             t = datetime.now()
             self._tk_zero = t - t
 
@@ -57,7 +57,7 @@ class SwitchingAccelerator:
             self._tk_time = {}
 
     def _add_timekeeper(self, msg):
-        if self.kwargs.log_steps < 0:
+        if self.kwargs.log_steps < 0 and self.accelerator.is_main_process:
             self._tk_stats[msg] = []
             self._tk_time[msg] = None
 
@@ -66,13 +66,13 @@ class SwitchingAccelerator:
             self._add_timekeeper(msg)
 
     def _tk_start(self, msg):
-        if self.kwargs.log_steps < 0:
+        if self.kwargs.log_steps < 0 and self.accelerator.is_main_process:
             assert self._tk_time[msg] is None
 
             self._tk_time[msg] = datetime.now()
 
     def _tk_stop(self, msg):
-        if self.kwargs.log_steps < 0:
+        if self.kwargs.log_steps < 0 and self.accelerator.is_main_process:
             assert self._tk_time[msg] is not None
 
             this_time = datetime.now() - self._tk_time[msg]
