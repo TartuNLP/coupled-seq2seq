@@ -1,10 +1,8 @@
 import os
 
 import torch
-import math
 
-from accelerate import Accelerator, DistributedDataParallelKwargs
-from sympy.matrices.kind import num_mat_mul
+from accelerate import Accelerator
 from transformers import get_scheduler
 from datetime import datetime
 
@@ -150,7 +148,7 @@ class SwitchingAccelerator:
 
         return {k: batch[k][from_proc_idx:to_proc_idx].to(self.accelerator.device) for k in batch}
 
-    def _get_split_batch_params(self, batch):
+    def _get_split_batch_params(self):
         batch_nr_snts = self.kwargs.batch_size
 
         assert batch_nr_snts % self.accelerator.num_processes == 0, "Batch size must be divisible by number of processes."
@@ -186,7 +184,7 @@ class SwitchingAccelerator:
         with self.accelerator.accumulate(self.model):
             for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
                 for batch, epoch_batch_idx in self.train_set_iter:
-                    sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params(batch)
+                    sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params()
 
                     self._tk_start(tk_batch)
 

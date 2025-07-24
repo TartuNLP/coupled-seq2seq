@@ -1,3 +1,4 @@
+"""
 import os
 
 import torch
@@ -233,3 +234,4 @@ class SwitchingAccelerator:
 
         save_all_models(this_location, model_to_save, self.coupling_specs[0].tokenizer,
                         self.coupling_specs, trainer=self.accelerator)
+"""
