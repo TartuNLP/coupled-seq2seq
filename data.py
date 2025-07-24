@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import math
-
 from torch.utils.data import IterableDataset
 from random import shuffle, randint
 
@@ -66,15 +64,16 @@ class DataState:
 
 class BatchingIterator(IterableDataset):
     def __init__(self, segment_list, batch_size, tokenizer, max_len=8000):
-        self.batched_data = self._prep_batched_data(segment_list)
-
         self.batch_size = batch_size
+        self.batched_data = []
+        self._prep_batched_data(segment_list)
+
         self.tokenizer = tokenizer
         self.max_len = max_len
 
         self.curr_elem_idx = 0
 
-        self.data_len = math.ceil(len(self.data) / self.batch_size)
+        self.data_len = len(self.batched_data)
 
     def _prep_batched_data(self, segment_list):
         unsorted_data_in_elems = [prep_llm_input(s) for s in segment_list]
@@ -100,25 +99,12 @@ class BatchingIterator(IterableDataset):
     def thats_where(self, data_state):
         self.curr_elem_idx = data_state.elem_idx
 
-    def _get_properly_sized_segment_list(self):
-        i = self.curr_elem_idx * self.batch_size
-
-        segment_list = self.data[i:i + self.batch_size]
-        if len(segment_list) < self.batch_size:
-            orig_len = len(segment_list)
-            while len(segment_list) < self.batch_size:
-                segment_list.append(segment_list[randint(0, orig_len - 1)])
-
-        return segment_list
-
-    def _tokenize(self, segment_list):
+    def _tokenize(self, prepped_segm_list):
         #{'task': 'translate',
         # 'src_segm': src_segm,
         # 'tgt_segm': tgt_segm,
         # 'src_lang': src_lang,
         # 'tgt_lang': tgt_lang}
-
-        prepped_segm_list = [prep_llm_input(s) for s in segment_list]
 
         self.tokenizer.pad_token = '<|reserved_special_token_0|>'
         tokenized_batch = self.tokenizer(prepped_segm_list, return_tensors="pt", max_length=self.max_len,
@@ -130,9 +116,7 @@ class BatchingIterator(IterableDataset):
         if self.curr_elem_idx >= self.data_len:
             raise StopIteration
         else:
-            segment_list = self._get_properly_sized_segment_list()
-
-            batch = self._tokenize(segment_list)
+            batch = self._tokenize(self.batched_data[self.curr_elem_idx])
             self.curr_elem_idx += 1
             return batch
 
