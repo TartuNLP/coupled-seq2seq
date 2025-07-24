@@ -66,8 +66,7 @@ class DataState:
 
 class BatchingIterator(IterableDataset):
     def __init__(self, segment_list, batch_size, tokenizer, max_len=8000):
-        self.data = segment_list
-        shuffle(self.data)
+        self.batched_data = self._prep_batched_data(segment_list)
 
         self.batch_size = batch_size
         self.tokenizer = tokenizer
@@ -76,6 +75,17 @@ class BatchingIterator(IterableDataset):
         self.curr_elem_idx = 0
 
         self.data_len = math.ceil(len(self.data) / self.batch_size)
+
+    def _prep_batched_data(self, segment_list):
+        unsorted_data_in_elems = [prep_llm_input(s) for s in segment_list]
+        sorted_data_in_elems = sorted(unsorted_data_in_elems, key=lambda x: len(x), reverse=True)
+
+        self.batched_data = list(do_list_in_batches(sorted_data_in_elems, self.batch_size))
+
+        while len(self.batched_data[-1]) < self.batch_size:
+            self.batched_data[-1].append(self.batched_data[-1][-1])
+
+        # shuffle(self.batched_data)
 
     def __len__(self):
         return self.data_len
