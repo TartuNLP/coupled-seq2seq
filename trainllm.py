@@ -67,7 +67,7 @@ def _no_globals_main():
         log("training", accelerator=tmp_acc)
 
         acc_trainer = SwitchingAccelerator(train_set, args, mdl, tok)
-        upd_model = acc_trainer.train()
+        upd_model = acc_trainer.train(True)
 
         log("saving", accelerator=tmp_acc)
         save_all_models(args.save_location, upd_model, tok)

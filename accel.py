@@ -126,9 +126,9 @@ class SwitchingAccelerator:
             self.accelerator.load_state(self.kwargs.mdl_id)
             log(f"Reloaded data state: {self.data_state}", accelerator=self.accelerator)
 
-    def train(self):
+    def train(self, dry_run=False):
         try:
-            self._main_loop()
+            self._main_loop(dry_run)
         except Exception as e:
             #in multiprocess scenarios it is hard to read the stack trace, so just show one:
             if self.accelerator.is_main_process:
@@ -167,7 +167,7 @@ class SwitchingAccelerator:
             report_devices(f"training memory usage (batch size: {self.kwargs.batch_size} / {batch_dim[1]}",
                            self.accelerator, self.model)
 
-    def _main_loop(self):
+    def _main_loop(self, dry_run):
         if self.accelerator.is_main_process:
             logger = SameLineLogger(len(self.train_set_iter), self.kwargs.epochs)
             logger.line_start()
@@ -184,42 +184,45 @@ class SwitchingAccelerator:
         with self.accelerator.accumulate(self.model):
             for _epoch_idx in range(self.data_state.epoch_idx, self.kwargs.epochs):
                 for batch, epoch_batch_idx in self.train_set_iter:
-                    sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params()
+                    if dry_run:
+                        log(f"Dry run, batch width: {batch['input_ids'].size()}")
+                    else:
+                        sub_batch_size, nr_steps, proc_batch_size = self._get_split_batch_params()
 
-                    self._tk_start(tk_batch)
+                        self._tk_start(tk_batch)
 
-                    loss = None
-                    for sub_batch_idx in range(nr_steps):
-                        self._tk_start(tk_prep) ########
-                        inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
+                        loss = None
+                        for sub_batch_idx in range(nr_steps):
+                            self._tk_start(tk_prep) ########
+                            inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
 
-                        inputs['labels'] = inputs['input_ids']
-                        self._tk_stop(tk_prep) ########
+                            inputs['labels'] = inputs['input_ids']
+                            self._tk_stop(tk_prep) ########
 
-                        self._tk_start(tk_fw) ########
-                        outputs = self.model(**inputs)
+                            self._tk_start(tk_fw) ########
+                            outputs = self.model(**inputs)
 
-                        loss = outputs.loss
-                        self._tk_stop(tk_fw) ########
+                            loss = outputs.loss
+                            self._tk_stop(tk_fw) ########
 
-                        self._report_mem_every_once_in_a_while(sub_batch_idx, epoch_batch_idx, inputs['input_ids'].size())
+                            self._report_mem_every_once_in_a_while(sub_batch_idx, epoch_batch_idx, inputs['input_ids'].size())
 
-                        self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
+                            self.train_loss_list.append(loss.item(), sub_batch_idx, epoch_batch_idx, _epoch_idx)
 
-                        self._tk_start(tk_bk) ########
-                        self.accelerator.backward(loss)
-                        self._tk_stop(tk_bk) ########
+                            self._tk_start(tk_bk) ########
+                            self.accelerator.backward(loss)
+                            self._tk_stop(tk_bk) ########
 
-                        self._tk_start(tk_step) ########
-                        self.optimizer.step()
-                        self.lr_scheduler.step()
-                        self.optimizer.zero_grad()
-                        self._tk_stop(tk_step) ########
+                            self._tk_start(tk_step) ########
+                            self.optimizer.step()
+                            self.lr_scheduler.step()
+                            self.optimizer.zero_grad()
+                            self._tk_stop(tk_step) ########
 
-                    self._tk_stop(tk_batch)
+                        self._tk_stop(tk_batch)
 
-                    #assert self.accelerator.sync_gradients, "It is not time to sync gradients yet."
-                    self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
+                        #assert self.accelerator.sync_gradients, "It is not time to sync gradients yet."
+                        self._step_and_perhaps_save(logger, epoch_batch_idx, _epoch_idx, float(loss.item()))
 
         if self.accelerator.is_main_process:
             logger.line_break()
