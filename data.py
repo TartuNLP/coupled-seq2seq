@@ -84,7 +84,7 @@ class BatchingIterator(IterableDataset):
         while len(self.batched_data[-1]) < self.batch_size:
             self.batched_data[-1].append(self.batched_data[-1][-1])
 
-        # shuffle(self.batched_data)
+        shuffle(self.batched_data)
 
     def __len__(self):
         return self.data_len
