@@ -130,4 +130,4 @@ if __name__ == '__main__':
 
     # save the result
     with open(output_file, "w") as f:
-        json.dump(batch_data, f)
+        json.dump(batch_data, f, indent=2)
