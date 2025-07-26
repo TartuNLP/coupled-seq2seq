@@ -3,8 +3,8 @@ import os
 import torch
 
 from accelerate import Accelerator
-from transformers import get_scheduler
 from datetime import datetime
+from transformers import get_scheduler
 
 from aux import SameLineLogger, log
 from data import DataState, BatchingIterator
@@ -95,7 +95,7 @@ class SwitchingAccelerator:
         epoch_len = len(self.train_set_iter)
         train_len = epoch_len * self.kwargs.epochs
 
-        num_warmup = int(train_len * 0.01)
+        num_warmup = 0 #int(train_len * 0.01)
 
         log(f"Warmup steps: {num_warmup}, epoch len: {epoch_len}, train len: {train_len}", accelerator=self.accelerator)
 
@@ -105,12 +105,13 @@ class SwitchingAccelerator:
         train_len, num_warmup = self.___get_train_scalars()
 
         opt = torch.optim.AdamW(self.model.parameters(), lr=self.kwargs.lr)
-        lr_scheduler = get_scheduler("linear", optimizer=opt, num_warmup_steps=num_warmup,
-                                     num_training_steps=train_len * self.accelerator.num_processes)
+
+        numtr = train_len * self.accelerator.num_processes
+        lr_scheduler = get_scheduler("linear", optimizer=opt, num_warmup_steps=num_warmup, num_training_steps=numtr)
 
         self.optimizer, self.lr_scheduler, self.model = self.accelerator.prepare(opt, lr_scheduler, self.model)
 
-        self.accelerator.register_for_checkpointing(self.lr_scheduler, self.data_state, self.train_loss_list)
+        self.accelerator.register_for_checkpointing(self.data_state, self.train_loss_list)
 
     def _init_acc_and_stuff(self):
         #self.accelerator = Accelerator(gradient_accumulation_steps=self.kwargs.accum_steps, kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
@@ -279,3 +280,46 @@ class SwitchingAccelerator:
         model_to_save = self.accelerator.unwrap_model(self.model)
 
         save_all_models(this_location, model_to_save, self.tokenizer, trainer=self.accelerator)
+
+def test_this_damn_thing():
+    # testing
+    import torch
+    import json
+    from torch.optim import AdamW
+    from modelops import hf_tok
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    mdl_id = "models/llama3.2-1b"
+
+    tokenizer = AutoTokenizer.from_pretrained(mdl_id, token=hf_tok)
+    model = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
+    with open("tmpx.json", "r") as f:
+        training_data_raw = json.load(f)
+
+    optimizer = AdamW(model.parameters(), lr=5e-6)
+
+    print("Initial 0:", optimizer.param_groups[0]['lr'])  # Should be [5e-6]
+
+    scheduler = get_scheduler(
+        "linear",
+        optimizer=optimizer,
+        num_warmup_steps=0,
+        num_training_steps=2445
+    )
+
+    accel = Accelerator()
+
+    p_optimizer, p_lr_scheduler, p_model = accel.prepare(optimizer, scheduler, model)
+
+    print("Initial 1:", p_lr_scheduler.get_last_lr())  # Should be [5e-6]
+
+    """
+    for _ in range(2):
+        optimizer.step()
+        scheduler.step()
+        print("Step:", scheduler.get_last_lr())
+    """
+
+
+if __name__ == "__main__":
+    test_this_damn_thing()
