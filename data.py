@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import json
+import sys
+
 from torch.utils.data import IterableDataset
 from random import shuffle, randint
 
@@ -11,17 +14,12 @@ def prep_llm_input(ljmftpl):
     # 'src_lang': src_lang,
     # 'tgt_lang': tgt_lang}
 
-    # it's a tuple
+    result = f"{ljmftpl['src_segm']}\n=====\nis in {ljmftpl['src_lang']}"
+
     if ljmftpl['task'] in {'translate', 'approx-translate'}:
-        return (f"{ljmftpl['src_segm']}\n=====\n{ljmftpl['task']} from {ljmftpl['src_lang']}; " +
-                f"to {ljmftpl['tgt_lang']}:\n{ljmftpl['tgt_segm']}")
+        result += f"; {ljmftpl['task']} to {ljmftpl['tgt_lang']}:\n{ljmftpl['tgt_segm']}"
 
-    elif ljmftpl['task'] == 'generate':
-        return f"{ljmftpl['src_segm']}\n=====\nis in {ljmftpl['src_lang']};"
-
-    else:
-        raise NotImplementedError
-
+    return result
 
 def make_path_compatible(filename):
     return filename.replace("/", "_").replace(":", "-")
@@ -63,10 +61,10 @@ class DataState:
 
 
 class BatchingIterator(IterableDataset):
-    def __init__(self, segment_list, batch_size, tokenizer, max_len=8000):
-        self.batch_size = batch_size
-        self.batched_data = []
-        self._prep_batched_data(segment_list)
+    def __init__(self, batched_data, batch_size, tokenizer, max_len=8000):
+        assert len(batched_data[0]) == batch_size, "loaded data batch size and specified batch size differ"
+
+        self.batched_data = batched_data
 
         self.tokenizer = tokenizer
         self.max_len = max_len
@@ -74,17 +72,6 @@ class BatchingIterator(IterableDataset):
         self.curr_elem_idx = 0
 
         self.data_len = len(self.batched_data)
-
-    def _prep_batched_data(self, segment_list):
-        unsorted_data_in_elems = [prep_llm_input(s) for s in segment_list]
-        sorted_data_in_elems = sorted(unsorted_data_in_elems, key=lambda x: len(x), reverse=True)
-
-        self.batched_data = list(do_list_in_batches(sorted_data_in_elems, self.batch_size))
-
-        while len(self.batched_data[-1]) < self.batch_size:
-            self.batched_data[-1].append(self.batched_data[-1][-1])
-
-        shuffle(self.batched_data)
 
     def __len__(self):
         return self.data_len
@@ -100,12 +87,6 @@ class BatchingIterator(IterableDataset):
         self.curr_elem_idx = data_state.elem_idx
 
     def _tokenize(self, prepped_segm_list):
-        #{'task': 'translate',
-        # 'src_segm': src_segm,
-        # 'tgt_segm': tgt_segm,
-        # 'src_lang': src_lang,
-        # 'tgt_lang': tgt_lang}
-
         self.tokenizer.pad_token = '<|reserved_special_token_0|>'
         tokenized_batch = self.tokenizer(prepped_segm_list, return_tensors="pt", max_length=self.max_len,
                                    truncation=True, add_special_tokens=True,
@@ -120,3 +101,33 @@ class BatchingIterator(IterableDataset):
             self.curr_elem_idx += 1
             return batch
 
+if __name__ == '__main__':
+    # open a list of tuples, save a list of batches of strings made of these tuples
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+    batch_size = int(sys.argv[3])
+
+    # read the tuples
+    with open(input_file, "r") as f:
+        raw_data = json.load(f)
+
+    # make strings out of tuples
+    unsorted_data_in_elems = [prep_llm_input(s) for s in raw_data]
+
+    # if last batch is undersized, get some random elements to compensate
+    while len(unsorted_data_in_elems) % batch_size != 0:
+        new_elem_idx = randint(0, len(unsorted_data_in_elems) - 1)
+        unsorted_data_in_elems.append(unsorted_data_in_elems[new_elem_idx])
+
+    # sort by length
+    sorted_data_in_elems = sorted(unsorted_data_in_elems, key=lambda x: len(x), reverse=True)
+
+    # group into batches
+    batch_data = list(do_list_in_batches(sorted_data_in_elems, batch_size))
+
+    # shuffle the batches
+    shuffle(batch_data)
+
+    # save the result
+    with open(output_file, "w") as f:
+        json.dump(batch_data, f)
