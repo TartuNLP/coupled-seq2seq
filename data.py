@@ -5,6 +5,7 @@ import sys
 
 from torch.utils.data import IterableDataset
 from random import shuffle, randint
+from aux import log
 
 
 def prep_llm_input(ljmftpl):
@@ -107,10 +108,12 @@ if __name__ == '__main__':
     output_file = sys.argv[2]
     batch_size = int(sys.argv[3])
 
+    log("Reading data")
     # read the tuples
     with open(input_file, "r") as f:
         raw_data = json.load(f)
 
+    log("Making strings")
     # make strings out of tuples
     unsorted_data_in_elems = [prep_llm_input(s) for s in raw_data]
 
@@ -119,15 +122,18 @@ if __name__ == '__main__':
         new_elem_idx = randint(0, len(unsorted_data_in_elems) - 1)
         unsorted_data_in_elems.append(unsorted_data_in_elems[new_elem_idx])
 
+    log("Sorting and grouping")
     # sort by length
     sorted_data_in_elems = sorted(unsorted_data_in_elems, key=lambda x: len(x), reverse=True)
 
     # group into batches
     batch_data = list(do_list_in_batches(sorted_data_in_elems, batch_size))
 
+    log("Shuffling")
     # shuffle the batches
     shuffle(batch_data)
 
+    log("Saving")
     # save the result
     with open(output_file, "w") as f:
         json.dump(batch_data, f, indent=2)
