@@ -30,7 +30,6 @@ class TrainLossList:
         self.data = state_dict['data']
 
 
-
 class SwitchingAccelerator:
     def __init__(self, train_set, train_kwargs, model, tokenizer):
         self.kwargs = train_kwargs
@@ -238,7 +237,7 @@ class SwitchingAccelerator:
                 grad_count += 1
             all_count += 1
 
-        return result/grad_count if grad_count > 0 else -1
+        return result/grad_count if grad_count != 0 else -1
 
     def _step_and_perhaps_save(self, logger, epoch_batch_idx, epoch_i, loss):
         epoch_len = len(self.train_set_iter)
@@ -247,7 +246,6 @@ class SwitchingAccelerator:
         is_end_of_epoch = (epoch_batch_idx == epoch_len)
 
         if self.accelerator.is_main_process \
-                and self.kwargs.log_steps > 0 \
                 and (epoch_batch_idx % self.kwargs.log_steps == 0 or is_end_of_epoch):
             #grad = self.get_total_grad()
             grad = -1
