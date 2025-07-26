@@ -248,8 +248,8 @@ class SwitchingAccelerator:
 
         if self.accelerator.is_main_process \
                 and (epoch_batch_idx % self.kwargs.log_steps == 0 or is_end_of_epoch):
-            #grad = self.get_total_grad()
-            grad = -1
+            grad = self.get_total_grad()
+
             logger.step(global_batch_idx, epoch_batch_idx, epoch_i, loss, self.lr_scheduler.get_last_lr()[0], grad)
 
         #self.optimizer.zero_grad()
