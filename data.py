@@ -78,7 +78,7 @@ class BatchingIterator(IterableDataset):
         return self.data_len
 
     def __iter__(self):
-        self.curr_elem_idx = 0
+        #self.curr_elem_idx = 0
         return self
 
     def where_are_we(self):
@@ -96,6 +96,7 @@ class BatchingIterator(IterableDataset):
 
     def __next__(self):
         if self.curr_elem_idx >= self.data_len:
+            self.curr_elem_idx = 0
             raise StopIteration
         else:
             batch = self._tokenize(self.batched_data[self.curr_elem_idx])
