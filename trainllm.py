@@ -35,8 +35,11 @@ def _cmdline_args():
 
 
 def load_json_list(json_file):
+    log("before `with'")
     with open(json_file, "r") as f:
+        log("after `with'")
         data = json.load(f)
+        log("after `json.load'")
         return data
 
 
