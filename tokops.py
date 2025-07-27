@@ -263,7 +263,7 @@ def train_or_extend_tokenizer_and_upd_model(args, model):
 
 
 def load_tokenizer(tok_mdl_id):
-    orig_tokenizer = AutoTokenizer.from_pretrained(tok_mdl_id, token=hf_tok, use_fast=False)
+    orig_tokenizer = AutoTokenizer.from_pretrained(tok_mdl_id, token=hf_tok)
 
     postoken_file = get_postoken_filename(tok_mdl_id)
     if os.path.exists(postoken_file):
