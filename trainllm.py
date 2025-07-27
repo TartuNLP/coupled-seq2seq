@@ -34,12 +34,9 @@ def _cmdline_args():
     return result
 
 
-def load_json_list(json_file, accel):
-    log("before `with'", accelerator=accel, all_threads=True)
+def load_json_list(json_file):
     with open(json_file, "r") as f:
-        log("after `with'", accelerator=accel, all_threads=True)
         data = json.load(f)
-        log("after `json.load'", accelerator=accel, all_threads=True)
         return data
 
 
@@ -66,7 +63,7 @@ def _no_globals_main():
         tok = load_hf_tokenizer(args.mdl_id)
 
         log("loading data", accelerator=accelerator, all_threads=True)
-        train_set = load_json_list(args.train_file, accelerator)
+        train_set = load_json_list(args.train_file)
 
         log("training", accelerator=accelerator)
 
