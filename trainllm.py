@@ -36,7 +36,8 @@ def _cmdline_args():
 
 def load_json_list(json_file):
     with open(json_file, "r") as f:
-        return json.load(f)
+        data = json.load(f)
+        return data
 
 
 def load_hf_model(mdl_id):
@@ -61,7 +62,7 @@ def _no_globals_main():
         log("loading tokenizer", accelerator=tmp_acc)
         tok = load_hf_tokenizer(args.mdl_id)
 
-        log("loading data", accelerator=tmp_acc)
+        log("loading data")
         train_set = load_json_list(args.train_file)
 
         log("training", accelerator=tmp_acc)
@@ -79,5 +80,6 @@ def _no_globals_main():
 
 if __name__ == "__main__":
     #sys.argv = "_ models/llama3.2-1b models/newmdl tmp.json".split()
+    #sys.argv = "_ models/llama3.2-1b models/newmdl2 tmpx.json batch_size=16 nr_sents_per_gpu=1 log_steps=1 save_steps=2000 epochs=1".split()
 
     _no_globals_main()

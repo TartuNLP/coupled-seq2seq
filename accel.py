@@ -89,7 +89,8 @@ class SwitchingAccelerator:
         self.accelerator.gradient_accumulation_steps = accum_steps
 
         log(f"Nr sents/GPU: {self.kwargs.nr_sents_per_gpu}, accum steps: {accum_steps}, " +
-            f"nr. procs: {self.accelerator.num_processes}, batch size: {self.kwargs.batch_size}")
+            f"nr. procs: {self.accelerator.num_processes}, batch size: {self.kwargs.batch_size}",
+            accelerator=self.accelerator)
 
     def ___get_train_scalars(self):
         epoch_len = len(self.train_set_iter)
