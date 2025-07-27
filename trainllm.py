@@ -51,10 +51,11 @@ def load_hf_tokenizer(mdl_id):
 
 
 def _no_globals_main():
-    args = _cmdline_args()
     accelerator = Accelerator()
 
     try:
+        args = _cmdline_args()
+
         log(f"Num proc: {accelerator.num_processes}, proc ID: {accelerator.process_index}")
         log("loading model", accelerator=accelerator)
         mdl = load_hf_model(args.mdl_id)
