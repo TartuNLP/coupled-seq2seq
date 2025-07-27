@@ -59,9 +59,10 @@ def get_changed_config(conf, args):
 
 
 class SameLineLogger:
-    def __init__(self, epoch_len, epoch_num):
+    def __init__(self, epoch_len, epoch_num, data_state):
         self.epoch_len = epoch_len
         self.epoch_num = epoch_num
+        self.start_global_step = epoch_len * data_state.epoch_idx + data_state.elem_idx
 
         self.totalx = epoch_len * epoch_num
 
@@ -75,7 +76,7 @@ class SameLineLogger:
 
     def step(self, global_batch_idx, epoch_batch_idx, epoch_idx, loss, lr, grad):
         passed_time = datetime.now() - self.start_time
-        time_per_batch = passed_time / global_batch_idx
+        time_per_batch = passed_time / (global_batch_idx - self.start_global_step)
         prediction = time_per_batch * (self.totalx - global_batch_idx)
 
         msg = f"{epoch_batch_idx} / {self.epoch_len}, epoch {epoch_idx + 1} / {self.epoch_num}, loss={loss}, avg {time_per_batch}/iter, {prediction} to finish, LR={lr:.2e}, grad={grad:.2e}        "

@@ -173,7 +173,7 @@ class SwitchingAccelerator:
 
     def _main_loop(self, dry_run):
         if self.accelerator.is_main_process:
-            logger = SameLineLogger(len(self.train_set_iter), self.kwargs.epochs)
+            logger = SameLineLogger(len(self.train_set_iter), self.kwargs.epochs, self.data_state)
             logger.line_start()
         else:
             logger = None
