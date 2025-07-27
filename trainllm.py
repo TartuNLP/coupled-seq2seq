@@ -34,12 +34,12 @@ def _cmdline_args():
     return result
 
 
-def load_json_list(json_file):
-    log("before `with'")
+def load_json_list(json_file, accel):
+    log("before `with'", accelerator=accel, all_threads=True)
     with open(json_file, "r") as f:
-        log("after `with'")
+        log("after `with'", accelerator=accel, all_threads=True)
         data = json.load(f)
-        log("after `json.load'")
+        log("after `json.load'", accelerator=accel, all_threads=True)
         return data
 
 
@@ -55,29 +55,29 @@ def load_hf_tokenizer(mdl_id):
 
 def _no_globals_main():
     args = _cmdline_args()
-    tmp_acc = Accelerator()
+    accelerator = Accelerator()
 
     try:
-        log(f"Num proc: {tmp_acc.num_processes}, proc ID: {tmp_acc.process_index}")
-        log("loading model", accelerator=tmp_acc)
+        log(f"Num proc: {accelerator.num_processes}, proc ID: {accelerator.process_index}")
+        log("loading model", accelerator=accelerator)
         mdl = load_hf_model(args.mdl_id)
 
-        log("loading tokenizer", accelerator=tmp_acc)
+        log("loading tokenizer", accelerator=accelerator)
         tok = load_hf_tokenizer(args.mdl_id)
 
-        log("loading data")
-        train_set = load_json_list(args.train_file)
+        log("loading data", accelerator=accelerator, all_threads=True)
+        train_set = load_json_list(args.train_file, accelerator)
 
-        log("training", accelerator=tmp_acc)
+        log("training", accelerator=accelerator)
 
-        acc_trainer = SwitchingAccelerator(train_set, args, mdl, tok)
+        acc_trainer = SwitchingAccelerator(train_set, args, mdl, tok, preinit_acc=accelerator)
         upd_model = acc_trainer.train()
 
-        log("saving", accelerator=tmp_acc)
+        log("saving", accelerator=accelerator)
         save_all_models(args.save_location, upd_model, tok)
     except Exception as e:
         # in multiprocess scenarios it is hard to read the stack trace, so just show one:
-        if tmp_acc.is_main_process:
+        if accelerator.is_main_process:
             raise e
 
 
