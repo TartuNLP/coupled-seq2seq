@@ -44,7 +44,7 @@ def _cmdline_args(inputs):
     pos_args = ["mdl_id", "from_lang", "to_lang"]
 
     #post-process the arguments
-    args = CmdlineArgs(description, pos_args, input_args=inputs, kw_arg_dict={"debug": False})
+    args = CmdlineArgs(description, pos_args, input_args=inputs, kw_arg_dict={"debug": False, "lid": False})
 
     log(f"Launched as {args}")
 
@@ -54,12 +54,18 @@ def _cmdline_args(inputs):
 def and_i_called_this_function_do_main_too(iv):
     args = _cmdline_args(iv)
 
-    inputs = [prep_llm_input({
-        'src_segm': line.strip(),
-        'src_lang': args.from_lang,
-        'tgt_lang': args.to_lang,
-        'task': 'translate',
-        'tgt_segm': '' }) for line in sys.stdin]
+    raw_inputs = [line.strip() for line in sys.stdin]
+
+    if args.lid:
+        inputs = [segment + "\n=====\n is in " for segment in raw_inputs]
+    else:
+        inputs = [prep_llm_input({
+            'src_segm': segment,
+            'src_lang': args.from_lang,
+            'tgt_lang': args.to_lang,
+            'task': 'translate',
+            'tgt_segm': '' }) for segment in raw_inputs]
+
     # inputs = ["See on ikka tore uudis.", "Ma ikka katsetaks ka täpitähtedega tõlkimist.", "Mis tähed on täpitähed?"]
 
     log(f"Inputs: {inputs}")
