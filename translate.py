@@ -8,7 +8,7 @@ from trainllm import load_hf_tokenizer, load_hf_model
 from data import do_list_in_batches, prep_llm_input
 
 
-def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000):
+def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000, raw=False):
     tok_batch = tokenize_batch(tokenizer, input_texts)
 
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
@@ -19,7 +19,10 @@ def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000):
     # 3. output token IDs --> output text
     pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=True)
 
-    result = [o[len(i):].strip().replace("\n", "<<BR>>") for i, o in zip(input_texts, pre_result)]
+    if raw:
+        result = pre_result
+    else:
+        result = [o[len(i):].strip().replace("\n", "<<BR>>") for i, o in zip(input_texts, pre_result)]
 
     return result
 
@@ -28,7 +31,7 @@ def generative_translate(model, tokenizer, input_texts, input_language, output_l
     all_outputs = list()
 
     for inp_batch in do_list_in_batches(input_texts, 8):
-        these_outputs = llm_generate(model, tokenizer, input_texts, debug=debug, max_len=8000)
+        these_outputs = llm_generate(model, tokenizer, inp_batch, debug=debug, max_len=8000)
 
         all_outputs += these_outputs
 
