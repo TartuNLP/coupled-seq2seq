@@ -16,7 +16,7 @@ def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000, raw=F
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
 
-    raw_outputs = model.generate(**tok_batch, num_beams=5, do_sample=False, max_length=3000, top_p=None, temperature=None)
+    raw_outputs = model.generate(**tok_batch, num_beams=5, do_sample=False, max_length=max_len, top_p=None, temperature=None)
 
     # 3. output token IDs --> output text
     pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=True)
@@ -37,7 +37,7 @@ def generative_translate(model, tokenizer, input_texts, input_language, output_l
     all_outputs = list()
 
     for inp_batch in do_list_in_batches(input_texts, 8):
-        these_outputs = llm_generate(model, tokenizer, inp_batch, debug=debug, max_len=8000)
+        these_outputs = llm_generate(model, tokenizer, inp_batch, debug=debug, max_len=2000)
 
         all_outputs += these_outputs
 
