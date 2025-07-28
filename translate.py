@@ -19,6 +19,10 @@ def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000, raw=F
     # 3. output token IDs --> output text
     pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=True)
 
+    if debug:
+        for i, p in zip(input_texts, pre_result):
+            print(f"DEBUG input/raw output: {(i, p)};")
+
     if raw:
         result = pre_result
     else:
