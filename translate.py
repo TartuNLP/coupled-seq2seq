@@ -2,6 +2,8 @@
 
 import sys
 
+from accelerate import Accelerator
+
 from aux import CmdlineArgs, log
 from tokops import tokenize_batch
 from trainllm import load_hf_tokenizer, load_hf_model
@@ -74,7 +76,8 @@ def and_i_called_this_function_do_main_too(iv):
 
     log(f"Inputs: {inputs}")
 
-    model = load_hf_model(args.mdl_id)
+    acc = Accelerator()
+    model = load_hf_model(args.mdl_id, accelerator=acc)
     tokenizer = load_hf_tokenizer(args.mdl_id)
 
     log("Model loaded, starting to translate")

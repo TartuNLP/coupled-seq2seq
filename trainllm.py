@@ -40,8 +40,11 @@ def load_json_list(json_file):
         return data
 
 
-def load_hf_model(mdl_id):
-    model = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
+def load_hf_model(mdl_id, accelerator=None):
+    if accelerator is None:
+        model = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(mdl_id, token=hf_tok, torch_dtype=torch.bfloat16, device_map=accelerator.device)
     return model
 
 
