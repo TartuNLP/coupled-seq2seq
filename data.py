@@ -6,6 +6,7 @@ import sys
 from torch.utils.data import IterableDataset
 from random import shuffle, randint
 from aux import log
+from tokops import tokenize_batch
 
 
 def prep_llm_input(ljmftpl):
@@ -88,10 +89,11 @@ class BatchingIterator(IterableDataset):
         self.curr_elem_idx = data_state.elem_idx
 
     def _tokenize(self, prepped_segm_list):
-        self.tokenizer.pad_token = '<|reserved_special_token_0|>'
-        tokenized_batch = self.tokenizer(prepped_segm_list, return_tensors="pt", max_length=self.max_len,
-                                   truncation=True, add_special_tokens=True,
-                                   padding=True)
+        #self.tokenizer.pad_token = '<|reserved_special_token_0|>'
+        #tokenized_batch = self.tokenizer(prepped_segm_list, return_tensors="pt", max_length=self.max_len,
+        #                           truncation=True, add_special_tokens=True,
+        #                           padding=True)
+        tokenized_batch = tokenize_batch(self.tokenizer, prepped_segm_list)
         return tokenized_batch, self.curr_elem_idx + 1
 
     def __next__(self):

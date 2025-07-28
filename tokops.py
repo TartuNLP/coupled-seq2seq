@@ -275,6 +275,15 @@ def load_tokenizer(tok_mdl_id):
     return orig_tokenizer, postokens
 
 
+def tokenize_batch(tokenizer, sntlist, maxlen=8000):
+    tokenizer.pad_token = '<|reserved_special_token_0|>'
+    output = tokenizer(sntlist, return_tensors="pt", max_length=maxlen, truncation=True, add_special_tokens=True,
+                          padding=True)
+
+    return output
+
+"""
+
 def detokenizeit(toktup, tok_ids):
     #return toktup[0].decode(tok_ids, skip_special_tokens=True)
 
@@ -299,32 +308,7 @@ def detokenizemany(toktup, tok_mtx):
     return result
 
 
-def tokenizeit(toktup, sntlist, maxlen, is_target=False, is_llm=False):
-    tokenizer, postokens = toktup
 
-    if is_llm:
-        tokenizer.pad_token = '<|reserved_special_token_0|>'
-        orig_toks = tokenizer(sntlist, return_tensors="pt", max_length=maxlen, truncation=True, add_special_tokens=True,
-                              padding=True, padding_side='left')
-    else:
-        if is_target:
-            orig_toks = tokenizer(text_target=sntlist, return_tensors="pt",
-                                  padding="longest", truncation=True, max_length=maxlen)
-        else:
-            orig_toks = tokenizer(text=sntlist, return_tensors="pt",
-                                  padding="longest", truncation=True, max_length=maxlen)
-
-    if postokens is not None and tokenizer.unk_token_id in orig_toks['input_ids']:
-
-        #specials_without_unk = set(tokenizer.all_special_ids) - set([tokenizer.unk_token_id])
-        for idx, snt in enumerate(sntlist):
-            if tokenizer.unk_token_id in orig_toks['input_ids'][idx]:
-                true_toks = tokenizer.tokenize(snt)
-                for ord_idx, tok_idx in enumerate(orig_toks['input_ids'][idx]):
-                    if ord_idx > 0 and tok_idx == tokenizer.unk_token_id and postokens is not None and true_toks[ord_idx - 1] in postokens['tok2idx']:
-                        orig_toks['input_ids'][idx][ord_idx] = postokens['tok2idx'][true_toks[ord_idx - 1]]
-
-    return orig_toks
 
 
 def run_tokenizer_testing():
@@ -363,3 +347,4 @@ def run_tokenizer_testing():
 if __name__ == "__main__":
     sys.argv = ['', 'models/nllbxt', 'data/tok-test.txt']
     run_tokenizer_testing()
+"""
