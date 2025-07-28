@@ -39,6 +39,7 @@ def mdl_param_count(model):
 
     return result, embedding_size
 
+"""
 
 def to_cpl_spec(langs, model, tokenizer, postokenizer, location):
     mdl_type = get_mdl_type(tokenizer)
@@ -60,7 +61,6 @@ def _load_json_config(model_dir, filename):
     except FileNotFoundError:
         return None
 
-
 def save_module_config(model_dir, coupling_specs):
     config = [{'lang_set': list(spec.lang_set), 'model_id': spec.model_id if i > 0 else model_dir} for i, spec in enumerate(coupling_specs)]
     _save_json_config(model_dir, MODULE_CONFIG_FILE, config)
@@ -70,7 +70,7 @@ def load_module_config(model_dir):
     result = _load_json_config(model_dir, MODULE_CONFIG_FILE)
 
     return result if result is not None else [{"model_id": model_dir, "lang_set": {}}]
-
+"""
 
 def save_all_models(location, model, tokenizer, cpl_specs=None, trainer=None):
     if not os.path.exists(location):
@@ -83,9 +83,10 @@ def save_all_models(location, model, tokenizer, cpl_specs=None, trainer=None):
     model.generation_config.save_pretrained(location)
 
     tokenizer.save_pretrained(location)
-
+    """
     if cpl_specs is not None:
         save_module_config(location, cpl_specs)
+    """
 
 
 def report_devices(msg = "", accelerator = None, mdl = None):
