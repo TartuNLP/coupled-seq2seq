@@ -14,7 +14,7 @@ def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000, raw=F
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
 
-    raw_outputs = model.generate(**tok_batch, num_beams=5, do_sample=False, max_length=3000)
+    raw_outputs = model.generate(**tok_batch, num_beams=5, do_sample=False, max_length=3000, top_p=None, temperature=None)
 
     # 3. output token IDs --> output text
     pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=True)
