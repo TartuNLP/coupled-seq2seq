@@ -56,6 +56,7 @@ def simple_train():
 
     # Load model and tokenizer
     tokenizer = AutoTokenizer.from_pretrained(cmd_args.mdl_id)
+    tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id)
 
     tokenized_train_data = load_training_data(cmd_args.train_file, tokenizer)
