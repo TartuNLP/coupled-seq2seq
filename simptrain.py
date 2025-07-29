@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import json
-import torch
 
 from trainllm import _cmdline_args
 from aux import log
 
+from accelerate import Accelerator
 from datasets import Dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
 
@@ -33,7 +33,8 @@ def load_training_data(path, tokenizer, cmd_args):
 
 
 def get_training_args(cmdline_args):
-    world_size = torch.distributed.get_world_size() if torch.distributed.is_initialized() else 1
+    acc = Accelerator()
+    world_size = acc.num_processes
     log(f"Nr of processes (GPUs): {world_size}")
 
     assert cmdline_args.batch_size % (cmdline_args.nr_sents_per_gpu * world_size) == 0, \
