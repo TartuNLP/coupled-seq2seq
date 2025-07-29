@@ -10,7 +10,7 @@ from datasets import Dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
 
 
-def load_training_data(path, tokenizer):
+def load_training_data(path, tokenizer, cmd_args):
     # Load data
     with open(path, "r") as f:
         data = json.load(f)
@@ -19,6 +19,12 @@ def load_training_data(path, tokenizer):
     # Tokenize
     def tokenize_fn(examples):
         log(f"I am being summoned! {len(examples['text'])} examples")
+        tokens = tokenizer(
+            examples["text"],
+            truncation=True,
+            padding="max_length",
+            max_length=cmd_args.max_length,
+        )
         return tokenizer(examples["text"], truncation=True, padding="max_length", max_length=512)
     tokenized = dataset.map(tokenize_fn, batched=True)
 
@@ -44,7 +50,6 @@ def get_training_args(cmdline_args):
         save_total_limit=3,
         logging_steps=cmdline_args.log_steps,
         learning_rate=cmdline_args.lr,
-        fp16=True,
         report_to="none"
     )
 
@@ -59,7 +64,7 @@ def simple_train():
     tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id)
 
-    tokenized_train_data = load_training_data(cmd_args.train_file, tokenizer)
+    tokenized_train_data = load_training_data(cmd_args.train_file, tokenizer, cmd_args)
 
     training_args = get_training_args(cmd_args)
 
@@ -67,7 +72,7 @@ def simple_train():
         model=model,
         args=training_args,
         train_dataset=tokenized_train_data,
-        tokenizer=tokenizer
+        processing_class=tokenizer
     )
 
     trainer.train()
