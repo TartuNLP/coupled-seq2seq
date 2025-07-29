@@ -72,7 +72,8 @@ def simple_train():
         model=model,
         args=training_args,
         train_dataset=tokenized_train_data,
-        processing_class=tokenizer
+        tokenizer=tokenizer,
+        resume_from_checkpoint=True
     )
 
     trainer.train()
