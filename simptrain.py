@@ -95,7 +95,7 @@ def simple_train():
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
                                                  device_map=acc.device,
                                                  torch_dtype=torch.bfloat16,
-                                                 attn_implementation="flash_attention_2")
+                                                 attn_implementation="eager")
     model.config.use_cache = False
     log(f"attention implementation used: { getattr(model.config, 'attn_implementation', None)}.", accelerator=acc)
 
