@@ -95,9 +95,9 @@ def simple_train():
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
                                                  device_map=acc.device,
                                                  torch_dtype=torch.bfloat16,
-                                                 attn_implementation="eager")
+                                                 attn_implementation="flash_attention_2")
     model.config.use_cache = False
-    log(f"attention implementation used: { getattr(model.config, 'attn_implementation', None)}.", accelerator=acc)
+    log(f"attention implementation used: { model.model.layers[0].self_attn.__class__.__name__ }.", accelerator=acc)
 
     # Make sure the model knows the pad id (avoids warnings/edge-cases)
     if getattr(model.config, "pad_token_id", None) is None:
