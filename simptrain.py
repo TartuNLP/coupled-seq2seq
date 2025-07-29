@@ -71,7 +71,7 @@ def get_training_args(cmdline_args, acc):
         # Optional but often helpful on LUMI/ROCm if you enable it in your args:
         bf16=True,
         ddp_find_unused_parameters=False,
-        dataloader_num_workers=4,
+        dataloader_num_workers=1,
         group_by_length=True,
         dataloader_persistent_workers=True
     )
