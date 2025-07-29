@@ -97,7 +97,7 @@ def simple_train():
                                                  torch_dtype=torch.bfloat16,
                                                  attn_implementation="flash_attention_2")
     model.config.use_cache = False
-    log(f"attention implementation used: {getattr(model.config, "attn_implementation", None)}.", accelerator=acc)
+    log(f"attention implementation used: { getattr(model.config, 'attn_implementation', None)}.", accelerator=acc)
 
     # Make sure the model knows the pad id (avoids warnings/edge-cases)
     if getattr(model.config, "pad_token_id", None) is None:
