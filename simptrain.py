@@ -25,7 +25,8 @@ def load_training_data(path, tokenizer, cmd_args):
             padding="max_length",
             max_length=cmd_args.max_length,
         )
-        return tokenizer(examples["text"], truncation=True, padding="max_length", max_length=512)
+        tokens["labels"] = tokens["input_ids"].copy()
+        return tokens
     tokenized = dataset.map(tokenize_fn, batched=True)
 
     return tokenized
