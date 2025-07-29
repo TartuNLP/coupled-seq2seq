@@ -73,6 +73,7 @@ def get_training_args(cmdline_args, acc):
         ddp_find_unused_parameters=False,
         dataloader_num_workers=1,
         group_by_length=True,
+        gradient_checkpointing=True,
         dataloader_persistent_workers=True
     )
 
@@ -96,6 +97,8 @@ def simple_train():
                                                  torch_dtype=torch.bfloat16,
                                                  attn_implementation="flash_attention_2")
     model.config.use_cache = False
+    log(f"attention implementation used: {getattr(model.config, "attn_implementation", None)}.", accelerator=acc)
+
     # Make sure the model knows the pad id (avoids warnings/edge-cases)
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
