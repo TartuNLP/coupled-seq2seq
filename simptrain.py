@@ -116,7 +116,10 @@ def simple_train():
 
 
 if __name__ == "__main__":
-    simple_train()
+    try:
+        simple_train()
+    except KeyboardInterrupt:
+        log("Training interrupted by you, user")
 
 
 """
