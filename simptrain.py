@@ -71,6 +71,7 @@ def get_training_args(cmdline_args, acc):
         bf16=True,
         ddp_find_unused_parameters=False,
         dataloader_num_workers=4,
+        group_by_length=True,
         dataloader_persistent_workers=True
     )
 
