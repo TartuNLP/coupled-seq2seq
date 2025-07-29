@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import Dataset as TorchDataset
 from trainllm import _cmdline_args
 from aux import log
+from datetime import datetime
 
 from accelerate import Accelerator
 from transformers import (
@@ -28,6 +29,8 @@ class LazyTokenizingDataset(TorchDataset):
 
     def __getitem__(self, idx):
         # Return plain Python lists; let the collator pad & build labels.
+        start_time = datetime.now()
+        log("started tokenizing batch")
         text = self.texts[idx]
         tokens = self.tokenizer(
             text,
@@ -36,6 +39,7 @@ class LazyTokenizingDataset(TorchDataset):
             # no padding here – dynamic padding happens in the collator
             return_attention_mask=True,
         )
+        log(f"done tokenizing batch: {datetime.now() - start_time}")
         # Do NOT add "labels" here; the collator will create them and mask pads to -100.
         return tokens
 
