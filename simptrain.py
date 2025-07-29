@@ -27,6 +27,7 @@ def load_training_data(path, tokenizer):
 
 def get_training_args(cmdline_args):
     world_size = torch.distributed.get_world_size() if torch.distributed.is_initialized() else 1
+    log(f"Nr of processes (GPUs): {world_size}")
 
     assert cmdline_args.batch_size % (cmdline_args.nr_sents_per_gpu * world_size) == 0, \
         "Batch size must be divisible by the number of GPUs and nr of sents per GPU"
