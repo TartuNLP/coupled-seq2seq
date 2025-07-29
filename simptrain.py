@@ -43,6 +43,7 @@ def get_training_args(cmdline_args):
         save_steps=cmdline_args.save_steps,
         save_total_limit=3,
         logging_steps=cmdline_args.log_steps,
+        learning_rate=cmdline_args.lr,
         fp16=True,
         report_to="none"
     )
