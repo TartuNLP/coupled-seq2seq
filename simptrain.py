@@ -79,17 +79,20 @@ def simple_train():
     cmd_args = _cmdline_args()
     acc = Accelerator()
 
+    log(f"Load tokenizer", accelerator=acc)
     # Load model and tokenizer
     tokenizer = AutoTokenizer.from_pretrained(cmd_args.mdl_id)
     # LLaMA 3.x: no pad token by default — use EOS for padding
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    log(f"Load model", accelerator=acc)
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id, device_map=acc.device, torch_dtype=torch.bfloat16)
     # Make sure model knows the pad id (avoids warnings/edge-cases)
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
 
+    log(f"Load data", accelerator=acc)
     tokenized_train_data = load_training_data(cmd_args.train_file, tokenizer, cmd_args)
     training_args = get_training_args(cmd_args, acc)
 
@@ -108,6 +111,7 @@ def simple_train():
         data_collator=data_collator,  # NEW
     )
 
+    log(f"Start training", accelerator=acc)
     trainer.train()
 
 
