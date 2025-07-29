@@ -201,7 +201,7 @@ class SwitchingAccelerator:
                             self._tk_start(tk_prep) ########
                             inputs = self._prepare_inputs(batch, sub_batch_idx, sub_batch_size, proc_batch_size)
 
-                            inputs['labels'] = inputs['input_ids']
+                            inputs['labels'] = inputs['input_ids'].copy()
                             self._tk_stop(tk_prep) ########
 
                             self._tk_start(tk_fw) ########
