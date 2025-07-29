@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 
 import json
-import torch
 
 from torch.utils.data import Dataset as TorchDataset
-from data import BatchingIterator
 from trainllm import _cmdline_args
 from aux import log
 
 from accelerate import Accelerator
-from datasets import Dataset as DataDataset
-from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    TrainingArguments,
+    Trainer,
+    DataCollatorForLanguageModeling,  # NEW
+)
 
 
 class LazyTokenizingDataset(TorchDataset):
@@ -23,18 +26,17 @@ class LazyTokenizingDataset(TorchDataset):
         return len(self.texts)
 
     def __getitem__(self, idx):
+        # Return plain Python lists; let the collator pad & build labels.
         text = self.texts[idx]
         tokens = self.tokenizer(
             text,
             truncation=True,
-            padding="longest",
             max_length=self.max_length,
-            return_tensors="pt"
+            # no padding here – dynamic padding happens in the collator
+            return_attention_mask=True,
         )
-        tokens = {k: v.squeeze(0) for k, v in tokens.items()}
-        tokens["labels"] = tokens["input_ids"].detach().clone()
+        # Do NOT add "labels" here; the collator will create them and mask pads to -100.
         return tokens
-
 
 
 def load_training_data(path, tokenizer, cmd_args):
@@ -55,7 +57,6 @@ def get_training_args(cmdline_args):
 
     accum_steps = cmdline_args.batch_size // (cmdline_args.nr_sents_per_gpu * world_size)
 
-    # Define training
     tr_args = TrainingArguments(
         output_dir=cmdline_args.save_location,
         per_device_train_batch_size=cmdline_args.nr_sents_per_gpu,
@@ -65,7 +66,10 @@ def get_training_args(cmdline_args):
         save_total_limit=3,
         logging_steps=cmdline_args.log_steps,
         learning_rate=cmdline_args.lr,
-        report_to="none"
+        report_to="none",
+        # Optional but often helpful on LUMI/ROCm if you enable it in your args:
+        bf16=True,
+        ddp_find_unused_parameters=False,
     )
 
     return tr_args
@@ -76,21 +80,35 @@ def simple_train():
 
     # Load model and tokenizer
     tokenizer = AutoTokenizer.from_pretrained(cmd_args.mdl_id)
-    tokenizer.pad_token = tokenizer.eos_token
+    # LLaMA 3.x: no pad token by default — use EOS for padding
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id)
+    # Make sure model knows the pad id (avoids warnings/edge-cases)
+    if getattr(model.config, "pad_token_id", None) is None:
+        model.config.pad_token_id = tokenizer.pad_token_id
 
     tokenized_train_data = load_training_data(cmd_args.train_file, tokenizer, cmd_args)
-
     training_args = get_training_args(cmd_args)
+
+    # Dynamic padding + proper causal labels with pads masked to -100
+    data_collator = DataCollatorForLanguageModeling(
+        tokenizer=tokenizer,
+        mlm=False,
+        pad_to_multiple_of=8,  # helps performance; set None if you prefer exact lengths
+    )
 
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=tokenized_train_data,
-        tokenizer=tokenizer
+        tokenizer=tokenizer,
+        data_collator=data_collator,  # NEW
     )
 
     trainer.train()
+
 
 if __name__ == "__main__":
     simple_train()
