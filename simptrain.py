@@ -50,12 +50,13 @@ def load_training_data(path, tokenizer, cmd_args):
 
 def get_training_args(cmdline_args, acc):
     world_size = acc.num_processes
-    log(f"Nr of processes (GPUs): {world_size}")
 
     assert cmdline_args.batch_size % (cmdline_args.nr_sents_per_gpu * world_size) == 0, \
         "Batch size must be divisible by the number of GPUs and nr of sents per GPU"
 
     accum_steps = cmdline_args.batch_size // (cmdline_args.nr_sents_per_gpu * world_size)
+
+    log(f"Nr of processes (GPUs): {world_size}, per-device batch: {cmdline_args.nr_sents_per_gpu}, accum. steps: {accum_steps}")
 
     tr_args = TrainingArguments(
         output_dir=cmdline_args.save_location,
