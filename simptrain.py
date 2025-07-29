@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import torch
 
 from torch.utils.data import Dataset as TorchDataset
 from trainllm import _cmdline_args
@@ -84,7 +85,7 @@ def simple_train():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id, device_map=acc.device)
+    model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id, device_map=acc.device, torch_dtype=torch.bfloat16)
     # Make sure model knows the pad id (avoids warnings/edge-cases)
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
