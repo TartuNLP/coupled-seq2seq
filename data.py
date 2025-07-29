@@ -109,7 +109,11 @@ if __name__ == '__main__':
     # open a list of tuples, save a list of batches of strings made of these tuples
     input_file = sys.argv[1]
     output_file = sys.argv[2]
-    batch_size = int(sys.argv[3])
+
+    try:
+        batch_size = int(sys.argv[3])
+    except IndexError:
+        batch_size = None
 
     log("Reading data")
     # read the tuples
@@ -120,23 +124,26 @@ if __name__ == '__main__':
     # make strings out of tuples
     unsorted_data_in_elems = [prep_llm_input(s) for s in raw_data]
 
-    # if last batch is undersized, get some random elements to compensate
-    while len(unsorted_data_in_elems) % batch_size != 0:
-        new_elem_idx = randint(0, len(unsorted_data_in_elems) - 1)
-        unsorted_data_in_elems.append(unsorted_data_in_elems[new_elem_idx])
+    if batch_size is None:
+        final_data = unsorted_data_in_elems
+    else:
+        # if last batch is undersized, get some random elements to compensate
+        while len(unsorted_data_in_elems) % batch_size != 0:
+            new_elem_idx = randint(0, len(unsorted_data_in_elems) - 1)
+            unsorted_data_in_elems.append(unsorted_data_in_elems[new_elem_idx])
 
-    log("Sorting and grouping")
-    # sort by length
-    sorted_data_in_elems = sorted(unsorted_data_in_elems, key=lambda x: len(x), reverse=True)
+        log("Sorting and grouping")
+        # sort by length
+        sorted_data_in_elems = sorted(unsorted_data_in_elems, key=lambda x: len(x), reverse=True)
 
-    # group into batches
-    batch_data = list(do_list_in_batches(sorted_data_in_elems, batch_size))
+        # group into batches
+        final_data = list(do_list_in_batches(sorted_data_in_elems, batch_size))
 
     log("Shuffling")
-    # shuffle the batches
-    shuffle(batch_data)
+    # shuffle the batches / sentences
+    shuffle(final_data)
 
     log("Saving")
     # save the result
     with open(output_file, "w") as f:
-        json.dump(batch_data, f, indent=2)
+        json.dump(final_data, f, indent=2)
