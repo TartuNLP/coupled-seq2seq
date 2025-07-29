@@ -91,8 +91,12 @@ def simple_train():
         tokenizer.pad_token = tokenizer.eos_token
 
     log(f"Load model", accelerator=acc)
-    model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id, device_map=acc.device, torch_dtype=torch.bfloat16)
-    # Make sure model knows the pad id (avoids warnings/edge-cases)
+    model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
+                                                 device_map=acc.device,
+                                                 torch_dtype=torch.bfloat16,
+                                                 attn_implementation="flash_attention_2")
+    model.config.use_cache = False
+    # Make sure the model knows the pad id (avoids warnings/edge-cases)
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
 
