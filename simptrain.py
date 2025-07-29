@@ -47,8 +47,7 @@ def load_training_data(path, tokenizer, cmd_args):
     return train_set_iter
 
 
-def get_training_args(cmdline_args):
-    acc = Accelerator()
+def get_training_args(cmdline_args, acc):
     world_size = acc.num_processes
     log(f"Nr of processes (GPUs): {world_size}")
 
@@ -77,6 +76,7 @@ def get_training_args(cmdline_args):
 
 def simple_train():
     cmd_args = _cmdline_args()
+    acc = Accelerator()
 
     # Load model and tokenizer
     tokenizer = AutoTokenizer.from_pretrained(cmd_args.mdl_id)
@@ -84,13 +84,13 @@ def simple_train():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id)
+    model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id, device_map=acc.device)
     # Make sure model knows the pad id (avoids warnings/edge-cases)
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
 
     tokenized_train_data = load_training_data(cmd_args.train_file, tokenizer, cmd_args)
-    training_args = get_training_args(cmd_args)
+    training_args = get_training_args(cmd_args, acc)
 
     # Dynamic padding + proper causal labels with pads masked to -100
     data_collator = DataCollatorForLanguageModeling(
