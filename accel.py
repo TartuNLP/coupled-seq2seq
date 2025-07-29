@@ -33,7 +33,7 @@ class TrainLossList:
 class SwitchingAccelerator:
     def __init__(self, train_set, train_kwargs, model, tokenizer, preinit_acc=None):
         self.kwargs = train_kwargs
-        self.train_set_iter = BatchingIterator(train_set, self.kwargs.batch_size, tokenizer)
+        self.train_set_iter = BatchingIterator(train_set, self.kwargs.batch_size, tokenizer, train_kwargs.max_length)
 
         self.model = model
         self.tokenizer = tokenizer
