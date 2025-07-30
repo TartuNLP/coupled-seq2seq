@@ -18,29 +18,7 @@ from transformers import (
 
 
 import os, socket, torch
-os.environ.setdefault("LOCAL_RANK", os.environ.get("SLURM_LOCALID", "0"))
-os.environ.setdefault("RANK",       os.environ.get("SLURM_PROCID", "0"))
-os.environ.setdefault("WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1"))
-os.environ.setdefault("MASTER_ADDR", os.environ.get("SLURM_LAUNCH_NODE_IPADDR", "127.0.0.1"))
-os.environ.setdefault("MASTER_PORT", "29500")  # pick an open port
 
-# Optional: make sure each process selects its own GPU
-try:
-    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
-except Exception:
-    print("Well that did not work")
-    pass
-
-print("Test")
-
-print(
-    f"host={socket.gethostname()} "
-    f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
-    f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
-    f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
-    f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
-    f"cuda_count={torch.cuda.device_count()} curr_dev={torch.cuda.current_device()}"
-)
 
 
 class LazyTokenizingDataset(TorchDataset):
@@ -154,7 +132,34 @@ def simple_train():
     trainer.train()
 
 
+def env_stuff():
+    os.environ.setdefault("LOCAL_RANK", os.environ.get("SLURM_LOCALID", "0"))
+    os.environ.setdefault("RANK", os.environ.get("SLURM_PROCID", "0"))
+    os.environ.setdefault("WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1"))
+    os.environ.setdefault("MASTER_ADDR", os.environ.get("SLURM_LAUNCH_NODE_IPADDR", "127.0.0.1"))
+    os.environ.setdefault("MASTER_PORT", "29500")  # pick an open port
+
+    # Optional: make sure each process selects its own GPU
+    try:
+        torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+        log("It worked")
+    except Exception:
+        log("Well that did not work")
+        pass
+
+    log("Test")
+
+    log(
+        f"host={socket.gethostname()} "
+        f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
+        f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
+        f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
+        f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
+        f"cuda_count={torch.cuda.device_count()} curr_dev={torch.cuda.current_device()}"
+    )
+
 if __name__ == "__main__":
+    env_stuff()
     simple_train()
 
 
