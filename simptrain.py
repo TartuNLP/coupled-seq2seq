@@ -28,7 +28,10 @@ os.environ.setdefault("MASTER_PORT", "29500")  # pick an open port
 try:
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
 except Exception:
+    print("Well that did not work")
     pass
+
+print("Test")
 
 print(
     f"host={socket.gethostname()} "
