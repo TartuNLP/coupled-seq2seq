@@ -93,11 +93,13 @@ def simple_train():
 
     log(f"Load model", accelerator=acc)
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
-                                                 device_map=acc.device,
+                                                 low_cpu_mem_usage=False,
                                                  torch_dtype=torch.bfloat16,
                                                  attn_implementation="flash_attention_2")
     model.config.use_cache = False
+    model = model.to('cuda')
     log(f"attention implementation used: { model.model.layers[0].self_attn.__class__.__name__ }.", accelerator=acc)
+    log(f"device: {model.device}.", accelerator=acc)
 
     # Make sure the model knows the pad id (avoids warnings/edge-cases)
     if getattr(model.config, "pad_token_id", None) is None:

@@ -93,7 +93,7 @@ class BatchingIterator(IterableDataset):
         #tokenized_batch = self.tokenizer(prepped_segm_list, return_tensors="pt", max_length=self.max_len,
         #                           truncation=True, add_special_tokens=True,
         #                           padding=True)
-        tokenized_batch = tokenize_batch(self.tokenizer, prepped_segm_list)
+        tokenized_batch = tokenize_batch(self.tokenizer, prepped_segm_list, maxlen=self.max_len)
         return tokenized_batch, self.curr_elem_idx + 1
 
     def __next__(self):

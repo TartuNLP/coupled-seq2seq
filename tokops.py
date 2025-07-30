@@ -276,10 +276,11 @@ def load_tokenizer(tok_mdl_id):
 
 
 def tokenize_batch(tokenizer, sntlist, maxlen=8000):
-    tokenizer.pad_token = '<|reserved_special_token_0|>'
+    #tokenizer.pad_token = '<|reserved_special_token_0|>'
+    tokenizer.pad_token = tokenizer.eos_token
     output = tokenizer(sntlist, return_tensors="pt", max_length=maxlen, truncation=True, add_special_tokens=True,
                           padding=True)
-
+    output["labels"] = output["input_ids"].detach().clone()
     return output
 
 """
