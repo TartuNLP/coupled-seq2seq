@@ -131,8 +131,7 @@ def simple_train():
     log(f"Start training", accelerator=acc)
     trainer.train()
 
-    model.save_pretrained(cmd_args.save_location)
-    tokenizer.save_pretrained(cmd_args.save_location)
+    trainer.save_model()
 
 
 def env_stuff():
