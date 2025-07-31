@@ -142,12 +142,9 @@ def env_stuff():
     # Optional: make sure each process selects its own GPU
     try:
         torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
-        log("It worked")
     except Exception:
         log("Well that did not work")
         pass
-
-    log("Test")
 
     log(
         f"host={socket.gethostname()} "
