@@ -131,6 +131,9 @@ def simple_train():
     log(f"Start training", accelerator=acc)
     trainer.train()
 
+    model.save_pretrained(cmd_args.save_location)
+    tokenizer.save_pretrained(cmd_args.save_location)
+
 
 def env_stuff():
     os.environ.setdefault("LOCAL_RANK", os.environ.get("SLURM_LOCALID", "0"))
