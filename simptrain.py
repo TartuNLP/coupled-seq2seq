@@ -132,7 +132,6 @@ def simple_train():
     trainer.train()
 
     trainer.save_model()
-    trainer.save_state()
 
 
 def env_stuff():
