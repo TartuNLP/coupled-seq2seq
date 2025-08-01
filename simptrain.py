@@ -78,6 +78,7 @@ def get_training_args(cmdline_args, acc):
         ddp_find_unused_parameters=False,
         dataloader_num_workers=1,
         group_by_length=True,
+        log_level="debug",
         gradient_checkpointing=True,
         dataloader_persistent_workers=True
     )
