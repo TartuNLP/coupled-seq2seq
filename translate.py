@@ -60,8 +60,8 @@ def _cmdline_args(inputs):
 def and_i_called_this_function_do_main_too(iv):
     args = _cmdline_args(iv)
 
-    raw_input = sys.stdin.read()
-    raw_inputs = raw_input.rstrip().split("\n")
+    raw_input = sys.stdin.read().rstrip()
+    raw_inputs = raw_input.split("\n")
 
     if args.mode == "lid":
         inputs = [segment + "\n=====\n is in " for segment in raw_inputs]
