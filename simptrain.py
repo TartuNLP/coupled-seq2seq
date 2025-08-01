@@ -149,11 +149,8 @@ def env_stuff():
     os.environ.setdefault("MASTER_PORT", "29500")  # pick an open port
 
     # Optional: make sure each process selects its own GPU
-    try:
-        torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
-    except Exception:
-        log("Well that did not work")
-        pass
+    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+
 
     log(
         f"host={socket.gethostname()} "
