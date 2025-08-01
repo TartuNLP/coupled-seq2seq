@@ -14,6 +14,7 @@ from transformers import (
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,  # NEW
+    logging
 )
 
 
@@ -120,6 +121,8 @@ def simple_train():
         pad_to_multiple_of=8,  # helps performance; set None if you prefer exact lengths
     )
 
+    log(f"Preparing to train", accelerator=acc)
+
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -128,9 +131,12 @@ def simple_train():
         data_collator=data_collator,  # NEW
     )
 
-    log(f"Start training", accelerator=acc)
+    logging.set_verbosity_debug()
+
+    log(f"Starting training", accelerator=acc)
     trainer.train()
 
+    log(f"Done, saving model", accelerator=acc)
     trainer.save_model()
 
 
