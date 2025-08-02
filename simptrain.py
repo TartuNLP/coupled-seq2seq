@@ -101,7 +101,7 @@ def simple_train():
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
                                                  low_cpu_mem_usage=False,
                                                  torch_dtype=torch.bfloat16,
-                                                 attn_implementation="eager")
+                                                 attn_implementation="flash_attention_2")
     model.config.use_cache = False
     model = model.to('cuda')
     log(f"attention implementation used: { model.model.layers[0].self_attn.__class__.__name__ }.", accelerator=acc)
