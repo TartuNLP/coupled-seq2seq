@@ -101,7 +101,7 @@ def simple_train():
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
                                                  low_cpu_mem_usage=False,
                                                  torch_dtype=torch.bfloat16,
-                                                 attn_implementation="flash_attention_2")
+                                                 attn_implementation="eager")
     model.config.use_cache = False
     model = model.to('cuda')
     log(f"attention implementation used: { model.model.layers[0].self_attn.__class__.__name__ }.", accelerator=acc)
@@ -149,7 +149,7 @@ def env_stuff():
     os.environ.setdefault("MASTER_PORT", "29500")  # pick an open port
 
     # Optional: make sure each process selects its own GPU
-    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+    #torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
 
 
     log(
