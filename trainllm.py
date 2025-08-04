@@ -21,9 +21,9 @@ def _cmdline_args():
     result = CmdlineArgs(description,
                          pos_arg_list=["mdl_id", "save_location", "train_file"],
                          pos_arg_types=[str, str, str],
-                         kw_arg_dict={ "continue_training": False, "save_steps": 100000, "lr": 1.5e-5,
-                            "batch_size": 8, "nr_sents_per_gpu": 0, "log_steps": 100, "epochs": 4,
-                            "max_length": 2000 })
+                         kw_arg_dict={ "continue_training": False, "save_steps": 1000, "lr": 1.5e-5,
+                            "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
+                            "max_length": 3000 })
 
     # if the directory args.save_location already exists, raise an exception:
     if not result.continue_training and os.path.exists(result.save_location):
