@@ -21,7 +21,7 @@ def _cmdline_args():
     result = CmdlineArgs(description,
                          pos_arg_list=["mdl_id", "save_location", "train_file"],
                          pos_arg_types=[str, str, str],
-                         kw_arg_dict={ "continue_training": False, "save_steps": 1000, "lr": 1.5e-5,
+                         kw_arg_dict={ "continue_training": False, "save_steps": 100, "lr": 1.5e-5,
                             "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
                             "max_length": 3000 })
 
