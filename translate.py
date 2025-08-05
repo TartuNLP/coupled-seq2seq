@@ -81,6 +81,8 @@ def and_i_called_this_function_do_main_too(iv):
 
     acc = Accelerator()
     model = load_hf_model(args.mdl_id, accelerator=acc)
+    log(f"Device: {model.device}.", accelerator=acc)
+
     tokenizer = load_hf_tokenizer(args.mdl_id)
 
     log("Model loaded, starting to translate")
