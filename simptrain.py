@@ -37,7 +37,7 @@ class StepTimerCallback(TrainerCallback):
         # called right after each training step
         elapsed = datetime.now() - self._step_start
         # you can use logging.get_logger(...) instead of print
-        print(f"[step {state.global_step:4d}] took {elapsed}")
+        print(f"[step {state.global_step}/{state.max_steps}] took {elapsed}")
 
 
 class LazyTokenizingDataset(TorchDataset):
