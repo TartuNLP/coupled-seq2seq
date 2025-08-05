@@ -31,6 +31,8 @@ class StepTimerCallback(TrainerCallback):
         self.lengths = []
         self.abs_start = datetime.now()
 
+        self.actual_first_step = None
+
         self.zero = self.abs_start - self.abs_start
 
     def on_step_begin(self, args, state, control, **kwargs):
@@ -38,6 +40,9 @@ class StepTimerCallback(TrainerCallback):
         self._step_start = datetime.now()
 
     def on_step_end(self, args, state, control, **kwargs):
+        if self.actual_first_step is None:
+            self.actual_first_step = state.global_step - 1
+
         # called right after each training step
         now = datetime.now()
         elapsed = now - self._step_start
@@ -46,7 +51,7 @@ class StepTimerCallback(TrainerCallback):
 
         avg = sum(self.lengths, start=self.zero) / len(self.lengths)
 
-        remaining = state.max_steps - state.global_step
+        remaining = state.max_steps - self.actual_first_step - state.global_step
         prediction = (tot_elapsed/state.global_step) * remaining
 
         # you can use logging.get_logger(...) instead of print
@@ -206,5 +211,5 @@ def env_stuff():
         )
 
 if __name__ == "__main__":
-    env_stuff()
+    #env_stuff()
     simple_train()
