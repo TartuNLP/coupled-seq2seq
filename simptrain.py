@@ -78,6 +78,9 @@ class LazyTokenizingDataset(TorchDataset):
             # no padding here – dynamic padding happens in the collator
             return_attention_mask=True,
         )
+        tokens['attention_mask'].append(1)
+        tokens['input_ids'].append(self.eos_id)
+
         # Do NOT add "labels" here; the collator will create them and mask pads to -100.
         return tokens
 
