@@ -63,6 +63,7 @@ class LazyTokenizingDataset(TorchDataset):
         self.texts = texts
         self.tokenizer = tokenizer
         self.max_length = max_length
+        self.eos_id = tokenizer.convert_tokens_to_ids(self.tokenizer.eos_token)
 
     def __len__(self):
         return len(self.texts)
