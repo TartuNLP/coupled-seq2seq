@@ -47,7 +47,7 @@ class StepTimerCallback(TrainerCallback):
         avg = sum(self.lengths, start=self.zero) / len(self.lengths)
 
         remaining = state.max_steps - state.global_step
-        prediction = (tot_elapsed/state.global_step) * (remaining / state.max_steps)
+        prediction = (tot_elapsed/state.global_step) * remaining
 
         # you can use logging.get_logger(...) instead of print
         print(f"[step {state.global_step}/{state.max_steps}] took {elapsed}, avg {avg}; approx {prediction} remaining")
