@@ -156,13 +156,15 @@ def simple_train():
 
     log(f"Preparing to train", accelerator=acc)
 
+    clbks = [StepTimerCallback] if acc.is_main_process else []
+
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=tokenized_train_data,
         tokenizer=tokenizer,
         data_collator=data_collator,  # NEW
-        callbacks=[StepTimerCallback],
+        callbacks=clbks,
     )
 
     logging.set_verbosity_debug()
