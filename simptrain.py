@@ -211,5 +211,5 @@ def env_stuff():
         )
 
 if __name__ == "__main__":
-    #env_stuff()
+    env_stuff()
     simple_train()
