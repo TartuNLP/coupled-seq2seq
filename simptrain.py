@@ -28,6 +28,10 @@ import os, socket, torch
 class StepTimerCallback(TrainerCallback):
     def __init__(self):
         self._step_start = None
+        self.lengths = []
+        self.abs_start = datetime.now()
+
+        self.zero = self.abs_start - self.abs_start
 
     def on_step_begin(self, args, state, control, **kwargs):
         # called right before each training step
@@ -35,9 +39,18 @@ class StepTimerCallback(TrainerCallback):
 
     def on_step_end(self, args, state, control, **kwargs):
         # called right after each training step
-        elapsed = datetime.now() - self._step_start
+        now = datetime.now()
+        elapsed = now - self._step_start
+        tot_elapsed = now - self.abs_start
+        self.lengths.append(elapsed)
+
+        avg = sum(self.lengths, start=self.zero) / len(self.lengths)
+
+        remaining = state.max_steps - state.global_step
+        prediction = (tot_elapsed/state.global_step) * (remaining / state.max_steps)
+
         # you can use logging.get_logger(...) instead of print
-        print(f"[step {state.global_step}/{state.max_steps}] took {elapsed}")
+        print(f"[step {state.global_step}/{state.max_steps}] took {elapsed}, avg {avg}; approx {prediction} remaining")
 
 
 class LazyTokenizingDataset(TorchDataset):
@@ -191,5 +204,5 @@ def env_stuff():
         )
 
 if __name__ == "__main__":
-    env_stuff()
+    #env_stuff()
     simple_train()
