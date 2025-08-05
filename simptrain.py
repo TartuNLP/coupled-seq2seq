@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import Dataset as TorchDataset
 from trainllm import _cmdline_args
 from aux import log
+from datetime import datetime
 
 from accelerate import Accelerator
 from transformers import (
@@ -14,12 +15,29 @@ from transformers import (
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,  # NEW
-    logging
+    logging,
+    TrainerCallback
 )
 
 
 import os, socket, torch
 
+
+
+
+class StepTimerCallback(TrainerCallback):
+    def __init__(self):
+        self._step_start = None
+
+    def on_step_begin(self, args, state, control, **kwargs):
+        # called right before each training step
+        self._step_start = datetime.now()
+
+    def on_step_end(self, args, state, control, **kwargs):
+        # called right after each training step
+        elapsed = datetime.now() - self._step_start
+        # you can use logging.get_logger(...) instead of print
+        print(f"[step {state.global_step:4d}] took {elapsed}")
 
 
 class LazyTokenizingDataset(TorchDataset):
@@ -72,6 +90,7 @@ def get_training_args(cmdline_args, acc):
         save_total_limit=10,
         logging_steps=cmdline_args.log_steps,
         learning_rate=cmdline_args.lr,
+        disable_tqdm=True,
         #report_to="none",
         # Optional but often helpful on LUMI/ROCm if you enable it in your args:
         #bf16=True,
@@ -130,6 +149,7 @@ def simple_train():
         train_dataset=tokenized_train_data,
         tokenizer=tokenizer,
         data_collator=data_collator,  # NEW
+        callbacks=[StepTimerCallback],
     )
 
     logging.set_verbosity_debug()
