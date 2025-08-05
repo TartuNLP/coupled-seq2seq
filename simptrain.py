@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import json
-import torch
+import sys
 
 from torch.utils.data import Dataset as TorchDataset
 from trainllm import _cmdline_args
@@ -128,6 +128,9 @@ def get_training_args(cmdline_args, acc):
 
 
 def simple_train():
+    if len(sys.argv) < 2:
+        sys.argv = "_ meta-llama/Llama-3.2-1b models/tmp4 small-list-data.json batch_size=1 nr_sents_per_gpu=1 log_steps=5 save_steps=10 epochs=1 lr=1e-6".split()
+
     cmd_args = _cmdline_args()
     acc = Accelerator()
 
