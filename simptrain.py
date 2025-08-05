@@ -72,15 +72,15 @@ def get_training_args(cmdline_args, acc):
         save_total_limit=10,
         logging_steps=cmdline_args.log_steps,
         learning_rate=cmdline_args.lr,
-        report_to="none",
+        #report_to="none",
         # Optional but often helpful on LUMI/ROCm if you enable it in your args:
-        bf16=True,
-        ddp_find_unused_parameters=False,
-        dataloader_num_workers=1,
-        group_by_length=True,
+        #bf16=True,
+        #ddp_find_unused_parameters=False,
+        #dataloader_num_workers=1,
+        #group_by_length=True,
         log_level="debug",
-        gradient_checkpointing=True,
-        dataloader_persistent_workers=True
+        #gradient_checkpointing=True,
+        #dataloader_persistent_workers=True
     )
 
     return tr_args
@@ -101,9 +101,9 @@ def simple_train():
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
                                                  low_cpu_mem_usage=False,
                                                  torch_dtype=torch.bfloat16,
-                                                 attn_implementation="flash_attention_2")
+                                                 attn_implementation="eager")
     model.config.use_cache = False
-    model = model.to('cuda')
+    model = model.to(acc.device)
     log(f"attention implementation used: { model.model.layers[0].self_attn.__class__.__name__ }.", accelerator=acc)
     log(f"device: {model.device}.", accelerator=acc)
 
@@ -142,7 +142,7 @@ def simple_train():
 
 
 def env_stuff():
-    os.environ.setdefault("LOCAL_RANK", os.environ.get("SLURM_LOCALID", "---"))
+    os.environ.setdefault("LOCAL_RANK", os.environ.get("SLURM_LOCALID", "0"))
     os.environ.setdefault("RANK", os.environ.get("SLURM_PROCID", "0"))
     os.environ.setdefault("WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1"))
     os.environ.setdefault("MASTER_ADDR", os.environ.get("SLURM_LAUNCH_NODE_IPADDR", "127.0.0.1"))
@@ -151,16 +151,25 @@ def env_stuff():
     # Optional: make sure each process selects its own GPU
     #torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
 
-
-    log(
-        f"host={socket.gethostname()} "
-        f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
-        f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
-        f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
-        f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
-        f"cuda_count={torch.cuda.device_count()} curr_dev={torch.cuda.current_device()}"
-    )
+    try:
+        log(
+            f"host={socket.gethostname()} "
+            f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
+            f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
+            f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
+            f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
+            f"cuda_count={torch.cuda.device_count()} curr_dev={torch.cuda.current_device()}"
+        )
+    except AssertionError:
+        log(
+            f"host={socket.gethostname()} "
+            f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
+            f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
+            f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
+            f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
+            f"no cuda"
+        )
 
 if __name__ == "__main__":
-    env_stuff()
+    #env_stuff()
     simple_train()
