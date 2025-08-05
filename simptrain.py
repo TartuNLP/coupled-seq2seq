@@ -91,7 +91,7 @@ def get_training_args(cmdline_args, acc):
         logging_steps=cmdline_args.log_steps,
         learning_rate=cmdline_args.lr,
         disable_tqdm=True,
-        #report_to="none",
+        report_to="none",
         # Optional but often helpful on LUMI/ROCm if you enable it in your args:
         #bf16=True,
         #ddp_find_unused_parameters=False,
