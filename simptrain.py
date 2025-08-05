@@ -170,7 +170,7 @@ def simple_train():
     logging.set_verbosity_debug()
 
     log(f"Starting training", accelerator=acc)
-    trainer.train()
+    trainer.train(resume_from_checkpoint=cmd_args.continue_training)
 
     log(f"Done, saving model", accelerator=acc)
     trainer.save_model()
