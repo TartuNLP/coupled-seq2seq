@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
 import json
-import sys
+import os, socket, torch
 
 from torch.utils.data import Dataset as TorchDataset
-from trainllm import _cmdline_args
-from aux import log
+from aux import log, CmdlineArgs
 from datetime import datetime
 
 from accelerate import Accelerator
@@ -19,11 +18,32 @@ from transformers import (
     TrainerCallback
 )
 
+"""
+1/4 This simply reads in command-line arguments 
+"""
 
-import os, socket, torch
+def _cmdline_args():
+    description = """Train or tune decoder models"""
 
+    result = CmdlineArgs(description,
+                         pos_arg_list=["mdl_id", "save_location", "train_file"],
+                         pos_arg_types=[str, str, str],
+                         kw_arg_dict={ "continue_training": False, "save_steps": 100, "lr": 1.5e-5,
+                            "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
+                            "max_length": 3000 })
 
+    # if the directory args.save_location already exists, raise an exception:
+    if not result.continue_training and os.path.exists(result.save_location):
+        raise Exception(f"Save location '{result.save_location}' already exists, don't want to overwrite.")
 
+    if result.nr_sents_per_gpu == 0:
+        result.nr_sents_per_gpu = result.batch_size
+
+    return result
+
+"""
+2/4 This here is used in training in order to report timing and predictions 
+"""
 
 class StepTimerCallback(TrainerCallback):
     def __init__(self):
@@ -57,6 +77,9 @@ class StepTimerCallback(TrainerCallback):
         # you can use logging.get_logger(...) instead of print
         print(f"[step {state.global_step}/{state.max_steps}] took {elapsed}, avg {avg}; approx {prediction} remaining")
 
+"""
+3/4 This here is a dataset which reads in raw string files and only when asked for a sample it tokenizes it 
+"""
 
 class LazyTokenizingDataset(TorchDataset):
     def __init__(self, texts, tokenizer, max_length=512):
@@ -88,10 +111,14 @@ class LazyTokenizingDataset(TorchDataset):
 def load_training_data(path, tokenizer, cmd_args):
     with open(path, "r") as f:
         data = json.load(f)
-    #train_set_iter = BatchingIterator(data, cmd_args.batch_size, tokenizer, cmd_args.max_length)
+
     train_set_iter = LazyTokenizingDataset(data, tokenizer, cmd_args.max_length)
+
     return train_set_iter
 
+"""
+4/4 Finally, the filling of TrainingArguments and the launching of Trainer:
+"""
 
 def get_training_args(cmdline_args, acc):
     world_size = acc.num_processes
@@ -115,7 +142,7 @@ def get_training_args(cmdline_args, acc):
         disable_tqdm=True,
         report_to="none",
         # Optional but often helpful on LUMI/ROCm if you enable it in your args:
-        #bf16=True,
+        bf16=True,
         ddp_find_unused_parameters=False,
         #dataloader_num_workers=1,
         #group_by_length=True,
@@ -128,15 +155,14 @@ def get_training_args(cmdline_args, acc):
 
 
 def simple_train():
-    if len(sys.argv) < 2:
-        sys.argv = "_ meta-llama/Llama-3.2-1b models/tmp4 small-list-data.json batch_size=1 nr_sents_per_gpu=1 log_steps=5 save_steps=10 epochs=1 lr=1e-6".split()
-
     cmd_args = _cmdline_args()
     acc = Accelerator()
 
     log(f"Load tokenizer", accelerator=acc)
+
     # Load model and tokenizer
     tokenizer = AutoTokenizer.from_pretrained(cmd_args.mdl_id)
+
     # LLaMA 3.x: no pad token by default — use EOS for padding
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -148,6 +174,7 @@ def simple_train():
                                                  attn_implementation="eager")
     model.config.use_cache = False
     model = model.to(acc.device)
+
     log(f"attention implementation used: { model.model.layers[0].self_attn.__class__.__name__ }.", accelerator=acc)
     log(f"device: {model.device}.", accelerator=acc)
 
