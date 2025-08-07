@@ -93,7 +93,7 @@ def and_i_called_this_function_do_main_too(iv):
                                                  low_cpu_mem_usage=True,
                                                  torch_dtype=torch.bfloat16,
                                                  device_map=acc.device,
-                                                 attn_implementation="eager")
+                                                 attn_implementation="flash_attention_2")
 
     log(f"Device: {model.device}.", accelerator=acc)
 
