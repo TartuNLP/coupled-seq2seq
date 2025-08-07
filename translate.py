@@ -15,17 +15,23 @@ from data import do_list_in_batches, prep_llm_input
 def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000, raw=False):
     tok_batch = tokenize_batch(tokenizer, input_texts)
 
+    if debug:
+        log(f"Tokenized input: {tok_batch['input_ids']}")
+
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
 
-    raw_outputs = model.generate(**tok_batch, num_beams=5, do_sample=False, max_length=max_len, top_p=None, temperature=None)
+    raw_outputs = model.generate(**tok_batch, do_sample=True, max_length=max_len, top_p=None, temperature=None)
+
+    if debug:
+        log(f"Raw output: {raw_outputs}")
 
     # 3. output token IDs --> output text
     pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=True)
 
     if debug:
         for i, p in zip(input_texts, pre_result):
-            print(f"DEBUG input/raw output: {(i, p)};")
+            log(f"DEBUG input/raw output: {(i, p)};")
 
     if raw:
         result = pre_result
@@ -84,10 +90,10 @@ def and_i_called_this_function_do_main_too(iv):
     acc = Accelerator()
 
     model = AutoModelForCausalLM.from_pretrained(args.mdl_id,
-                                                 low_cpu_mem_usage=False,
+                                                 low_cpu_mem_usage=True,
                                                  torch_dtype=torch.bfloat16,
                                                  device_map=acc.device,
-                                                 attn_implementation="flash_attention_2")
+                                                 attn_implementation="eager")
 
     log(f"Device: {model.device}.", accelerator=acc)
 
