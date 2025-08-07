@@ -3,7 +3,9 @@
 import sys
 
 from accelerate import Accelerator
+from transformers import AutoModelForCausalLM
 
+import torch
 from aux import CmdlineArgs, log
 from tokops import tokenize_batch
 from trainllm import load_hf_tokenizer, load_hf_model
@@ -80,7 +82,13 @@ def and_i_called_this_function_do_main_too(iv):
     log(f"Inputs: {inputs}")
 
     acc = Accelerator()
-    model = load_hf_model(args.mdl_id, accelerator=acc)
+
+    model = AutoModelForCausalLM.from_pretrained(args.mdl_id,
+                                                 low_cpu_mem_usage=False,
+                                                 torch_dtype=torch.bfloat16,
+                                                 device_map=acc.device,
+                                                 attn_implementation="flash_attention_2")
+
     log(f"Device: {model.device}.", accelerator=acc)
 
     tokenizer = load_hf_tokenizer(args.mdl_id)
