@@ -26,6 +26,8 @@ def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000, raw=F
     if debug:
         log(f"Raw output: {raw_outputs}")
 
+        log(f"Output tokens: {tokenizer.convert_ids_to_tokens(raw_outputs[0])}")
+
     # 3. output token IDs --> output text
     pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=True)
 
@@ -45,7 +47,7 @@ def generative_translate(model, tokenizer, input_texts, input_language, output_l
     all_outputs = list()
 
     for inp_batch in do_list_in_batches(input_texts, 8):
-        these_outputs = llm_generate(model, tokenizer, inp_batch, debug=debug, max_len=2000)
+        these_outputs = llm_generate(model, tokenizer, inp_batch, debug=debug, max_len=200)
 
         all_outputs += these_outputs
 
