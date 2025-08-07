@@ -170,10 +170,6 @@ class LazyTokenizingDataset(TorchDataset):
 
         result = self._tokenize_sep_list(the_sep_list)
 
-        log(f"DEBUGGGX: {entry['src_segm']} /// {entry['src_lang']}")
-        log(f"DEBUGGGY: {result['input_ids']}")
-        assert 0 == 1, "Stop here for now"
-
         return result
 
     def __getitem__(self, idx):
