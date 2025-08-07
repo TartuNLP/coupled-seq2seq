@@ -161,7 +161,7 @@ def _tokenize_ljmf_entry(tokenizer, entry):
     if entry['task'] in {'translate', 'approx-translate'} and entry['tgt_segm'] and entry['tgt_lang']:
         the_sep_list_middle = [
             outp_lang_id,
-            entry['tgt_lang'] + " to " + entry['tgt_lang'],
+            entry['task'] + " to " + entry['tgt_lang'],
             outp_text_id,
             entry['tgt_segm']
         ]
