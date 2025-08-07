@@ -110,16 +110,20 @@ if __name__ == '__main__':
     input_file = sys.argv[1]
     output_file = sys.argv[2]
 
+    """
     try:
         batch_size = int(sys.argv[3])
     except IndexError:
         batch_size = None
+    """
 
     log("Reading data")
     # read the tuples
     with open(input_file, "r") as f:
-        raw_data = json.load(f)
+        #raw_data = json.load(f)
+        final_data = json.load(f)
 
+    """
     log("Making strings")
     # make strings out of tuples
     unsorted_data_in_elems = [prep_llm_input(s) for s in raw_data]
@@ -138,6 +142,7 @@ if __name__ == '__main__':
 
         # group into batches
         final_data = list(do_list_in_batches(sorted_data_in_elems, batch_size))
+    """
 
     log("Shuffling")
     # shuffle the batches / sentences
@@ -146,4 +151,4 @@ if __name__ == '__main__':
     log("Saving")
     # save the result
     with open(output_file, "w") as f:
-        json.dump(final_data, f, indent=2)
+        json.dump(final_data, f)
