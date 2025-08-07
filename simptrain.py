@@ -159,11 +159,13 @@ class LazyTokenizingDataset(TorchDataset):
         # self.inp_text_id, inp_lang_id, outp_lang_id, outp_text_id, end_task_id; "<|reserved_special_token_12|>..16"
 
         the_sep_list = [
+            self.tokenizer.bos_token_id,
             self.inp_text_id,
             f"LID {entry['src_segm']}",
             self.inp_lang_id,
             " " + entry['src_lang'],
-            self.end_task_id
+            self.end_task_id,
+            self.tokenizer.eos_token_id
         ]
 
         result = self._tokenize_sep_list(the_sep_list)
