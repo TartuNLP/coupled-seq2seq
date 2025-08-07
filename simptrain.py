@@ -158,17 +158,27 @@ class LazyTokenizingDataset(TorchDataset):
 
         # self.inp_text_id, inp_lang_id, outp_lang_id, outp_text_id, end_task_id; "<|reserved_special_token_12|>..16"
 
-        the_sep_list = [
+        the_sep_list_start = [
             self.tokenizer.bos_token_id,
             self.inp_text_id,
-            f"LID {entry['src_segm']}",
+            entry['src_segm'],
             self.inp_lang_id,
-            " " + entry['src_lang'],
-            self.end_task_id,
-            self.tokenizer.eos_token_id
+            " " + entry['src_lang']
         ]
 
-        result = self._tokenize_sep_list(the_sep_list)
+        if entry['task'] in {'translate', 'approx-translate'} and entry['tgt_segm'] and entry['tgt_lang']:
+            the_sep_list_middle = [
+                self.outp_lang_id,
+                entry['tgt_lang'] + " to " + entry['tgt_lang'],
+                self.outp_text_id,
+                entry['tgt_segm']
+            ]
+        else:
+            the_sep_list_middle = []
+
+        the_sep_list_end = [self.end_task_id, self.tokenizer.eos_token_id]
+
+        result = self._tokenize_sep_list(the_sep_list_start + the_sep_list_middle + the_sep_list_end)
 
         return result
 
@@ -239,7 +249,7 @@ def simple_train(testing_on_mac=False):
 
     # LLaMA 3.x: no pad token by default — use EOS for padding
     if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token = "<|reserved_special_token_100|>"
 
     log(f"Load model", accelerator=acc)
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
@@ -317,6 +327,12 @@ def env_stuff():
             f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
             f"no cuda"
         )
+
+class LoggingKillingTrainer(Trainer):
+    def compute_loss(self, model, inputs, **kwargs):
+        log(f"Here is the batch for training: {inputs}")
+        raise NotImplementedError
+        return super().compute_loss(model, inputs, **kwargs)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
