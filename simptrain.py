@@ -83,6 +83,98 @@ class StepTimerCallback(TrainerCallback):
 3/4 This here is a dataset which reads in raw string files and only when asked for a sample it tokenizes it 
 """
 
+def _combine_tokenized_seqs(tokenizer, *tokenized_seqs, fields=None):
+    if fields is None:
+        fields = ['input_ids', 'attention_mask']
+
+    result = deepcopy(tokenized_seqs[0])
+
+    for tokenized_seq in tokenized_seqs[1:]:
+        shorten_it = tokenized_seq['input_ids'][0] == tokenizer.bos_token_id
+
+        for field in fields:
+            extension = tokenized_seq[field][1:] if shorten_it else tokenized_seq[field]
+            result[field].extend(extension)
+
+    return result
+
+
+def _tokenize_sep_list(tokenizer, sep_list):
+    pretok_elems = []
+
+    for elem in sep_list:
+        if isinstance(elem, str):
+            this_pretok = _tokenize_str(tokenizer, elem, add_eos=False)
+        elif isinstance(elem, int):
+            this_pretok = _prep_special_token_entry(tokenizer, elem)
+        else:
+            msg = f"'{elem}' not recognized type {type(elem)}"
+            raise NotImplementedError()
+
+        pretok_elems.append(this_pretok)
+
+    result = _combine_tokenized_seqs(tokenizer, *pretok_elems)
+    return result
+
+
+def _prep_special_token_entry(tokenizer, token_id):
+    result = _tokenize_str(tokenizer, "", add_eos=False)
+    result['input_ids'][0] = token_id
+    return result
+
+
+def _tokenize_str(tokenizer, entry, add_eos=True, max_len=2000):
+    tokens = tokenizer(
+        entry,
+        truncation=True,
+        max_length=max_len,
+        return_attention_mask=True,
+    )
+
+    if add_eos:
+        tokens['attention_mask'].append(1)
+        tokens['input_ids'].append(tokenizer.eos_token_id)
+
+    return tokens
+
+
+def _tokenize_ljmf_entry(tokenizer, entry):
+    # {'task': 'translate' / 'approx-translate' / 'generate',
+    # 'src_segm', 'tgt_segm', 'src_lang', 'tgt_lang'}
+
+    # self.inp_text_id, inp_lang_id, outp_lang_id, outp_text_id, end_task_id; "<|reserved_special_token_12|>..16"
+
+    inp_text_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_12|>")
+    inp_lang_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_13|>")
+    outp_lang_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_14|>")
+    outp_text_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_15|>")
+    end_task_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_16|>")
+
+    the_sep_list_start = [
+        tokenizer.bos_token_id,
+        inp_text_id,
+        entry['src_segm'],
+        inp_lang_id,
+        " " + entry['src_lang']
+    ]
+
+    if entry['task'] in {'translate', 'approx-translate'} and entry['tgt_segm'] and entry['tgt_lang']:
+        the_sep_list_middle = [
+            outp_lang_id,
+            entry['tgt_lang'] + " to " + entry['tgt_lang'],
+            outp_text_id,
+            entry['tgt_segm']
+        ]
+    else:
+        the_sep_list_middle = []
+
+    the_sep_list_end = [end_task_id, tokenizer.eos_token_id]
+
+    result = _tokenize_sep_list(tokenizer, the_sep_list_start + the_sep_list_middle + the_sep_list_end)
+
+    return result
+
+
 class LazyTokenizingDataset(TorchDataset):
     def __init__(self, texts, tokenizer, max_length=512):
         self.texts = texts
@@ -90,106 +182,17 @@ class LazyTokenizingDataset(TorchDataset):
         self.max_length = max_length
         self.raw_text_mode = isinstance(texts[0], str)
 
-        self.special_token_entry = self._tokenize_str("", add_eos=False)
-
-        self.inp_text_id = self.tokenizer.convert_tokens_to_ids("<|reserved_special_token_12|>")
-        self.inp_lang_id = self.tokenizer.convert_tokens_to_ids("<|reserved_special_token_13|>")
-        self.outp_lang_id = self.tokenizer.convert_tokens_to_ids("<|reserved_special_token_14|>")
-        self.outp_text_id = self.tokenizer.convert_tokens_to_ids("<|reserved_special_token_15|>")
-        self.end_task_id = self.tokenizer.convert_tokens_to_ids("<|reserved_special_token_16|>")
-
     def __len__(self):
         return len(self.texts)
-
-    def _combine_tokenized_seqs(self, *tokenized_seqs, fields=None):
-        if fields is None:
-            fields = ['input_ids', 'attention_mask']
-
-        result = deepcopy(tokenized_seqs[0])
-
-        for tokenized_seq in tokenized_seqs[1:]:
-            shorten_it = tokenized_seq['input_ids'][0] == self.tokenizer.bos_token_id
-
-            for field in fields:
-                extension = tokenized_seq[field][1:] if shorten_it else tokenized_seq[field]
-                result[field].extend(extension)
-
-        return result
-
-    def _tokenize_sep_list(self, sep_list):
-        pretok_elems = []
-
-        for elem in sep_list:
-            if isinstance(elem, str):
-                this_pretok = self._tokenize_str(elem, add_eos=False)
-            elif isinstance(elem, int):
-                this_pretok = self._prep_special_token_entry(elem)
-            else:
-                msg = f"'{elem}' not recognized type {type(elem)}"
-                raise NotImplementedError()
-
-            pretok_elems.append(this_pretok)
-
-        result = self._combine_tokenized_seqs(*pretok_elems)
-        return result
-
-    def _prep_special_token_entry(self, token_id):
-        result = deepcopy(self.special_token_entry)
-        result['input_ids'][0] = token_id
-        return result
-
-    def _tokenize_str(self, entry, add_eos=True, max_len=None):
-        tokens = self.tokenizer(
-            entry,
-            truncation=True,
-            max_length=(self.max_length if max_len is None else max_len),
-            return_attention_mask=True,
-        )
-
-        if add_eos:
-            tokens['attention_mask'].append(1)
-            tokens['input_ids'].append(self.tokenizer.eos_token_id)
-
-        return tokens
-
-    def _tokenize_ljmf_entry(self, entry):
-        # {'task': 'translate' / 'approx-translate' / 'generate',
-        # 'src_segm', 'tgt_segm', 'src_lang', 'tgt_lang'}
-
-        # self.inp_text_id, inp_lang_id, outp_lang_id, outp_text_id, end_task_id; "<|reserved_special_token_12|>..16"
-
-        the_sep_list_start = [
-            self.tokenizer.bos_token_id,
-            self.inp_text_id,
-            entry['src_segm'],
-            self.inp_lang_id,
-            " " + entry['src_lang']
-        ]
-
-        if entry['task'] in {'translate', 'approx-translate'} and entry['tgt_segm'] and entry['tgt_lang']:
-            the_sep_list_middle = [
-                self.outp_lang_id,
-                entry['tgt_lang'] + " to " + entry['tgt_lang'],
-                self.outp_text_id,
-                entry['tgt_segm']
-            ]
-        else:
-            the_sep_list_middle = []
-
-        the_sep_list_end = [self.end_task_id, self.tokenizer.eos_token_id]
-
-        result = self._tokenize_sep_list(the_sep_list_start + the_sep_list_middle + the_sep_list_end)
-
-        return result
 
     def __getitem__(self, idx):
         # Return plain Python lists; let the collator pad & build labels.
         entry = self.texts[idx]
 
         if self.raw_text_mode:
-            return self._tokenize_str(entry)
+            return _tokenize_str(self.tokenizer, entry)
         else:
-            return self._tokenize_ljmf_entry(entry)
+            return _tokenize_ljmf_entry(self.tokenizer, entry)
 
 
 def load_training_data(path, tokenizer, cmd_args):
