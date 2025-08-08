@@ -63,6 +63,10 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
         if debug:
             log(f"Result: {result}")
     else:
+        if debug:
+            debresult = tokenizer.batch_decode(clean_outputs, skip_special_tokens=False)
+            log(f"Raw result: {debresult}")
+
         result = tokenizer.batch_decode(clean_outputs, skip_special_tokens=True)
 
     return result
