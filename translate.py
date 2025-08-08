@@ -35,6 +35,7 @@ def get_lang_pred(raw_txt):
 def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
     if debug:
         log(f"Tokenized input: {tok_batch['input_ids']}")
+        log(f"Att mask: {tok_batch['attention_mask']}")
 
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
