@@ -48,13 +48,20 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
                                  do_sample=False, num_beams=5, max_length=max_len, top_p=None,
                                  temperature=None, stop_strings=stop_strings)
 
+    if debug:
+        log(f"Raw tokenized output: {raw_outputs}")
+
     clean_outputs = remove_prompt_from_output(tok_batch['attention_mask'], raw_outputs, 128030)
 
     # 3. output token IDs --> output text
 
     if mode == 'lid':
         pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
+        if debug:
+            log(f"Raw pre tokenized output: {pre_result}")
         result = [get_lang_pred(e) for e in pre_result]
+        if debug:
+            log(f"Result: {result}")
     else:
         result = tokenizer.batch_decode(clean_outputs, skip_special_tokens=True)
 
@@ -68,7 +75,8 @@ def generative_translate(model, tokenizer, input_texts, input_language, output_l
         input_language = None
         output_language = None
 
-    dataset = LazyTokenizingInferenceDataset(input_texts, tokenizer, mode, src_lang=input_language, tgt_lang=output_language)
+    dataset = LazyTokenizingInferenceDataset(input_texts, tokenizer, mode,
+                                             src_lang=input_language, tgt_lang=output_language, debug=debug)
 
     data_coll = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
@@ -100,13 +108,14 @@ def _cmdline_args(inputs):
 
 
 class LazyTokenizingInferenceDataset(TorchDataset):
-    def __init__(self, texts, tokenizer, mode, src_lang=None, tgt_lang=None, max_length=512):
+    def __init__(self, texts, tokenizer, mode, src_lang=None, tgt_lang=None, max_length=512, debug=False):
         self.texts = texts
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.mode = mode # translate / lid / raw
         self.src_lang = src_lang
         self.tgt_lang = tgt_lang
+        self.debug = debug
 
     def __len__(self):
         return len(self.texts)
@@ -114,7 +123,9 @@ class LazyTokenizingInferenceDataset(TorchDataset):
     def __getitem__(self, idx):
         entry = self.texts[idx]
 
-        return tokenize_for_inference(self.tokenizer, entry, self.src_lang, self.tgt_lang, self.mode)
+        result = tokenize_for_inference(self.tokenizer, entry, self.src_lang, self.tgt_lang, self.mode, debug=self.debug)
+
+        return result
 
 
 def and_i_called_this_function_do_main_too(iv):

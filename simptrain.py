@@ -109,13 +109,16 @@ def _tokenize_str(tokenizer, entry, add_eos=True, max_len=2000):
 
     return tokens
 
-def tokenize_for_inference(tokenizer, src_segm, src_lang=None, tgt_lang=None, task="translate"):
+def tokenize_for_inference(tokenizer, src_segm, src_lang=None, tgt_lang=None, task="translate", debug=False):
     if task == "lid":
         prompt = INF_PROMPT_LID.format(src_segm=src_segm)
     elif task in {"translate", "approx-translate"}:
         prompt = INF_PROMPT_MT.format(src_segm=src_segm, src_lang=src_lang, tgt_lang=tgt_lang, task=task)
     else:
         prompt = src_segm
+
+    if debug:
+        log(prompt)
 
     return _tokenize_str(tokenizer, prompt, add_eos=False)
 
