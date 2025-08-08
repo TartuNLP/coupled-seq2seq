@@ -22,15 +22,27 @@ def remove_prompt_from_output(att_mask, tokens, filler_id):
 
     return (1-a_padded) * tokens + filler_id * a_padded
 
-def get_lang_pred(raw_txt):
-    m = re.search(r'<\|reserved_special_token_13\|>(.*?)<\|reserved_special_token_14\|>', raw_txt)
-
-    pre_result = m.group(1) if m else None
-
-    if pre_result is None:
-        return "-"
+def get_lang_pred(raw_txt, start_tag, end_tag):
+    if start_tag in raw_txt and end_tag in raw_txt:
+        i0 = raw_txt.find(start_tag)
+        if i0 == -1:
+            return ''
+        i0 += len(start_tag)
+        i1 = raw_txt.find(end_tag, i0)
+        if i1 == -1:
+            return ''
+        segment = raw_txt[i0:i1]
+        return re.sub(r'<\|[^|]+\|>', '', segment).strip()
     else:
-        return re.sub(r'<\|[^|]+\|>', '', pre_result).strip()
+        return '-'
+    #m = re.search(r'<\|reserved_special_token_13\|>(.*?)<\|reserved_special_token_14\|>', raw_txt)
+
+    #pre_result = m.group(1) if m else None
+
+    #if pre_result is None:
+    #    return "-"
+    #else:
+    #    return re.sub(r'<\|[^|]+\|>', '', pre_result).strip()
 
 def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
     if debug:
@@ -40,10 +52,12 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
 
-    if mode == 'lid':
-        stop_strings = ["<|reserved_special_token_14|>", "<|reserved_special_token_16|>", "<|end_of_text|>"]
-    else:
-        stop_strings = ["<|end_of_text|>"]
+    #if mode == 'lid':
+    #    stop_strings = ["<|reserved_special_token_14|>", "<|reserved_special_token_16|>", "<|end_of_text|>"]
+    #else:
+    #    stop_strings = ["<|end_of_text|>"]
+    stop_strings = ["<|reserved_special_token_12|>", "<|reserved_special_token_13|>", "<|reserved_special_token_14|>",
+                    "<|reserved_special_token_15|>", "<|reserved_special_token_16|>", "<|end_of_text|>"]
 
     raw_outputs = model.generate(**tok_batch, tokenizer=tokenizer,
                                  do_sample=False, num_beams=5, max_length=max_len, top_p=None,
@@ -61,7 +75,7 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
         pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
         if debug:
             log(f"Raw pre tokenized output: {pre_result}")
-        result = [get_lang_pred(e) for e in pre_result]
+        result = [get_lang_pred(e, "<|reserved_special_token_13|>", "<|reserved_special_token_14|>") for e in pre_result]
         if debug:
             log(f"Result: {result}")
     else:
@@ -69,7 +83,9 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
             debresult = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
             log(f"Raw result: {debresult}")
 
-        result = tokenizer.batch_decode(clean_outputs, skip_special_tokens=True)
+        pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
+        result = [get_lang_pred(e, "<|reserved_special_token_15|>", "<|reserved_special_token_16|>") for e in pre_result]
+
 
     return result
 
