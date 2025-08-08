@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from email.errors import NonPrintableDefect
+import re
 
 from accelerate import Accelerator
 from transformers import AutoModelForCausalLM, DataCollatorForLanguageModeling, AutoTokenizer
@@ -22,7 +22,16 @@ def remove_prompt_from_output(att_mask, tokens, filler_id):
 
     return (1-a_padded) * tokens + filler_id * a_padded
 
-def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000, raw=False):
+def get_lang_pred(raw_txt):
+    m = re.search(r'<|reserved_special_token_13|>(.*?)<|reserved_special_token_14|>', raw_txt)
+
+    result = m.group(1) if m else None
+
+    if result is None:
+        result = raw_txt
+    return result
+
+def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
     if debug:
         log(f"Tokenized input: {tok_batch['input_ids']}")
 
@@ -42,8 +51,9 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000, r
 
     # 3. output token IDs --> output text
 
-    if raw:
-        result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
+    if mode == 'lid':
+        pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
+        result = [get_lang_pred(e) for e in pre_result]
     else:
         result = tokenizer.batch_decode(clean_outputs, skip_special_tokens=True)
 
