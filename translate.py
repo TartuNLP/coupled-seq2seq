@@ -84,14 +84,17 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
         result = [get_lang_pred(e, "<|reserved_special_token_13|>", "<|reserved_special_token_14|>") for e in pre_result]
         if debug:
             log(f"Result: {result}")
-    else:
+    elif mode == 'translate':
         if debug:
             debresult = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
             log(f"Raw result: {debresult}")
 
         pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
         result = [get_lang_pred(e, "<|reserved_special_token_15|>", "<|reserved_special_token_16|>") for e in pre_result]
-
+    elif mode == 'raw':
+        result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
 
     return result
 
