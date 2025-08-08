@@ -1,53 +1,74 @@
 #!/usr/bin/env python3
 
 import sys
+from email.errors import NonPrintableDefect
 
 from accelerate import Accelerator
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, DataCollatorForLanguageModeling, AutoTokenizer
 
+from simptrain import tokenize_for_inference
+from torch.utils.data import Dataset as TorchDataset, DataLoader
 import torch
 from aux import CmdlineArgs, log
-from tokops import tokenize_batch
-from trainllm import load_hf_tokenizer, load_hf_model
-from data import do_list_in_batches, prep_llm_input
 
 
-def llm_generate(model, tokenizer, input_texts, debug=False, max_len=8000, raw=False):
-    tok_batch = tokenize_batch(tokenizer, input_texts)
+def remove_prompt_from_output(att_mask, tokens, filler_id):
+    shape = list(att_mask.shape)
+    shape[1] = tokens.size(1)
+    a_padded = att_mask.new_zeros(*shape)
 
+    # copy original data
+    a_padded[:, :att_mask.size(1), ...] = att_mask
+
+    return (1-a_padded) * tokens + filler_id * a_padded
+
+def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000, raw=False):
     if debug:
         log(f"Tokenized input: {tok_batch['input_ids']}")
 
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
 
-    raw_outputs = model.generate(**tok_batch, do_sample=True, max_length=max_len, top_p=None, temperature=None)
+    if mode == 'lid':
+        stop_strings = ["<|reserved_special_token_14|>", "<|reserved_special_token_16|>", "<|end_of_text|>"]
+    else:
+        stop_strings = ["<|end_of_text|>"]
 
-    if debug:
-        log(f"Raw output: {raw_outputs}")
+    raw_outputs = model.generate(**tok_batch, tokenizer=tokenizer,
+                                 do_sample=False, num_beams=5, max_length=max_len, top_p=None,
+                                 temperature=None, stop_strings=stop_strings)
 
-        log(f"Output tokens: {tokenizer.convert_ids_to_tokens(raw_outputs[0])}")
+    clean_outputs = remove_prompt_from_output(tok_batch['attention_mask'], raw_outputs, 128030)
 
     # 3. output token IDs --> output text
-    pre_result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=True)
-
-    if debug:
-        for i, p in zip(input_texts, pre_result):
-            log(f"DEBUG input/raw output: {(i, p)};")
 
     if raw:
-        result = pre_result
+        result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
     else:
-        result = [o[len(i):].strip().replace("\n", "<<BR>>") for i, o in zip(input_texts, pre_result)]
+        result = tokenizer.batch_decode(clean_outputs, skip_special_tokens=False)
 
     return result
 
 
-def generative_translate(model, tokenizer, input_texts, input_language, output_language, debug=False):
+def generative_translate(model, tokenizer, input_texts, input_language, output_language, mode, debug=False):
     all_outputs = list()
 
-    for inp_batch in do_list_in_batches(input_texts, 8):
-        these_outputs = llm_generate(model, tokenizer, inp_batch, debug=debug, max_len=200)
+    if mode in {'lid', 'raw'}:
+        input_language = None
+        output_language = None
+
+    dataset = LazyTokenizingInferenceDataset(input_texts, tokenizer, mode, src_lang=input_language, tgt_lang=output_language)
+
+    data_coll = DataCollatorForLanguageModeling(
+        tokenizer=tokenizer,
+        mlm=False,
+        pad_to_multiple_of=8,  # helps performance; set None if you prefer exact lengths
+    )
+
+    data_loader = DataLoader(dataset, collate_fn=data_coll, batch_size=8)
+
+    for inp_batch in data_loader:
+        these_outputs = llm_generate(model, tokenizer, inp_batch, mode, debug=debug, max_len=200)
 
         all_outputs += these_outputs
 
@@ -67,27 +88,33 @@ def _cmdline_args(inputs):
     return args
 
 
+class LazyTokenizingInferenceDataset(TorchDataset):
+    def __init__(self, texts, tokenizer, mode, src_lang=None, tgt_lang=None, max_length=512):
+        self.texts = texts
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        self.mode = mode # translate / lid / raw
+        self.src_lang = src_lang
+        self.tgt_lang = tgt_lang
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        entry = self.texts[idx]
+
+        return tokenize_for_inference(self.tokenizer, entry, self.src_lang, self.tgt_lang, self.mode)
+
+
 def and_i_called_this_function_do_main_too(iv):
     args = _cmdline_args(iv)
 
     raw_input = sys.stdin.read().rstrip()
-    raw_inputs = raw_input.split("\n")
 
-    if args.mode == "lid":
-        inputs = [segment + "\n=====\n is in " for segment in raw_inputs]
-    elif args.mode == "translate":
-        inputs = [prep_llm_input({
-            'src_segm': segment,
-            'src_lang': args.from_lang,
-            'tgt_lang': args.to_lang,
-            'task': 'translate',
-            'tgt_segm': '' }) for segment in raw_inputs]
-    elif args.mode == "raw":
+    if args.mode == 'raw':
         inputs = [raw_input]
-
-    # inputs = ["See on ikka tore uudis.", "Ma ikka katsetaks ka täpitähtedega tõlkimist.", "Mis tähed on täpitähed?"]
-
-    log(f"Inputs: {inputs}")
+    else:
+        inputs = raw_input.split("\n")
 
     acc = Accelerator()
 
@@ -95,14 +122,14 @@ def and_i_called_this_function_do_main_too(iv):
                                                  low_cpu_mem_usage=True,
                                                  torch_dtype=torch.bfloat16,
                                                  device_map=acc.device,
-                                                 attn_implementation="flash_attention_2")
+                                                 attn_implementation="eager")
 
     log(f"Device: {model.device}.", accelerator=acc)
 
-    tokenizer = load_hf_tokenizer(args.mdl_id)
+    tokenizer = AutoTokenizer.from_pretrained(args.mdl_id)
 
     log("Model loaded, starting to translate")
-    outputs = generative_translate(model, tokenizer, inputs, args.from_lang, args.to_lang, debug=args.debug)
+    outputs = generative_translate(model, tokenizer, inputs, args.from_lang, args.to_lang, args.mode, debug=args.debug)
 
     print("\n".join(outputs))
 
@@ -110,7 +137,6 @@ def and_i_called_this_function_do_main_too(iv):
 
 
 if __name__ == "__main__":
-    input_values = sys.argv[1:] if len(sys.argv) > 1 \
-        else ["models/nllb", "et", "en"]
+    input_values = sys.argv[1:]
 
     and_i_called_this_function_do_main_too(input_values)
