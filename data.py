@@ -10,6 +10,8 @@ from tokops import tokenize_batch
 
 
 def prep_llm_input(ljmftpl):
+    raise NotImplementedError
+
     #{'task': 'translate' / 'approx-translate' / 'generate',
     # 'src_segm': src_segm,
     # 'tgt_segm': tgt_segm,
