@@ -7,7 +7,6 @@ import sys
 from torch.utils.data import Dataset as TorchDataset
 from aux import log, CmdlineArgs
 from datetime import datetime
-from copy import deepcopy
 
 from accelerate import Accelerator
 from transformers import (
@@ -19,6 +18,19 @@ from transformers import (
     logging,
     TrainerCallback
 )
+
+def rpl(p):
+    return p.replace("|r", "|reserved_special_token_")
+
+INF_PROMPT_LID = rpl("<|r12|>{src_segm}<|r13|>")
+INF_PROMPT_MT = INF_PROMPT_LID + rpl("{src_lang}<|r14|>{task} to {tgt_lang}<|r15|>")
+
+_TRAIN_PROMPT_PREF = rpl("<|r12|>{src_segm}<|r13|>{src_lang}")
+_TRAIN_PROMPT_MID = rpl("<|r14|>{task} to {tgt_lang}<|r15|>{tgt_segm}")
+_TRAIN_PROMPT_SUF = rpl("<|r16|><|end_of_text|>")
+
+TRAIN_PROMPT_PARA = _TRAIN_PROMPT_PREF + _TRAIN_PROMPT_MID + _TRAIN_PROMPT_SUF
+TRAIN_PROMPT_MONO = _TRAIN_PROMPT_PREF + _TRAIN_PROMPT_SUF
 
 """
 1/4 This simply reads in command-line arguments 
@@ -83,46 +95,6 @@ class StepTimerCallback(TrainerCallback):
 3/4 This here is a dataset which reads in raw string files and only when asked for a sample it tokenizes it 
 """
 
-def _combine_tokenized_seqs(tokenizer, *tokenized_seqs, fields=None):
-    if fields is None:
-        fields = ['input_ids', 'attention_mask']
-
-    result = deepcopy(tokenized_seqs[0])
-
-    for tokenized_seq in tokenized_seqs[1:]:
-        shorten_it = tokenized_seq['input_ids'][0] == tokenizer.bos_token_id
-
-        for field in fields:
-            extension = tokenized_seq[field][1:] if shorten_it else tokenized_seq[field]
-            result[field].extend(extension)
-
-    return result
-
-
-def _tokenize_sep_list(tokenizer, sep_list):
-    pretok_elems = []
-
-    for elem in sep_list:
-        if isinstance(elem, str):
-            this_pretok = _tokenize_str(tokenizer, elem, add_eos=False)
-        elif isinstance(elem, int):
-            this_pretok = _prep_special_token_entry(tokenizer, elem)
-        else:
-            msg = f"'{elem}' not recognized type {type(elem)}"
-            raise NotImplementedError()
-
-        pretok_elems.append(this_pretok)
-
-    result = _combine_tokenized_seqs(tokenizer, *pretok_elems)
-    return result
-
-
-def _prep_special_token_entry(tokenizer, token_id):
-    result = _tokenize_str(tokenizer, "", add_eos=False)
-    result['input_ids'][0] = token_id
-    return result
-
-
 def _tokenize_str(tokenizer, entry, add_eos=True, max_len=2000):
     tokens = tokenizer(
         entry,
@@ -137,43 +109,24 @@ def _tokenize_str(tokenizer, entry, add_eos=True, max_len=2000):
 
     return tokens
 
+def tokenize_for_inference(tokenizer, src_segm, src_lang=None, tgt_lang=None, task="translate"):
+    if task == "lid":
+        prompt = INF_PROMPT_LID.format(src_segm=src_segm)
+    elif task in {"translate", "approx-translate"}:
+        prompt = INF_PROMPT_MT.format(src_segm=src_segm, src_lang=src_lang, tgt_lang=tgt_lang, task=task)
+    else:
+        raise NotImplementedError
+
+    return _tokenize_str(tokenizer, prompt)
+
 
 def _tokenize_ljmf_entry(tokenizer, entry):
-    # {'task': 'translate' / 'approx-translate' / 'generate',
-    # 'src_segm', 'tgt_segm', 'src_lang', 'tgt_lang'}
-
-    # self.inp_text_id, inp_lang_id, outp_lang_id, outp_text_id, end_task_id; "<|reserved_special_token_12|>..16"
-
-    inp_text_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_12|>")
-    inp_lang_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_13|>")
-    outp_lang_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_14|>")
-    outp_text_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_15|>")
-    end_task_id = tokenizer.convert_tokens_to_ids("<|reserved_special_token_16|>")
-
-    the_sep_list_start = [
-        tokenizer.bos_token_id,
-        inp_text_id,
-        entry['src_segm'],
-        inp_lang_id,
-        " " + entry['src_lang']
-    ]
-
     if entry['task'] in {'translate', 'approx-translate'} and entry['tgt_segm'] and entry['tgt_lang']:
-        the_sep_list_middle = [
-            outp_lang_id,
-            entry['task'] + " to " + entry['tgt_lang'],
-            outp_text_id,
-            entry['tgt_segm']
-        ]
+        prompt = TRAIN_PROMPT_PARA.format(**entry)
     else:
-        the_sep_list_middle = []
+        prompt = TRAIN_PROMPT_MONO.format(**entry)
 
-    the_sep_list_end = [end_task_id, tokenizer.eos_token_id]
-
-    result = _tokenize_sep_list(tokenizer, the_sep_list_start + the_sep_list_middle + the_sep_list_end)
-
-    return result
-
+    return _tokenize_str(tokenizer, prompt)
 
 class LazyTokenizingDataset(TorchDataset):
     def __init__(self, texts, tokenizer, max_length=512):
@@ -335,7 +288,7 @@ class LoggingKillingTrainer(Trainer):
     def compute_loss(self, model, inputs, **kwargs):
         log(f"Here is the batch for training: {inputs}")
         raise NotImplementedError
-        return super().compute_loss(model, inputs, **kwargs)
+        #return super().compute_loss(model, inputs, **kwargs)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
