@@ -28,6 +28,12 @@ def get_lang_pred(raw_txt, start_tag, end_tag):
         if i0 == -1:
             return ''
         i0 += len(start_tag)
+
+        i00 = raw_txt.find(start_tag, i0)
+        while i00 > -1 and raw_txt.find(end_tag, i0) > -1:
+            i0 = i00 + len(start_tag)
+            i00 = raw_txt.find(start_tag, i0)
+
         i1 = raw_txt.find(end_tag, i0)
         if i1 == -1:
             return ''
