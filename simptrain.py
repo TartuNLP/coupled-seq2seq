@@ -115,7 +115,7 @@ def tokenize_for_inference(tokenizer, src_segm, src_lang=None, tgt_lang=None, ta
     elif task in {"translate", "approx-translate"}:
         prompt = INF_PROMPT_MT.format(src_segm=src_segm, src_lang=src_lang, tgt_lang=tgt_lang, task=task)
     else:
-        raise NotImplementedError
+        prompt = src_segm
 
     return _tokenize_str(tokenizer, prompt, add_eos=False)
 

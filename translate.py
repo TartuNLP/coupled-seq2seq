@@ -45,7 +45,7 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000, r
     if raw:
         result = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
     else:
-        result = tokenizer.batch_decode(clean_outputs, skip_special_tokens=False)
+        result = tokenizer.batch_decode(clean_outputs, skip_special_tokens=True)
 
     return result
 
@@ -127,6 +127,8 @@ def and_i_called_this_function_do_main_too(iv):
     log(f"Device: {model.device}.", accelerator=acc)
 
     tokenizer = AutoTokenizer.from_pretrained(args.mdl_id)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = "<|reserved_special_token_100|>"
 
     log("Model loaded, starting to translate")
     outputs = generative_translate(model, tokenizer, inputs, args.from_lang, args.to_lang, args.mode, debug=args.debug)
