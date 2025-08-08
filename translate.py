@@ -23,13 +23,14 @@ def remove_prompt_from_output(att_mask, tokens, filler_id):
     return (1-a_padded) * tokens + filler_id * a_padded
 
 def get_lang_pred(raw_txt):
-    m = re.search(r'<|reserved_special_token_13|>(.*?)<|reserved_special_token_14|>', raw_txt)
+    m = re.search(r'<\|reserved_special_token_13\|>(.*?)<\|reserved_special_token_14\|>', raw_txt)
 
-    result = m.group(1) if m else None
+    pre_result = m.group(1) if m else None
 
-    if result is None:
-        result = raw_txt
-    return result
+    if pre_result is None:
+        return "-"
+    else:
+        return re.sub(r'<\|[^|]+\|>', '', pre_result).strip()
 
 def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
     if debug:
