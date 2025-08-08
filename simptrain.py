@@ -117,8 +117,7 @@ def tokenize_for_inference(tokenizer, src_segm, src_lang=None, tgt_lang=None, ta
     else:
         raise NotImplementedError
 
-    return _tokenize_str(tokenizer, prompt)
-
+    return _tokenize_str(tokenizer, prompt, add_eos=False)
 
 def _tokenize_ljmf_entry(tokenizer, entry):
     if entry['task'] in {'translate', 'approx-translate'} and entry['tgt_segm'] and entry['tgt_lang']:
@@ -292,7 +291,7 @@ class LoggingKillingTrainer(Trainer):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        sys.argv = "_ models/llama3.2-1b models/tmp1 small-structured-data.json batch_size=1 nr_sents_per_gpu=1 log_steps=5 save_steps=10 epochs=1 lr=1e-6".split()
+        sys.argv = "_ models/llama3.2-1b models/tmp1 small-structured-data.json batch_size=16 nr_sents_per_gpu=1 log_steps=5 save_steps=100 epochs=1 lr=1e-4".split()
         testing_on_mac = True
     else:
         env_stuff()
