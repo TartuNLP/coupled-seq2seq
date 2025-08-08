@@ -51,6 +51,7 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
 
     if debug:
         log(f"Raw tokenized output: {raw_outputs}")
+        log(f"Raw tokens: {tokenizer.convert_ids_to_tokens(raw_outputs[0])}")
 
     clean_outputs = remove_prompt_from_output(tok_batch['attention_mask'], raw_outputs, 128030)
 
@@ -65,7 +66,7 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
             log(f"Result: {result}")
     else:
         if debug:
-            debresult = tokenizer.batch_decode(clean_outputs, skip_special_tokens=False)
+            debresult = tokenizer.batch_decode(raw_outputs, skip_special_tokens=False)
             log(f"Raw result: {debresult}")
 
         result = tokenizer.batch_decode(clean_outputs, skip_special_tokens=True)
