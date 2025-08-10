@@ -100,7 +100,6 @@ class LazyTokenizingDataset(TorchDataset):
         entry = self.texts[idx]
 
         prompt = prep_prompt(entry, self.prompt_format)
-        log(f"DEBUG {prompt}")
 
         return tokenize_str(self.tokenizer, prompt)
 
