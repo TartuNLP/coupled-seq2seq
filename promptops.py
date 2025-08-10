@@ -16,7 +16,7 @@ TRAIN_PROMPT_MONO = _TRAIN_PROMPT_PREF + _TRAIN_PROMPT_SUF
 
 ALPACA_PROMPT = ("Below is an instruction that describes a task, paired with an input that provides further context. "
         "Write a response that appropriately completes the request.\n\n"
-        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n")
+        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n{output}")
 
 
 def prep_prompt(data, prompt_format):
