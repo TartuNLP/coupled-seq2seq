@@ -61,13 +61,15 @@ def llm_generate(model, tokenizer, tok_batch, mode, debug=False, max_len=1000):
     #if mode == 'lid':
     #    stop_strings = ["<|reserved_special_token_14|>", "<|reserved_special_token_16|>", "<|end_of_text|>"]
     #else:
-    #    stop_strings = ["<|end_of_text|>"]
-    stop_strings = ["<|reserved_special_token_12|>", "<|reserved_special_token_13|>", "<|reserved_special_token_14|>",
-                    "<|reserved_special_token_15|>", "<|reserved_special_token_16|>", "<|end_of_text|>"]
+
+    # stop_strings = ["<|end_of_text|>"]
+
+    #stop_strings = ["<|reserved_special_token_12|>", "<|reserved_special_token_13|>", "<|reserved_special_token_14|>",
+    #                "<|reserved_special_token_15|>", "<|reserved_special_token_16|>", "<|end_of_text|>"]
 
     raw_outputs = model.generate(**tok_batch, tokenizer=tokenizer,
                                  do_sample=False, num_beams=5, max_length=max_len, top_p=None,
-                                 temperature=None, stop_strings=stop_strings)
+                                 temperature=None) #, stop_strings=stop_strings
 
     if debug:
         log(f"Raw tokenized output: {raw_outputs}")
