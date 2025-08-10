@@ -164,7 +164,7 @@ class LazyTokenizingInferenceDataset(TorchDataset):
 def and_i_called_this_function_do_main_too(iv):
     args = _cmdline_args(iv)
 
-    raw_input = sys.stdin.read().rstrip()
+    raw_input = sys.stdin.read()
 
     if args.mode == 'raw':
         inputs = [raw_input]
