@@ -107,7 +107,7 @@ class BatchingIterator(IterableDataset):
             self.curr_elem_idx += 1
             return batch
 
-if __name__ == '__main__':
+def shuffle_data():
     # open a list of tuples, save a list of batches of strings made of these tuples
     input_file = sys.argv[1]
     output_file = sys.argv[2]
@@ -154,3 +154,13 @@ if __name__ == '__main__':
     # save the result
     with open(output_file, "w") as f:
         json.dump(final_data, f)
+
+if __name__ == '__main__':
+    all_data = []
+
+    for input_file in sys.argv[1:]:
+        with open(input_file, "r") as f:
+            this_data = json.load(f)
+            all_data += this_data
+
+    json.dump(all_data, sys.stdout)
