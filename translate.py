@@ -6,7 +6,7 @@ import re
 from accelerate import Accelerator
 from transformers import AutoModelForCausalLM, DataCollatorForLanguageModeling, AutoTokenizer
 
-from simptrain import tokenize_for_inference
+from promptops import tokenize_for_inference
 from torch.utils.data import Dataset as TorchDataset, DataLoader
 import torch
 from aux import CmdlineArgs, log
