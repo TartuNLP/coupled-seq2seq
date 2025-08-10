@@ -19,18 +19,7 @@ from transformers import (
     TrainerCallback
 )
 
-def rpl(p):
-    return p.replace("|r", "|reserved_special_token_")
-
-INF_PROMPT_LID = rpl("<|r12|>{src_segm}<|r13|>")
-INF_PROMPT_MT = INF_PROMPT_LID + rpl("{src_lang}<|r14|>{task} to {tgt_lang}<|r15|>")
-
-_TRAIN_PROMPT_PREF = rpl("<|r12|>{src_segm}<|r13|>{src_lang}")
-_TRAIN_PROMPT_MID = rpl("<|r14|>{task} to {tgt_lang}<|r15|>{tgt_segm}")
-_TRAIN_PROMPT_SUF = rpl("<|r16|><|end_of_text|>")
-
-TRAIN_PROMPT_PARA = _TRAIN_PROMPT_PREF + _TRAIN_PROMPT_MID + _TRAIN_PROMPT_SUF
-TRAIN_PROMPT_MONO = _TRAIN_PROMPT_PREF + _TRAIN_PROMPT_SUF
+from promptops import tokenize_str, prep_prompt, PF_SMUGRI
 
 """
 1/4 This simply reads in command-line arguments 
@@ -44,7 +33,7 @@ def _cmdline_args():
                          pos_arg_types=[str, str, str],
                          kw_arg_dict={ "continue_training": False, "save_steps": 100, "lr": 1.5e-5,
                             "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
-                            "max_length": 3000 })
+                            "max_length": 3000, "prompt_format": PF_SMUGRI })
 
     # if the directory args.save_location already exists, raise an exception:
     if not result.continue_training and os.path.exists(result.save_location):
@@ -95,47 +84,13 @@ class StepTimerCallback(TrainerCallback):
 3/4 This here is a dataset which reads in raw string files and only when asked for a sample it tokenizes it 
 """
 
-def _tokenize_str(tokenizer, entry, add_eos=True, max_len=2000):
-    tokens = tokenizer(
-        entry,
-        truncation=True,
-        max_length=max_len,
-        return_attention_mask=True,
-    )
-
-    if add_eos:
-        tokens['attention_mask'].append(1)
-        tokens['input_ids'].append(tokenizer.eos_token_id)
-
-    return tokens
-
-def tokenize_for_inference(tokenizer, src_segm, src_lang=None, tgt_lang=None, task="translate", debug=False):
-    if task == "lid":
-        prompt = INF_PROMPT_LID.format(src_segm=src_segm)
-    elif task in {"translate", "approx-translate"}:
-        prompt = INF_PROMPT_MT.format(src_segm=src_segm, src_lang=src_lang, tgt_lang=tgt_lang, task=task)
-    else:
-        prompt = src_segm
-
-    if debug:
-        log(prompt)
-
-    return _tokenize_str(tokenizer, prompt, add_eos=False)
-
-def _tokenize_ljmf_entry(tokenizer, entry):
-    if entry['task'] in {'translate', 'approx-translate'} and entry['tgt_segm'] and entry['tgt_lang']:
-        prompt = TRAIN_PROMPT_PARA.format(**entry)
-    else:
-        prompt = TRAIN_PROMPT_MONO.format(**entry)
-
-    return _tokenize_str(tokenizer, prompt)
 
 class LazyTokenizingDataset(TorchDataset):
-    def __init__(self, texts, tokenizer, max_length=512):
+    def __init__(self, texts, tokenizer, max_length=512, prompt_format="raw"):
         self.texts = texts
         self.tokenizer = tokenizer
         self.max_length = max_length
-        self.raw_text_mode = isinstance(texts[0], str)
+        self.prompt_format = prompt_format
 
     def __len__(self):
         return len(self.texts)
@@ -144,17 +99,16 @@ class LazyTokenizingDataset(TorchDataset):
         # Return plain Python lists; let the collator pad & build labels.
         entry = self.texts[idx]
 
-        if self.raw_text_mode:
-            return _tokenize_str(self.tokenizer, entry)
-        else:
-            return _tokenize_ljmf_entry(self.tokenizer, entry)
+        prompt = prep_prompt(entry, self.prompt_format)
+        log(f"DEBUG {prompt}")
 
+        return tokenize_str(self.tokenizer, prompt)
 
 def load_training_data(path, tokenizer, cmd_args):
     with open(path, "r") as f:
         data = json.load(f)
 
-    train_set_iter = LazyTokenizingDataset(data, tokenizer, cmd_args.max_length)
+    train_set_iter = LazyTokenizingDataset(data, tokenizer, cmd_args.max_length, cmd_args.prompt_format)
 
     return train_set_iter
 
