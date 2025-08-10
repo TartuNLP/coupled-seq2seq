@@ -114,10 +114,10 @@ def generative_translate(model, tokenizer, input_texts, input_language, output_l
     data_coll = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=False,
-        pad_to_multiple_of=8,  # helps performance; set None if you prefer exact lengths
+        pad_to_multiple_of=None,  # helps performance; set None if you prefer exact lengths
     )
 
-    data_loader = DataLoader(dataset, collate_fn=data_coll, batch_size=8)
+    data_loader = DataLoader(dataset, collate_fn=data_coll, batch_size=1)
 
     for inp_batch in data_loader:
         these_outputs = llm_generate(model, tokenizer, inp_batch, mode, debug=debug, max_len=200)
