@@ -35,7 +35,7 @@ def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=3000, filler_
         #log(f"Att mask: {tok_batch['attention_mask']}")
 
     raw_output_toks = model.generate(**tok_batch, tokenizer=tokenizer,
-                                 do_sample=False, num_beams=2, max_length=max_len, top_p=None,
+                                 do_sample=False, num_beams=4, max_length=max_len, top_p=None,
                                  temperature=None)
 
     #clean_output_toks = remove_prompt_from_output(tok_batch['attention_mask'], raw_output_toks, filler_id)
