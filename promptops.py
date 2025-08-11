@@ -42,7 +42,7 @@ def prep_prompt(data, prompt_format, inference=False):
         raise NotImplementedError(f"Prompt format {prompt_format} is not implemented.")
 
 
-def tokenize_str(tokenizer, entry, add_eos=True, max_len=2000):
+def tokenize_str(tokenizer, entry, add_eos=True, max_len=3000):
     tokens = tokenizer(
         entry,
         truncation=True,

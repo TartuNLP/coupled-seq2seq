@@ -2,6 +2,7 @@
 
 import sys
 import json
+
 import promptops
 import torch
 
@@ -31,17 +32,24 @@ def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=3000, filler_
 
     if debug:
         log(f"Tokenized input: {tok_batch['input_ids']}")
-        log(f"Att mask: {tok_batch['attention_mask']}")
+        #log(f"Att mask: {tok_batch['attention_mask']}")
 
-    raw_outputs = model.generate(**tok_batch, tokenizer=tokenizer,
-                                 do_sample=False, num_beams=5, max_length=max_len, top_p=None,
+    raw_output_toks = model.generate(**tok_batch, tokenizer=tokenizer,
+                                 do_sample=False, num_beams=2, max_length=max_len, top_p=None,
                                  temperature=None)
 
-    if debug:
-        log(f"Raw tokenized output: {raw_outputs}")
-        log(f"Raw tokens: {tokenizer.convert_ids_to_tokens(raw_outputs[0])}")
+    #clean_output_toks = remove_prompt_from_output(tok_batch['attention_mask'], raw_output_toks, filler_id)
+    assert len(raw_output_toks) == 1, "Only batch size=1 supported %-("
+    gen_idx = len(tok_batch['attention_mask'][0])
 
-    clean_outputs = remove_prompt_from_output(tok_batch['attention_mask'], raw_outputs, filler_id)
+    clean_output_toks = raw_output_toks[0][gen_idx:]
+
+    if debug:
+        log(f"Raw tokenized full output: {raw_output_toks}")
+        log(f"Raw tokenized output: {clean_output_toks}")
+        log(f"Raw tokens: {tokenizer.convert_ids_to_tokens(clean_output_toks)}")
+
+    clean_outputs = tokenizer.batch_decode([clean_output_toks], skip_special_tokens=True)
 
     if debug:
         end_time = datetime.now()
@@ -52,23 +60,15 @@ def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=3000, filler_
 
 
 def predict(model, tokenizer, data_loader, accel, debug=False):
-    """
-    for inp_batch in data_loader:
-        these_outputs = llm_generate(model, tokenizer, inp_batch, debug=debug, max_len=3000)
-
-        all_outputs += these_outputs
-    """
     outs_local = []
 
     with torch.no_grad():
         for idx, batch in enumerate(data_loader):
             if idx % accel.num_processes == accel.process_index:
-                outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=3000)
+                outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=1000)
                 outs_local += outputs
 
-    all_outputs = accel.gather_object(outs_local)
-
-    return all_outputs
+    return outs_local
 
 
 def read_input(path, format):
@@ -98,7 +98,7 @@ class LazyTokenizingInferenceDataset(TorchDataset):
         entry = self.texts[idx]
 
         prompt = promptops.prep_prompt(entry, self.prompt_format, inference=True)
-        result = promptops.tokenize_str(self.tokenizer, prompt)
+        result = promptops.tokenize_str(self.tokenizer, prompt, add_eos=False)
 
         if self.debug:
             log(f"Input: {prompt}")
@@ -126,7 +126,7 @@ def get_data_loader(path, prompt_format, tokenizer, debug=False):
 def _cmdline_args(inputs):
     description = """Predict output for an input via prompting"""
 
-    pos_args = ["mdl_id", "input_file"]
+    pos_args = ["mdl_id", "input_file", "output_file"]
 
     #post-process the arguments
     args = CmdlineArgs(description, pos_args, input_args=inputs,
@@ -136,6 +136,23 @@ def _cmdline_args(inputs):
     log(f"Launched as {args}")
 
     return args
+
+
+def combine_outputs(acc, output_file):
+    #if idx % accel.num_processes == accel.process_index:
+
+    indiv_contents = []
+
+    for i in range(acc.num_processes):
+        with open(f"{output_file}.{i}", "r") as fh:
+            content = fh.readlines()
+            indiv_contents.append(content)
+
+    with open(output_file, "w") as fh:
+        for gen_idx in range(len(indiv_contents[0])):
+            for i in range(len(indiv_contents)):
+                if gen_idx < len(indiv_contents[i]):
+                    fh.write(indiv_contents[i][gen_idx])
 
 
 def and_i_called_this_function_do_main_too(iv):
@@ -161,7 +178,14 @@ def and_i_called_this_function_do_main_too(iv):
     log("Model loaded, starting to translate")
     outputs = predict(model, tokenizer, data_loader, acc, debug=args.debug)
 
-    print("\n".join(outputs))
+    if args.prompt_format not in {promptops.PF_RAW, promptops.PF_RAWLINES}:
+        outputs = [o.replace("\n", "<<BR>>") for o in outputs]
+
+    with open(f"{args.output_file}.{acc.process_index}", "w", encoding="utf-8") as f_out:
+        f_out.write("\n".join(outputs))
+
+    if acc.is_main_process:
+        combine_outputs(acc, args.output_file)
 
     log("Done...")
 
