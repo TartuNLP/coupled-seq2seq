@@ -3,6 +3,7 @@
 import json
 import os, socket, torch
 import sys
+import promptops
 
 from torch.utils.data import Dataset as TorchDataset
 from aux import log, CmdlineArgs
@@ -19,8 +20,6 @@ from transformers import (
     TrainerCallback
 )
 
-from promptops import tokenize_str, prep_prompt, PF_SMUGRI
-
 """
 1/4 This simply reads in command-line arguments 
 """
@@ -33,7 +32,7 @@ def _cmdline_args():
                          pos_arg_types=[str, str, str],
                          kw_arg_dict={ "continue_training": False, "save_steps": 100, "lr": 1.5e-5,
                             "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
-                            "max_length": 3000, "prompt_format": PF_SMUGRI })
+                            "max_length": 3000, "prompt_format": promptops.PF_SMUGRI_MT})
 
     # if the directory args.save_location already exists, raise an exception:
     if not result.continue_training and os.path.exists(result.save_location):
@@ -99,9 +98,9 @@ class LazyTokenizingDataset(TorchDataset):
         # Return plain Python lists; let the collator pad & build labels.
         entry = self.texts[idx]
 
-        prompt = prep_prompt(entry, self.prompt_format)
+        prompt = promptops.prep_prompt(entry, self.prompt_format)
 
-        return tokenize_str(self.tokenizer, prompt)
+        return promptops.tokenize_str(self.tokenizer, prompt)
 
 def load_training_data(path, tokenizer, cmd_args):
     with open(path, "r") as f:
