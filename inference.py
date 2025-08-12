@@ -65,7 +65,10 @@ def predict(model, tokenizer, data_loader, accel, debug=False):
     with torch.no_grad():
         for idx, batch in enumerate(data_loader):
             if idx % accel.num_processes == accel.process_index:
+                start_time = datetime.now()
                 outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=1000)
+                end_time = datetime.now()
+                log(f"Generating for {idx} in {end_time - start_time}")
                 outs_local += outputs
 
     return outs_local
@@ -171,8 +174,7 @@ def and_i_called_this_function_do_main_too(iv):
     log(f"Device: {model.device}.", accelerator=acc)
 
     tokenizer = AutoTokenizer.from_pretrained(args.mdl_id)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = "<|reserved_special_token_100|>"
+    tokenizer.pad_token = "<|reserved_special_token_100|>"
 
     data_loader = get_data_loader(args.input_file, args.prompt_format, tokenizer, debug=args.debug)
 
