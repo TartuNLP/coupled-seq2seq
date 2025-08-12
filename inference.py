@@ -13,6 +13,8 @@ from torch.utils.data import Dataset as TorchDataset, DataLoader
 from aux import CmdlineArgs, log
 from datetime import datetime
 
+from simptrain import env_stuff
+
 
 def remove_prompt_from_output(att_mask, tokens, filler_id):
     shape = list(att_mask.shape)
@@ -196,5 +198,7 @@ def and_i_called_this_function_do_main_too(iv):
 
 if __name__ == "__main__":
     input_values = sys.argv[1:]
+
+    env_stuff()
 
     and_i_called_this_function_do_main_too(input_values)
