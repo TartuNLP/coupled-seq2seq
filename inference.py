@@ -168,7 +168,7 @@ def save_all(outputs, args, acc):
 
     with open(ind_out_file, "w", encoding="utf-8") as f_out:
         f_out.write("\n".join(outputs))
-    log(f"Saved to {}")
+    log(f"Saved to {ind_out_file}")
 
     acc.wait_for_everyone()
 
