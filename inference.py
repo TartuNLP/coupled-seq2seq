@@ -68,7 +68,7 @@ def predict(model, tokenizer, data_loader, accel, debug=False):
                 start_time = datetime.now()
                 outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=1000)
                 end_time = datetime.now()
-                log(f"Generating for {idx} in {end_time - start_time}")
+                log(f"Generated for {idx} in proc {accel.process_index} in {end_time - start_time}")
                 outs_local += outputs
 
     return outs_local
