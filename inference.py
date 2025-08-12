@@ -160,6 +160,22 @@ def combine_outputs(acc, output_file):
                     fh.write(indiv_contents[i][gen_idx])
 
 
+def save_all(outputs, args, acc):
+    if args.prompt_format not in {promptops.PF_RAW, promptops.PF_RAWLINES}:
+        outputs = [o.replace("\n", "<<BR>>") for o in outputs]
+
+    ind_out_file = f"{args.output_file}.{acc.process_index}"
+
+    with open(ind_out_file, "w", encoding="utf-8") as f_out:
+        f_out.write("\n".join(outputs))
+    log(f"Saved to {}")
+
+    acc.wait_for_everyone()
+
+    if acc.is_main_process:
+        combine_outputs(acc, args.output_file)
+
+
 def and_i_called_this_function_do_main_too(iv):
     args = _cmdline_args(iv)
 
@@ -176,23 +192,16 @@ def and_i_called_this_function_do_main_too(iv):
     log(f"Device: {model.device}.", accelerator=acc)
 
     tokenizer = AutoTokenizer.from_pretrained(args.mdl_id)
-    tokenizer.pad_token = "<|reserved_special_token_100|>"
+    tokenizer.pad_token = tokenizer.eos_token
 
     data_loader = get_data_loader(args.input_file, args.prompt_format, tokenizer, debug=args.debug)
 
     log("Model loaded, starting to translate")
     outputs = predict(model, tokenizer, data_loader, acc, debug=args.debug)
 
-    if args.prompt_format not in {promptops.PF_RAW, promptops.PF_RAWLINES}:
-        outputs = [o.replace("\n", "<<BR>>") for o in outputs]
+    save_all(outputs, args, acc)
 
-    with open(f"{args.output_file}.{acc.process_index}", "w", encoding="utf-8") as f_out:
-        f_out.write("\n".join(outputs))
-
-    if acc.is_main_process:
-        combine_outputs(acc, args.output_file)
-
-    log("Done...")
+    log("Done")
 
 
 if __name__ == "__main__":
