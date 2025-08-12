@@ -162,6 +162,7 @@ def and_i_called_this_function_do_main_too(iv):
     args = _cmdline_args(iv)
 
     acc = Accelerator()
+    log(f"Device: {acc.device}.")
 
     model = AutoModelForCausalLM.from_pretrained(args.mdl_id,
                                                  low_cpu_mem_usage=False,
