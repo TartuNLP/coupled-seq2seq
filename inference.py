@@ -161,10 +161,11 @@ def and_i_called_this_function_do_main_too(iv):
     acc = Accelerator()
 
     model = AutoModelForCausalLM.from_pretrained(args.mdl_id,
-                                                 low_cpu_mem_usage=True,
+                                                 low_cpu_mem_usage=False,
                                                  torch_dtype=torch.bfloat16,
                                                  device_map={"": acc.device},
                                                  attn_implementation="eager")
+    model.config.use_cache = False
     model.eval()
 
     log(f"Device: {model.device}.", accelerator=acc)
