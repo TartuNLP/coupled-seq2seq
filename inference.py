@@ -167,8 +167,9 @@ def save_all(outputs, args, acc):
     ind_out_file = f"{args.output_file}.{acc.process_index}"
 
     with open(ind_out_file, "w", encoding="utf-8") as f_out:
-        f_out.write("\n".join(outputs))
-    log(f"Saved to {ind_out_file}")
+        f_out.write("\n".join(outputs) + "\n")
+
+    log(f"Saved {len(outputs)} rows to {ind_out_file}")
 
     acc.wait_for_everyone()
 
