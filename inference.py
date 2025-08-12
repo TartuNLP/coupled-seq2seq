@@ -163,10 +163,10 @@ def and_i_called_this_function_do_main_too(iv):
     model = AutoModelForCausalLM.from_pretrained(args.mdl_id,
                                                  low_cpu_mem_usage=False,
                                                  torch_dtype=torch.bfloat16,
-                                                 attn_implementation="flash_attention_2")
+                                                 attn_implementation="eager")
     model.config.use_cache = False
     model = model.to(acc.device)
-    #model.eval()
+    model.eval()
 
     log(f"Device: {model.device}.", accelerator=acc)
 
