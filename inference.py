@@ -68,7 +68,7 @@ def predict(model, tokenizer, data_loader, accel, debug=False):
         for idx, batch in enumerate(data_loader):
             if idx % accel.num_processes == accel.process_index:
                 start_time = datetime.now()
-                outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=1000)
+                outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=4000)
                 end_time = datetime.now()
                 log(f"Generated for {idx} in proc {accel.process_index} in {end_time - start_time}")
                 outs_local += outputs
@@ -164,7 +164,6 @@ def and_i_called_this_function_do_main_too(iv):
     args = _cmdline_args(iv)
 
     acc = Accelerator()
-    log(f"Acc device: {acc.device}, CUDA: {torch.cuda.is_available()}.")
 
     model = AutoModelForCausalLM.from_pretrained(args.mdl_id,
                                                  low_cpu_mem_usage=False,
