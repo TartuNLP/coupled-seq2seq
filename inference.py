@@ -166,7 +166,7 @@ def and_i_called_this_function_do_main_too(iv):
                                                  attn_implementation="flash_attention_2")
     model.config.use_cache = False
     model = model.to(acc.device)
-    model.eval()
+    #model.eval()
 
     log(f"Device: {model.device}.", accelerator=acc)
 
