@@ -138,6 +138,8 @@ def get_training_args(cmdline_args, acc, testing_on_mac=False):
             dpspd['train_batch_size'] = cmdline_args.batch_size
             dpspd['train_micro_batch_size_per_gpu'] = cmdline_args.nr_sents_per_gpu
             dpspd['gradient_accumulation_steps'] = accum_steps
+
+            log(f"Using deepspeed with config {dpspd}")
     else:
         dpspd = None
 
