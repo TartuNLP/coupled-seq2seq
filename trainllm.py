@@ -169,6 +169,7 @@ def get_training_args(cmdline_args, acc, testing_on_mac=False):
 def simple_train(testing_on_mac=False):
     cmd_args = _cmdline_args()
     acc = Accelerator()
+    divajs = acc.device
     training_args = get_training_args(cmd_args, acc, testing_on_mac)
 
     log(f"Load tokenizer", accelerator=acc)
@@ -186,7 +187,7 @@ def simple_train(testing_on_mac=False):
                                                  torch_dtype=torch.bfloat16,
                                                  attn_implementation=("eager" if testing_on_mac else "flash_attention_2"))
     model.config.use_cache = False
-    model = model.to(acc.device)
+    model = model.to(divajs)
 
     log(f"attention implementation used: { model.model.layers[0].self_attn.__class__.__name__ }.", accelerator=acc)
     log(f"device: {model.device}.", accelerator=acc)
