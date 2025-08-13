@@ -170,6 +170,7 @@ def simple_train(testing_on_mac=False):
     cmd_args = _cmdline_args()
     acc = Accelerator()
     divajs = acc.device
+    log(f"Device: {divajs}")
     training_args = get_training_args(cmd_args, acc, testing_on_mac)
 
     log(f"Load tokenizer", accelerator=acc)
