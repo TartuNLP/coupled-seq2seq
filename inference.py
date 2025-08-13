@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
+import promptops
+from aux import CmdlineArgs, log
+from trainllm import env_stuff
+
+
 import sys
 import json
-
-import promptops
 import torch
 
 from accelerate import Accelerator, data_loader
 from transformers import AutoModelForCausalLM, DataCollatorForLanguageModeling, AutoTokenizer
 
 from torch.utils.data import Dataset as TorchDataset, DataLoader
-from aux import CmdlineArgs, log
 from datetime import datetime
-
-from simptrain import env_stuff
 
 
 def remove_prompt_from_output(att_mask, tokens, filler_id):

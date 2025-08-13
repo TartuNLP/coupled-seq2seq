@@ -6,11 +6,11 @@ import subprocess
 import random
 
 from accelerate import Accelerator
-from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler, AutoModelForSeq2SeqLM
+from transformers import AutoModelForCausalLM, get_scheduler, AutoModelForSeq2SeqLM
 from datasets import load_dataset
 
 from aux import CmdlineArgs, log
-from langconv import is_dec_only_llm
+from legacy.langconv import is_dec_only_llm
 from modelops import report_devices, hf_tok
 from tokops import load_tokenizer, tokenizeit
 

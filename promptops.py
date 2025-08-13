@@ -1,5 +1,3 @@
-from aux import log
-
 PF_RAW = "raw"
 PF_RAWLINES = "rawlines"
 PF_SMUGRI_MT = "smugri_mt"

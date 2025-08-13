@@ -6,9 +6,9 @@ import json
 
 from collections import defaultdict
 from data import split_by_lang, make_path_compatible, get_tr_pairs
-from translate import coupled_translate, load_and_init_module_config, neurotolge_in_batches
+from inference import coupled_translate, load_and_init_module_config, neurotolge_in_batches
 from evaluate import load as load_metric
-from langconv import get_mdl_type, get_joshi_class
+from legacy.langconv import get_mdl_type, get_joshi_class
 from accelerate import Accelerator
 
 from aux import log

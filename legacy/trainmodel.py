@@ -3,14 +3,14 @@
 import os
 import torch
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
+from transformers import AutoModelForSeq2SeqLM, AutoModelForCausalLM
 
-from accel import SwitchingAccelerator
+from legacy.accel import SwitchingAccelerator
 from accelerate import Accelerator
 from data import MultilingualDatasetIterator
 from aux import log, CmdlineArgs
-from langconv import lang_set_maybe_smugri, is_dec_only_llm
-from modelops import mdl_param_count, to_cpl_spec, save_all_models, hf_tok
+from legacy.langconv import lang_set_maybe_smugri, is_dec_only_llm
+from modelops import mdl_param_count, to_cpl_spec, hf_tok
 from tokops import load_tokenizer
 
 

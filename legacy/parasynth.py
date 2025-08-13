@@ -6,8 +6,8 @@ import json
 from collections import defaultdict
 
 from benchmark import get_hyp_cache_dir, translate_all_hyps
-from translate import load_and_init_module_config
-from langconv import get_high_set, any_to_mdl_type, get_mdl_type
+from inference import load_and_init_module_config
+from legacy.langconv import get_high_set, any_to_mdl_type, get_mdl_type
 from accelerate import Accelerator
 from aux import log
 

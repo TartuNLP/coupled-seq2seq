@@ -4,11 +4,11 @@ import os
 
 from transformers import AutoConfig, AutoModelForSeq2SeqLM
 
-from modelops import mdl_param_count
-from tokops import get_stupid_correction, train_or_extend_tokenizer_and_upd_model, save_postokens
+from legacy.modelops import mdl_param_count
+from legacy.tokops import train_or_extend_tokenizer_and_upd_model, save_postokens
 
 from aux import get_changed_config, CmdlineArgs
-from langconv import lang_set_maybe_smugri
+from legacy.langconv import lang_set_maybe_smugri
 
 
 def just_do_main_stuff_and_avoid_global_ctx_variables():

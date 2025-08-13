@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
 import os
-import sys
-
-from transformers import AutoTokenizer
 
 from data import MultilingualBatchingCachingDataset
 from aux import log, CmdlineArgs
-from langconv import lang_set_maybe_smugri
-from modelops import to_cpl_spec, hf_tok
+from legacy.langconv import lang_set_maybe_smugri
+from modelops import to_cpl_spec
 from tokops import load_tokenizer
 
 """

@@ -1,16 +1,14 @@
-import json
 import os
 from collections import namedtuple
 
 import torch
 
 from aux import log
-from langconv import get_mdl_type, langs_to_mdl_type
 
 CouplingSpecTuple = namedtuple("CouplingSpecPair", ["lang_set", "tokenizer", "postokenizer", "model_id", "model"])
 
 hf_tok = None
-with open("hf_token", 'r') as fh:
+with open("../hf_token", 'r') as fh:
     hf_tok = fh.read().strip()
 
 

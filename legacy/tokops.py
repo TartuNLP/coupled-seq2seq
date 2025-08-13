@@ -2,15 +2,14 @@
 import os
 import sentencepiece as spm
 import json
-import sys
 
 from transformers import AutoTokenizer
 from transformers.models.nllb import NllbTokenizer
 from transformers.models.t5 import T5Tokenizer
 from collections import defaultdict
 
-from aux import log, CmdlineArgs
-from langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad, is_dec_only_llm
+from aux import log
+from legacy.langconv import langs_to_madlad, langs_to_nllb, is_nllb, is_madlad, is_dec_only_llm
 from modelops import hf_tok
 
 
