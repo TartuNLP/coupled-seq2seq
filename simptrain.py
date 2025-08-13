@@ -131,7 +131,6 @@ def get_training_args(cmdline_args, acc, testing_on_mac=False):
         num_train_epochs=cmdline_args.epochs,
         save_steps=cmdline_args.save_steps,
         save_total_limit=10,
-        save_strategy="epoch",
         logging_steps=cmdline_args.log_steps,
         learning_rate=cmdline_args.lr,
         disable_tqdm=True,
