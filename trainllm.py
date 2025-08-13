@@ -153,6 +153,7 @@ def get_training_args(cmdline_args, acc, testing_on_mac=False):
         logging_steps=cmdline_args.log_steps,
         deepspeed=dpspd,
         learning_rate=cmdline_args.lr,
+        save_strategy="epoch",
         disable_tqdm=True,
         report_to="none",
         # Optional but often helpful on LUMI/ROCm if you enable it in your args:
