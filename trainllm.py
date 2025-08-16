@@ -2,13 +2,12 @@
 
 import promptops
 from aux import log, CmdlineArgs
+from data import load_training_data
 
 
 import json
 import os, socket, torch
-import sys
 
-from torch.utils.data import Dataset as TorchDataset
 from datetime import datetime
 
 from accelerate import Accelerator
@@ -23,7 +22,7 @@ from transformers import (
 )
 
 """
-1/4 This simply reads in command-line arguments 
+1/3 This simply reads in command-line arguments 
 """
 
 def _cmdline_args():
@@ -50,7 +49,7 @@ def _cmdline_args():
     return result
 
 """
-2/4 This here is used in training in order to report timing and predictions 
+2/3 This here is used in training in order to report timing and predictions 
 """
 
 class StepTimerCallback(TrainerCallback):
@@ -86,41 +85,10 @@ class StepTimerCallback(TrainerCallback):
         print(f"[step {state.global_step}/{state.max_steps}] took {elapsed}, avg {avg}; approx {prediction} remaining")
 
 """
-3/4 This here is a dataset which reads in raw string files and only when asked for a sample it tokenizes it 
+3/3 Finally, the filling of TrainingArguments and the launching of Trainer:
 """
 
-
-class LazyTokenizingDataset(TorchDataset):
-    def __init__(self, texts, tokenizer, max_length=512, prompt_format="raw"):
-        self.texts = texts
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-        self.prompt_format = prompt_format
-
-    def __len__(self):
-        return len(self.texts)
-
-    def __getitem__(self, idx):
-        # Return plain Python lists; let the collator pad & build labels.
-        entry = self.texts[idx]
-
-        prompt = promptops.prep_prompt(entry, self.prompt_format)
-
-        return promptops.tokenize_str(self.tokenizer, prompt)
-
-def load_training_data(path, tokenizer, cmd_args):
-    with open(path, "r") as f:
-        data = json.load(f)
-
-    train_set_iter = LazyTokenizingDataset(data, tokenizer, cmd_args.max_length, cmd_args.prompt_format)
-
-    return train_set_iter
-
-"""
-4/4 Finally, the filling of TrainingArguments and the launching of Trainer:
-"""
-
-def get_training_args(cmdline_args, acc, testing_on_mac=False):
+def get_training_args(cmdline_args, acc):
     world_size = acc.num_processes
 
     assert cmdline_args.batch_size % (cmdline_args.nr_sents_per_gpu * world_size) == 0, \
@@ -157,7 +125,7 @@ def get_training_args(cmdline_args, acc, testing_on_mac=False):
         disable_tqdm=True,
         report_to="none",
         # Optional but often helpful on LUMI/ROCm if you enable it in your args:
-        bf16=not testing_on_mac, #True,
+        bf16=True,
         ddp_find_unused_parameters=False,
         #dataloader_num_workers=1,
         #group_by_length=True,
@@ -169,19 +137,18 @@ def get_training_args(cmdline_args, acc, testing_on_mac=False):
     return tr_args
 
 
-def simple_train(testing_on_mac=False):
+def simple_train():
     cmd_args = _cmdline_args()
     acc = Accelerator()
-    divajs = acc.device
+    device = acc.device # seems that the accelerator loses/changes this info later
 
-    training_args = get_training_args(cmd_args, acc, testing_on_mac)
-
-    log(f"Load tokenizer", accelerator=acc)
+    training_args = get_training_args(cmd_args, acc)
 
     # Load model and tokenizer
+    log(f"Load tokenizer", accelerator=acc)
     tokenizer = AutoTokenizer.from_pretrained(cmd_args.mdl_id)
 
-    # LLaMA 3.x: no pad token by default — use EOS for padding
+    # LLaMA 3.x: no pad token by default
     if tokenizer.pad_token is None:
         tokenizer.pad_token = "<|reserved_special_token_100|>"
 
@@ -189,11 +156,9 @@ def simple_train(testing_on_mac=False):
     model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
                                                  low_cpu_mem_usage=False,
                                                  torch_dtype=torch.bfloat16,
-                                                 attn_implementation=("eager" if testing_on_mac else "flash_attention_2"))
+                                                 attn_implementation="flash_attention_2")
     model.config.use_cache = False
-    model = model.to(divajs)
-
-    log(f"attention implementation used: { model.model.layers[0].self_attn.__class__.__name__ }.", accelerator=acc)
+    model = model.to(device)
     log(f"device: {model.device}.", accelerator=acc)
 
     # Make sure the model knows the pad id (avoids warnings/edge-cases)
@@ -261,6 +226,12 @@ def env_stuff():
             f"no cuda"
         )
 
+"""
+This replaces the trainer, in order to
+print out the final batch when training,
+and commit harakiri. So only for temporary
+debugging-related usage
+"""
 class LoggingKillingTrainer(Trainer):
     def compute_loss(self, model, inputs, **kwargs):
         log(f"Here is the batch for training: {inputs}")
@@ -268,10 +239,6 @@ class LoggingKillingTrainer(Trainer):
         #return super().compute_loss(model, inputs, **kwargs)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.argv = "_ models/llama3.2-1b models/tmp1 small-structured-data.json batch_size=16 nr_sents_per_gpu=1 log_steps=5 save_steps=100 epochs=1 lr=1e-4".split()
-        testing_on_mac = True
-    else:
-        env_stuff()
-        testing_on_mac = False
-    simple_train(testing_on_mac)
+    env_stuff()
+
+    simple_train()

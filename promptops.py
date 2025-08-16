@@ -1,8 +1,13 @@
+
+# first, keyword identifiers for selecting prompt templates in scripts:
+
 PF_RAW = "raw"
 PF_RAWLINES = "rawlines"
 PF_SMUGRI_MT = "smugri_mt"
 PF_SMUGRI_LID = "smugri_lid"
 PF_ALPACA = "alpaca"
+
+# now the prompt templates themselves, SMUGRI LID / MT template:
 
 SMUGRI_INF_PROMPT_LID = "<|reserved_special_token_12|>{src_segm}<|reserved_special_token_13|>"
 
@@ -15,6 +20,8 @@ _SMUGRI_TRAIN_PROMPT_SUF = "<|reserved_special_token_16|><|end_of_text|>"
 
 SMUGRI_PROMPT_TRAIN_PARA = _SMUGRI_TRAIN_PROMPT_PREF + _SMUGRI_TRAIN_PROMPT_MID + _SMUGRI_TRAIN_PROMPT_SUF
 SMUGRI_PROMPT_TRAIN_MONO = _SMUGRI_TRAIN_PROMPT_PREF + _SMUGRI_TRAIN_PROMPT_SUF
+
+# Alpaca instructions prompt template:
 
 ALPACA_PROMPT_INF = ("Below is an instruction that describes a task, paired with an input that provides further context. "
         "Write a response that appropriately completes the request.\n\n"
@@ -38,21 +45,6 @@ def prep_prompt(data, prompt_format, inference=False):
 
     else:
         raise NotImplementedError(f"Prompt format {prompt_format} is not implemented.")
-
-
-def tokenize_str(tokenizer, entry, add_eos=True, max_len=3000):
-    tokens = tokenizer(
-        entry,
-        truncation=True,
-        max_length=max_len,
-        return_attention_mask=True,
-    )
-
-    if add_eos:
-        tokens['attention_mask'].append(1)
-        tokens['input_ids'].append(tokenizer.eos_token_id)
-
-    return tokens
 
 
 def _prep_alpaca_entry(entry, inference=False):

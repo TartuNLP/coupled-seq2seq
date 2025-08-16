@@ -1,9 +1,63 @@
 #!/usr/bin/env python3
 
+import promptops
+
 import json
 import sys
 
 from random import shuffle
+
+from torch.utils.data import Dataset
+
+
+def tokenize_str(tokenizer, entry, add_eos=True, max_len=3000):
+    tokens = tokenizer(
+        entry,
+        truncation=True,
+        max_length=max_len,
+        return_attention_mask=True,
+    )
+
+    if add_eos:
+        tokens['attention_mask'].append(1)
+        tokens['input_ids'].append(tokenizer.eos_token_id)
+
+    return tokens
+
+"""
+Load texts into memory and allow to loop through it,
+returning tokenized tensors.
+
+Currently no support for text data that does not fit into memory,
+need to add it. Or do HF datasets have something out of the box? 
+"""
+class LazyTokenizingDataset(Dataset):
+    def __init__(self, texts, tokenizer, max_length=512, prompt_format="raw"):
+        self.texts = texts
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        self.prompt_format = prompt_format
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        # Return plain Python lists; let the collator pad & build labels.
+        entry = self.texts[idx]
+
+        prompt = promptops.prep_prompt(entry, self.prompt_format)
+
+        return tokenize_str(self.tokenizer, prompt)
+
+
+def load_training_data(path, tokenizer, cmd_args):
+    with open(path, "r") as f:
+        data = json.load(f)
+
+    train_set_iter = LazyTokenizingDataset(data, tokenizer, cmd_args.max_length, cmd_args.prompt_format)
+
+    return train_set_iter
+
 
 if __name__ == '__main__':
     all_data = []
