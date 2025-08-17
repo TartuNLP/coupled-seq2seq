@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+from transformers import DataCollatorForLanguageModeling
 
+import data
 import promptops
 
 import json
@@ -7,7 +9,9 @@ import sys
 
 from random import shuffle
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset as TorchDataset, DataLoader
+
+from aux import log
 
 
 def tokenize_str(tokenizer, entry, add_eos=True, max_len=3000):
@@ -31,7 +35,7 @@ returning tokenized tensors.
 Currently no support for text data that does not fit into memory,
 need to add it. Or do HF datasets have something out of the box? 
 """
-class LazyTokenizingDataset(Dataset):
+class LazyTokenizingDataset(TorchDataset):
     def __init__(self, texts, tokenizer, max_length=512, prompt_format="raw"):
         self.texts = texts
         self.tokenizer = tokenizer
@@ -48,6 +52,60 @@ class LazyTokenizingDataset(Dataset):
         prompt = promptops.prep_prompt(entry, self.prompt_format)
 
         return tokenize_str(self.tokenizer, prompt)
+
+
+class LazyTokenizingInferenceDataset(TorchDataset):
+    def __init__(self, texts, tokenizer, prompt_format, max_length=512, debug=False):
+        self.texts = texts
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        self.prompt_format = prompt_format
+        self.debug = debug
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        entry = self.texts[idx]
+
+        prompt = promptops.prep_prompt(entry, self.prompt_format, inference=True)
+        result = data.tokenize_str(self.tokenizer, prompt, add_eos=False)
+
+        if self.debug:
+            log(f"Input: {prompt}")
+            log(f"Tokenized: {result}")
+
+        return result
+
+
+def read_input(path, formt):
+    fh = sys.stdin if path is None else open(path, 'r')
+
+    if formt == promptops.PF_RAW:
+        result = [fh.read()]
+    elif formt == promptops.PF_RAWLINES:
+        result = fh.readlines()
+    else:
+        result = json.load(fh)
+
+    return result
+
+
+def get_data_loader(path, prompt_format, tokenizer, debug=False):
+    inputs = read_input(path, prompt_format)
+
+    dataset = LazyTokenizingInferenceDataset(inputs, tokenizer, prompt_format, debug=debug)
+
+    data_coll = DataCollatorForLanguageModeling(
+        tokenizer=tokenizer,
+        mlm=False,
+        pad_to_multiple_of=None,  # helps performance; set None if you prefer exact lengths
+    )
+
+    data_loader = DataLoader(dataset, collate_fn=data_coll, batch_size=1)
+
+    return data_loader
+
 
 
 def load_training_data(path, tokenizer, cmd_args):

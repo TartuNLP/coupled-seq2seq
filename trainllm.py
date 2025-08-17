@@ -137,42 +137,51 @@ def get_training_args(cmdline_args, acc):
     return tr_args
 
 
-def simple_train():
-    cmd_args = _cmdline_args()
-    acc = Accelerator()
-    device = acc.device # seems that the accelerator loses/changes this info later
+def load_model(mdl_id, device, accelerator, attention="flash_attention_2"):
+    log(f"Load model", accelerator=accelerator)
+    model = AutoModelForCausalLM.from_pretrained(mdl_id,
+                                                 low_cpu_mem_usage=False,
+                                                 torch_dtype=torch.bfloat16,
+                                                 attn_implementation=attention)
 
-    training_args = get_training_args(cmd_args, acc)
+    model.config.use_cache = False
+    model = model.to(device)
+    log(f"Model loaded on device: {model.device}.", accelerator=accelerator)
 
-    # Load model and tokenizer
-    log(f"Load tokenizer", accelerator=acc)
-    tokenizer = AutoTokenizer.from_pretrained(cmd_args.mdl_id)
+    return model
+
+
+def load_tokenizer(mdl_id, accelerator):
+    log(f"Load tokenizer", accelerator=accelerator)
+    tokenizer = AutoTokenizer.from_pretrained(mdl_id)
 
     # LLaMA 3.x: no pad token by default
     if tokenizer.pad_token is None:
         tokenizer.pad_token = "<|reserved_special_token_100|>"
 
-    log(f"Load model", accelerator=acc)
-    model = AutoModelForCausalLM.from_pretrained(cmd_args.mdl_id,
-                                                 low_cpu_mem_usage=False,
-                                                 torch_dtype=torch.bfloat16,
-                                                 attn_implementation="flash_attention_2")
-    model.config.use_cache = False
-    model = model.to(device)
-    log(f"device: {model.device}.", accelerator=acc)
+    return tokenizer
 
-    # Make sure the model knows the pad id (avoids warnings/edge-cases)
+
+def simple_train():
+    cmd_args = _cmdline_args()
+    acc = Accelerator()
+    device = acc.device # it seems that the accelerator loses/changes this info later
+
+    training_args = get_training_args(cmd_args, acc)
+
+    tokenizer = load_tokenizer(cmd_args.mdl_id)
+    model = load_model(cmd_args.mdl_id, device, acc)
+
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
 
     log(f"Load data", accelerator=acc)
     tokenized_train_data = load_training_data(cmd_args.train_file, tokenizer, cmd_args)
 
-    # Dynamic padding + proper causal labels with pads masked to -100
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=False,
-        pad_to_multiple_of=8,  # helps performance; set None if you prefer exact lengths
+        pad_to_multiple_of=8,  # GPT says this helps performance
     )
 
     log(f"Preparing to train", accelerator=acc)
