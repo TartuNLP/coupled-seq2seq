@@ -33,7 +33,7 @@ def _cmdline_args():
                          pos_arg_types=[str, str, str],
                          kw_arg_dict={ "continue_training": False, "save_steps": 100, "lr": 1.5e-5,
                             "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
-                            "max_length": 3000, "prompt_format": promptops.PF_SMUGRI_MT,
+                            "max_length": 2000, "prompt_format": promptops.PF_SMUGRI_MT,
                             "deepspeed": "none"})
 
     # if the directory args.save_location already exists, raise an exception:
