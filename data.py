@@ -98,6 +98,15 @@ def get_data_loader(path, prompt_format, tokenizer, debug=False):
 
     dataset = LazyTokenizingInferenceDataset(inputs, tokenizer, prompt_format, debug=debug)
 
+    """
+    data_coll = DataCollatorForLanguageModeling(
+        tokenizer=tokenizer,
+        mlm=False,
+        pad_to_multiple_of=None,  # helps performance; set None if you prefer exact lengths
+    )
+
+    data_loader = DataLoader(dataset, collate_fn=data_coll, batch_size=1)
+    """
     data_loader = DataLoader(dataset, batch_size=1)
 
     return data_loader
