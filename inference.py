@@ -142,6 +142,8 @@ def and_i_called_this_function_do_main_too():
     acc = Accelerator()
     device = acc.device
 
+    log(f"Device: {device}.", accelerator=acc)
+
     if not args.multiproc and not acc.is_main_process:
         log("Not launched in multi-processing mode, exiting non-main process.")
         sys.exit(0)
