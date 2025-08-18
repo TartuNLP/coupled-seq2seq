@@ -81,9 +81,13 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
 
     if multi:
         accel.wait_for_everyone()
+
         rank0_buffer = [None] * accel.num_processes if accel.is_main_process else None
         dist.gather_object(outs_final, rank0_buffer, dst=0)
-        outs_final = reassemble_multi(rank0_buffer)
+        if accel.is_main_process:
+            outs_final = reassemble_multi(rank0_buffer)
+        else:
+            outs_final = None
 
     return outs_final
 
@@ -115,17 +119,18 @@ def _cmdline_args():
 
 
 def save_all(outputs, args, acc):
-    if args.output_file is None:
-        log("Writing to STDOUT")
-        out_fh = sys.stdout
-    else:
-        out_fh = open(args.output_file, "w")
+    if acc.is_main_process:
+        if args.output_file is None:
+            log("Writing to STDOUT")
+            out_fh = sys.stdout
+        else:
+            out_fh = open(args.output_file, "w")
 
-    if args.prompt_format in {promptops.PF_RAW, promptops.PF_RAWLINES}:
-        for line in outputs:
-            out_fh.write(line + "\n")
-    else:
-        json.dump(outputs, out_fh)
+        if args.prompt_format in {promptops.PF_RAW, promptops.PF_RAWLINES}:
+            for line in outputs:
+                out_fh.write(line + "\n")
+        else:
+            json.dump(outputs, out_fh)
 
 
 def and_i_called_this_function_do_main_too():
