@@ -79,7 +79,12 @@ class LazyTokenizingInferenceDataset(TorchDataset):
 
 
 def read_input(path, formt):
-    fh = sys.stdin if path is None else open(path, 'r')
+    #fh = sys.stdin if path is None else open(path, 'r')
+    if path is None:
+        log("Reading from STDIN")
+        fh = sys.stdin
+    else:
+        fh = open(path, 'r')
 
     if formt == promptops.PF_RAW:
         result = [fh.read()]
