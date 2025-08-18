@@ -137,7 +137,7 @@ def get_training_args(cmdline_args, acc):
     return tr_args
 
 
-def load_model(mdl_id, device, accelerator, attention="flash_attention_2"):
+def load_model(mdl_id, device, accelerator=None, attention="flash_attention_2"):
     log(f"Load model", accelerator=accelerator)
     model = AutoModelForCausalLM.from_pretrained(mdl_id,
                                                  low_cpu_mem_usage=False,
@@ -151,7 +151,7 @@ def load_model(mdl_id, device, accelerator, attention="flash_attention_2"):
     return model
 
 
-def load_tokenizer(mdl_id, accelerator):
+def load_tokenizer(mdl_id, accelerator=None):
     log(f"Load tokenizer", accelerator=accelerator)
     tokenizer = AutoTokenizer.from_pretrained(mdl_id)
 
@@ -169,7 +169,7 @@ def simple_train():
 
     training_args = get_training_args(cmd_args, acc)
 
-    tokenizer = load_tokenizer(cmd_args.mdl_id)
+    tokenizer = load_tokenizer(cmd_args.mdl_id, acc)
     model = load_model(cmd_args.mdl_id, device, acc)
 
     if getattr(model.config, "pad_token_id", None) is None:
