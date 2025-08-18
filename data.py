@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import data
 import promptops
 
 import json
@@ -12,13 +11,22 @@ from torch.utils.data import Dataset as TorchDataset, DataLoader
 from aux import log
 
 
-def tokenize_str(tokenizer, entry, add_eos=True, max_len=3000):
-    tokens = tokenizer(
-        entry,
-        truncation=True,
-        max_length=max_len,
-        return_attention_mask=True,
-    )
+def tokenize_str(tokenizer, entry, add_eos=True, max_len=3000, for_inf=False):
+    if for_inf:
+        tokens = tokenizer(
+            entry,
+            truncation=True,
+            max_length=max_len,
+            return_attention_mask=True,
+            return_tensors="pt"
+        )
+    else:
+        tokens = tokenizer(
+            entry,
+            truncation=True,
+            max_length=max_len,
+            return_attention_mask=True
+        )
 
     if add_eos:
         tokens['attention_mask'].append(1)
@@ -67,7 +75,7 @@ class LazyTokenizingInferenceDataset(TorchDataset):
         entry = self.texts[idx]
 
         prompt = promptops.prep_prompt(entry, self.prompt_format, inference=True)
-        result = data.tokenize_str(self.tokenizer, prompt, add_eos=False)
+        result = tokenize_str(self.tokenizer, prompt, add_eos=False, for_inf=True)
 
         if self.debug:
             log(f"Input: {prompt}")
@@ -107,9 +115,8 @@ def get_data_loader(path, prompt_format, tokenizer, debug=False):
 
     data_loader = DataLoader(dataset, collate_fn=data_coll, batch_size=1)
     """
-    data_loader = DataLoader(dataset, batch_size=1)
 
-    return data_loader
+    return dataset
 
 
 
