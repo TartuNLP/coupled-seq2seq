@@ -141,11 +141,13 @@ def save_all(outputs, args, acc):
 
 def and_i_called_this_function_do_main_too():
     args = _cmdline_args()
+    acc = Accelerator()
 
     if args.multiproc:
         env_stuff()
-
-    acc = Accelerator()
+    elif not acc.is_main_process:
+        log("Not launched in multi-processing mode, exiting non-main process.")
+        sys.exit(0)
 
     tokenizer = load_tokenizer(args.mdl_id, acc)
 
