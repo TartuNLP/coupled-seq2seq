@@ -131,6 +131,7 @@ def save_all(outputs, args, acc):
 def and_i_called_this_function_do_main_too():
     args = _cmdline_args()
     acc = Accelerator()
+    device = acc.device
 
     if args.multiproc:
         env_stuff()
@@ -142,7 +143,7 @@ def and_i_called_this_function_do_main_too():
 
     data_loader = get_data_loader(args.input_file, args.prompt_format, tokenizer, debug=args.debug)
 
-    model = load_model(args.mdl_id, acc.device, acc, attention="eager")
+    model = load_model(args.mdl_id, device, acc, attention="eager")
     model.eval()
 
     log(f"Device: {model.device}.", accelerator=acc)
