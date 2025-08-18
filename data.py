@@ -125,7 +125,6 @@ if __name__ == '__main__':
             this_data = json.load(f)
             all_data += this_data
 
-    #shuffle(all_data)
-    sorted_data = sorted(all_data, key=lambda x: -len(str(x)))
+    shuffle(all_data)
 
     json.dump(all_data, sys.stdout)
