@@ -114,23 +114,12 @@ def _cmdline_args():
     return args
 
 
-def combine_outputs(acc, output_file):
-    indiv_contents = []
-
-    for i in range(acc.num_processes):
-        with open(f"{output_file}.{i}", "r") as fh:
-            content = fh.readlines()
-            indiv_contents.append(content)
-
-    with open(output_file, "w") as fh:
-        for gen_idx in range(len(indiv_contents[0])):
-            for i in range(len(indiv_contents)):
-                if gen_idx < len(indiv_contents[i]):
-                    fh.write(indiv_contents[i][gen_idx])
-
-
 def save_all(outputs, args, acc):
-    out_fh = sys.stdout if args.output_file is None else open(args.output_file, "w")
+    if args.output_file is None:
+        log("Writing to STDOUT")
+        out_fh = sys.stdout
+    else:
+        out_fh = open(args.output_file, "w")
 
     if args.prompt_format in {promptops.PF_RAW, promptops.PF_RAWLINES}:
         for line in outputs:
