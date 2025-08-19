@@ -1,2 +1,2 @@
-# coupled-seq2seq
-Implementation of coupled sequence-to-sequence model training, based on HuggingFace.
+# Kuidas taltsutada laamat
+Implementation of LLM continued training and inference.
