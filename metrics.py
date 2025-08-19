@@ -17,7 +17,6 @@ SMUGRI_RES = {
                 "Pite Sami,Mansi,Kazym Khanty,Kven,Ume Sami,Kildin Sami".split(","))
 }
 
-
 def _gen_lang(lang):
     return lang.split(",")[0]
 
