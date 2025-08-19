@@ -26,7 +26,7 @@ def _hi_or_lo_lang(lang):
     gen_lang = _gen_lang(lang)
 
     for k, v in SMUGRI_RES.items():
-        if lang in v:
+        if gen_lang in v:
             return k
 
     log(f"Unrecognized language: {lang}")
