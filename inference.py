@@ -29,8 +29,9 @@ def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=2000):
         log(f"Tokenized input: {tok_batch['input_ids']}")
 
     raw_output_toks = model.generate(**tok_batch, tokenizer=tokenizer,
-                                 do_sample=False, num_beams=4, max_length=max_len, top_p=None,
-                                 temperature=None)
+                                 do_sample=False, num_beams=4, max_length=max_len, top_p=None, temperature=None,
+                                 eos_token_id=[tokenizer.eos_token_id,
+                                               tokenizer.convert_tokens_to_ids("<|reserved_special_token_14|>")])
 
     #clean_output_toks = remove_prompt_from_output(tok_batch['attention_mask'], raw_output_toks, filler_id)
     assert len(raw_output_toks) == 1, "Only batch size=1 supported %-("
