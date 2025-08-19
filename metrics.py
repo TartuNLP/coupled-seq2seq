@@ -72,7 +72,7 @@ def avoid_global_scope():
     lp_metric_dict = compute_metrics(json_inputs, str_outputs)
 
     for lp, metric, size in lp_metric_dict:
-        print(f"{lp}: {metric['score']} ({size})")
+        print(f"{lp}: {metric['score']:.2f} ({size})")
 
 if __name__ == "__main__":
     avoid_global_scope()
