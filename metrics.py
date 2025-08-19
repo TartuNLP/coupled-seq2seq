@@ -29,6 +29,7 @@ def _hi_or_lo_lang(lang):
         if lang in v:
             return k
 
+    log(f"Unrecognized language: {lang}")
     return '?'
 
 
