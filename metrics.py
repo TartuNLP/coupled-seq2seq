@@ -10,9 +10,9 @@ from evaluate import load as load_metric
 SMUGRI_RES = {
     'high': set("Estonian,English,Russian,Finnish,Hungarian,Latvian,German,Swedish,Norwegian,French".split(",")),
     'mid': set("Komi,Komi-Zyrian,Northern Sami,Meadow Mari".split(",")),
-    'low': set("Udmurt,Karelian Proper,Southern Sami,Livvi,Veps,Moksha,Erzya,Lule Sami,Võro,Hill Mari,"
+    'low': set("Udmurt,Proper Karelian,Southern Sami,Livvi,Veps,Moksha,Erzya,Lule Sami,Võro,Hill Mari,"
                "Komi-Permyak,Inari Sami".split(",")),
-    'xlow': set("Ludian,Livonian,Ingrian,Votic,Shur Khanty,Skolt Sami,"
+    'xlow': set("Ludian,Livonian,Izhorian,Votic,Shur Khanty,Skolt Sami,Meänkieli,"
                 "Sred Khanty,Surgut Khanty,Priur Khanty,Vakh Khanty,Unk Khanty,"
                 "Pite Sami,Mansi,Kazym Khanty,Kven,Ume Sami,Kildin Sami".split(","))
 }
@@ -29,7 +29,7 @@ def _hi_or_lo_lang(lang):
         if gen_lang in v:
             return k
 
-    log(f"Unrecognized language: {lang}")
+    log(f"Unrecognized language: {lang} / {gen_lang}")
     return '?'
 
 
