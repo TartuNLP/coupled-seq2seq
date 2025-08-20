@@ -80,7 +80,7 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
     with torch.no_grad():
         for idx, batch in enumerate(data_loader):
             if idx % accel.num_processes == accel.process_index:
-                if sync and (idx // accel.num_processes) % 10 == 0:
+                if sync and (accel.num_processes > 1) and (idx // accel.num_processes) % 10 == 0:
                     # sync procs now, otherwise waiting times out in the end
                     wait_start_time = datetime.now()
                     accel.wait_for_everyone()
@@ -120,7 +120,7 @@ def _cmdline_args():
                                     "input_file": "none",
                                     "output_file": "none",
                                     "multiproc": False,
-                                    "sync": True,
+                                    "synchronize": True,
                                     "max_len": 2000,
                                     "prompt_format": promptops.PF_ALPACA})
 
@@ -135,8 +135,8 @@ def _cmdline_args():
 
 
 def save_all(outputs, args, acc):
-    if acc.is_main_process or not args.sync:
-        if not args.sync:
+    if acc.is_main_process or not args.synchronize:
+        if not args.synchronize:
             out_fh = open(f"{args.output_file}.proc{acc.process_index}", "w")
         elif args.output_file is None:
             log("Writing to STDOUT")
@@ -180,7 +180,7 @@ def and_i_called_this_function_do_main_too():
                       multi=args.multiproc,
                       debug=args.debug,
                       max_len=args.max_len,
-                      sync=args.sync)
+                      sync=args.synchronize)
 
     save_all(outputs, args, acc)
 
