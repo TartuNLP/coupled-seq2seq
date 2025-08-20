@@ -74,7 +74,7 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
     with torch.no_grad():
         for idx, batch in enumerate(data_loader):
             if idx % accel.num_processes == accel.process_index:
-                if (idx // accel.num_processes) % 50 == 0:
+                if (idx // accel.num_processes) % 20 == 0:
                     # sync procs now, otherwise waiting times out in the end
                     wait_start_time = datetime.now()
                     accel.wait_for_everyone()
