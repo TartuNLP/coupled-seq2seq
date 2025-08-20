@@ -4,6 +4,7 @@ from data import read_input
 from aux import log
 
 import sys
+import json
 from collections import defaultdict
 from evaluate import load as load_metric
 
@@ -12,7 +13,6 @@ SMUGRI_RES = {
     'mid': set("Komi,Komi-Zyrian,Northern Sami,Meadow Mari".split(",")),
     'low': set("Udmurt,Proper Karelian,Southern Sami,Livvi,Veps,Moksha,Erzya,Lule Sami,Võro,Hill Mari,"
                "Komi-Permyak,Inari Sami".split(",")),
-
     'xlow': set("Ludian,Livonian,Izhorian,Votic,Shur Khanty,Skolt Sami,Meänkieli,"
                 "Sred Khanty,Surgut Khanty,Priur Khanty,Vakh Khanty,Unk Khanty,"
                 "Pite Sami,Mansi,Kazym Khanty,Kven,Ume Sami,Kildin Sami".split(","))
@@ -66,9 +66,34 @@ def compute_metrics(json_inputs, str_outputs):
     return result
 
 
+def sort_and_cut(json_outputs):
+    outputs = [x[1] for x in sorted(json_outputs, key=lambda x: x[0])]
+    return outputs
+
+
+def read_json_output(path, req_len):
+    try:
+        result = read_input(path, "json")
+    except FileNotFoundError:
+        result = []
+
+        try:
+            i = 0
+            while True:
+                res_i = read_input(f"{path}.{i}", "json")
+                result += res_i
+                i += 1
+        except FileNotFoundError:
+            pass
+
+    assert len(result) == req_len, "something went wrong with the outputs"
+
+    return sort_and_cut(result)
+
+
 def avoid_global_scope():
     json_inputs = read_input(sys.argv[1], "json")
-    str_outputs = read_input(sys.argv[2], "json")
+    str_outputs = read_json_output(sys.argv[2], len(json_inputs))
 
     lp_metric_dict = compute_metrics(json_inputs, str_outputs)
 
