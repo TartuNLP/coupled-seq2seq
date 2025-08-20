@@ -12,6 +12,7 @@ SMUGRI_RES = {
     'mid': set("Komi,Komi-Zyrian,Northern Sami,Meadow Mari".split(",")),
     'low': set("Udmurt,Proper Karelian,Southern Sami,Livvi,Veps,Moksha,Erzya,Lule Sami,Võro,Hill Mari,"
                "Komi-Permyak,Inari Sami".split(",")),
+
     'xlow': set("Ludian,Livonian,Izhorian,Votic,Shur Khanty,Skolt Sami,Meänkieli,"
                 "Sred Khanty,Surgut Khanty,Priur Khanty,Vakh Khanty,Unk Khanty,"
                 "Pite Sami,Mansi,Kazym Khanty,Kven,Ume Sami,Kildin Sami".split(","))
