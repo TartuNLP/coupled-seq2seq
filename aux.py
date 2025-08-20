@@ -144,7 +144,7 @@ class CmdlineArgs:
             this_typ = type(self.kw_arg_dict_with_defaults[kw])
 
             try:
-                return this_typ(kw_vals[kw])
+                return False if this_typ == bool and kw_vals[kw] == 'False' else this_typ(kw_vals[kw])
             except ValueError:
                 self._help_message_and_die(extra=f"could not convert '{kw_vals[kw]}' to '{this_typ}'")
 
