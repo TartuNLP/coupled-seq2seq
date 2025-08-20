@@ -91,7 +91,7 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
                 outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len)
                 end_time = datetime.now()
                 log(f"Generated for {idx} in proc {accel.process_index} in {end_time - start_time}")
-                outs_final += (idx, outputs)
+                outs_final += [(idx, outputs[0]),]
 
     if multi and sync:
         accel.wait_for_everyone()
