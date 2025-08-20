@@ -74,13 +74,13 @@ def reassemble_multi(list_of_lists):
     return result
 
 
-def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_len=2000):
+def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_len=2000, sync=False):
     outs_final = []
 
     with torch.no_grad():
         for idx, batch in enumerate(data_loader):
             if idx % accel.num_processes == accel.process_index:
-                if (idx // accel.num_processes) % 10 == 0:
+                if sync and (idx // accel.num_processes) % 10 == 0:
                     # sync procs now, otherwise waiting times out in the end
                     wait_start_time = datetime.now()
                     accel.wait_for_everyone()
@@ -93,11 +93,12 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
                 log(f"Generated for {idx} in proc {accel.process_index} in {end_time - start_time}")
                 outs_final += outputs
 
-    if multi:
+    if multi and sync:
         accel.wait_for_everyone()
 
         rank0_buffer = [None] * accel.num_processes if accel.is_main_process else None
         dist.gather_object(outs_final, rank0_buffer, dst=0)
+
         if accel.is_main_process:
             outs_final = reassemble_multi(rank0_buffer)
         else:
@@ -119,6 +120,7 @@ def _cmdline_args():
                                     "input_file": "none",
                                     "output_file": "none",
                                     "multiproc": False,
+                                    "sync": True,
                                     "max_len": 2000,
                                     "prompt_format": promptops.PF_ALPACA})
 
@@ -133,8 +135,10 @@ def _cmdline_args():
 
 
 def save_all(outputs, args, acc):
-    if acc.is_main_process:
-        if args.output_file is None:
+    if acc.is_main_process or not args.sync:
+        if not args.sync:
+            out_fh = open(f"{args.output_file}.proc{acc.process_index}", "w")
+        elif args.output_file is None:
             log("Writing to STDOUT")
             out_fh = sys.stdout
         else:
@@ -172,7 +176,11 @@ def and_i_called_this_function_do_main_too():
     log(f"Device: {model.device}.", accelerator=acc)
 
     log("Model loaded, starting to generate")
-    outputs = predict(model, tokenizer, data_loader, acc, multi=args.multiproc, debug=args.debug, max_len=args.max_len)
+    outputs = predict(model, tokenizer, data_loader, acc,
+                      multi=args.multiproc,
+                      debug=args.debug,
+                      max_len=args.max_len,
+                      sync=args.sync)
 
     save_all(outputs, args, acc)
 
