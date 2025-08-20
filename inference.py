@@ -73,6 +73,13 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
 
     with torch.no_grad():
         for idx, batch in enumerate(data_loader):
+            if (idx // accel.num_processes) % 50 == 0:
+                #sync procs now, otherwise waiting times out in the end
+                wait_start_time = datetime.now()
+                accel.wait_for_everyone()
+                wait_end_time = datetime.now()
+                log(f"Waited for {wait_end_time - wait_start_time}")
+
             if idx % accel.num_processes == accel.process_index:
                 start_time = datetime.now()
                 outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len)
