@@ -64,7 +64,9 @@ def compute_metrics(json_inputs, str_outputs):
         tupl = []
 
         for metric_id in metrics:
+            log()
             metric_value = metrics[metric_id].compute(predictions=preds, references=outputs)
+            log(f"Computed {metric_id} for {lp}")
 
             tupl.append(f"{metric_id}: {metric_value['score']:.2f}")
 
@@ -81,6 +83,7 @@ def sort_and_cut(json_outputs):
 def read_json_output(path, req_len):
     try:
         result = read_input(path, "json")
+        log(f"Read output from {path}")
     except FileNotFoundError:
         result = []
 
@@ -88,6 +91,7 @@ def read_json_output(path, req_len):
             i = 0
             while True:
                 result += read_input(f"{path}.proc{i}", "json")
+                log(f"Read output from {path}.proc{i}")
                 i += 1
         except FileNotFoundError:
             pass
