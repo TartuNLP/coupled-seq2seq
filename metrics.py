@@ -39,13 +39,14 @@ def _collect_lp_pairs(json_inputs, str_outputs):
     for i, o in zip(json_inputs, str_outputs):
         ref = i["tgt_segm"]
         hyp = o
-        det_lp = 'detailed: ' + i["src_lang"] + " -> " + i["tgt_lang"]
-        gen_lp = 'general: ' + _gen_lang(i["src_lang"]) + " -> " + _gen_lang(i["tgt_lang"])
-        hilo_lp = 'classes: ' + _hi_or_lo_lang(i["src_lang"]) + " -> " + _hi_or_lo_lang(i["tgt_lang"])
+        det_lp = i["src_lang"] + " -> " + i["tgt_lang"]
+        gen_lp = _gen_lang(i["src_lang"]) + " -> " + _gen_lang(i["tgt_lang"])
+        hilo_lp = _hi_or_lo_lang(i["src_lang"]) + " -> " + _hi_or_lo_lang(i["tgt_lang"])
 
-        sets_by_lp[det_lp].append((hyp, ref))
-        sets_by_lp[gen_lp].append((hyp, ref))
-        sets_by_lp[hilo_lp].append((hyp, ref))
+        sets_by_lp['general: ' + gen_lp].append((hyp, ref))
+        if det_lp != gen_lp:
+            sets_by_lp['detailed: ' + det_lp].append((hyp, ref))
+        sets_by_lp['classes: ' + hilo_lp].append((hyp, ref))
 
     return sets_by_lp
 
