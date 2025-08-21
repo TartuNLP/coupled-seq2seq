@@ -90,6 +90,7 @@ def read_input(path, formt):
         fh = sys.stdin
     else:
         fh = open(path, 'r')
+        log(f"Reading from {path}")
 
     if formt == promptops.PF_RAW:
         result = [fh.read()]
