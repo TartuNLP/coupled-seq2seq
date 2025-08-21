@@ -80,7 +80,7 @@ def read_json_output(path, req_len):
         try:
             i = 0
             while True:
-                result += read_input(f"{path}.{i}", "json")
+                result += read_input(f"{path}.proc{i}", "json")
                 i += 1
         except FileNotFoundError:
             log(f"Done reading shards at {i}")
