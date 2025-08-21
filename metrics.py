@@ -74,6 +74,7 @@ def sort_and_cut(json_outputs):
 def read_json_output(path, req_len):
     try:
         result = read_input(path, "json")
+        log(f"Read the file from {path}")
     except FileNotFoundError:
         result = []
 
@@ -85,6 +86,7 @@ def read_json_output(path, req_len):
                 i += 1
         except FileNotFoundError:
             pass
+        log(f"Read {i} files from {path}.idx")
 
     assert len(result) == req_len, "something went wrong with the outputs"
 
