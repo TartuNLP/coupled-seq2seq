@@ -53,15 +53,21 @@ def _collect_lp_pairs(json_inputs, str_outputs):
 def compute_metrics(json_inputs, str_outputs):
     sets_by_lp = _collect_lp_pairs(json_inputs, str_outputs)
 
-    metric = load_metric("chrf")
+    metrics = { m_id: load_metric(m_id) for m_id in ["sacrebleu", "chrf"] }
 
     result = []
 
     for lp in sets_by_lp:
         preds, outputs = zip(*sets_by_lp[lp])
-        metric_value = metric.compute(predictions=preds, references=outputs)
 
-        result.append((lp, metric_value, len(preds)))
+        tupl = [lp, len(preds)]
+
+        for metric_id in metrics:
+            metric_value = metrics[metric_id].compute(predictions=preds, references=outputs)
+
+            tupl.append(f"{metric_id}: {metric_value}")
+
+        result.append(tupl)
 
     return result
 
