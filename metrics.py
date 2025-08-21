@@ -80,13 +80,13 @@ def read_json_output(path, req_len):
         try:
             i = 0
             while True:
-                res_i = read_input(f"{path}.{i}", "json")
-                result += res_i
+                result += read_input(f"{path}.{i}", "json")
                 i += 1
         except FileNotFoundError:
+            log(f"Done reading shards at {i}")
             pass
 
-    assert len(result) == req_len, "something went wrong with the outputs"
+    assert len(result) == req_len, f"something went wrong with the outputs, {len(result)} != {req_len}"
 
     return sort_and_cut(result)
 
