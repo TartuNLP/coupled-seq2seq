@@ -83,7 +83,6 @@ def read_json_output(path, req_len):
                 result += read_input(f"{path}.proc{i}", "json")
                 i += 1
         except FileNotFoundError:
-            log(f"Done reading shards at {i}")
             pass
 
     assert len(result) == req_len, f"something went wrong with the outputs, {len(result)} != {req_len}"

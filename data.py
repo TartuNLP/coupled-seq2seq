@@ -89,7 +89,6 @@ def read_input(path, formt):
         log("Reading from STDIN")
         fh = sys.stdin
     else:
-        log(f"Reading from {path}")
         fh = open(path, 'r')
 
     if formt == promptops.PF_RAW:
