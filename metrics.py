@@ -64,7 +64,6 @@ def compute_metrics(json_inputs, str_outputs):
         tupl = []
 
         for metric_id in metrics:
-            log()
             metric_value = metrics[metric_id].compute(predictions=preds, references=outputs)
             log(f"Computed {metric_id} for {lp}")
 
