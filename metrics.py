@@ -60,14 +60,14 @@ def compute_metrics(json_inputs, str_outputs):
     for lp in sets_by_lp:
         preds, outputs = zip(*sets_by_lp[lp])
 
-        tupl = [lp, len(preds)]
+        tupl = []
 
         for metric_id in metrics:
             metric_value = metrics[metric_id].compute(predictions=preds, references=outputs)
 
-            tupl.append(f"{metric_id}: {metric_value}")
+            tupl.append(f"{metric_id}: {metric_value['score']:.2f}")
 
-        result.append(tupl)
+        result.append((lp, len(preds), " ".join(tupl)))
 
     return result
 
@@ -102,8 +102,8 @@ def avoid_global_scope():
 
     lp_metric_dict = compute_metrics(json_inputs, str_outputs)
 
-    for lp, metric, size in lp_metric_dict:
-        print(f"{lp}: {metric['score']:.2f} ({size})")
+    for lp, size, metrics in lp_metric_dict:
+        print(f"{lp}: {metrics} ({size})")
 
 if __name__ == "__main__":
     avoid_global_scope()
