@@ -42,11 +42,12 @@ Currently no support for text data that does not fit into memory,
 need to add it. Or do HF datasets have something out of the box? 
 """
 class LazyTokenizingDataset(TorchDataset):
-    def __init__(self, texts, tokenizer, max_length=512, prompt_format="raw"):
+    def __init__(self, texts, tokenizer, max_length=512, prompt_format="raw", sft_delim=None):
         self.texts = texts
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.prompt_format = prompt_format
+        self.sft_delim = sft_delim
 
     def __len__(self):
         return len(self.texts)
@@ -56,8 +57,15 @@ class LazyTokenizingDataset(TorchDataset):
         entry = self.texts[idx]
 
         prompt = promptops.prep_prompt(entry, self.prompt_format)
+        result = tokenize_str(self.tokenizer, prompt)
+        result['special_tokens_mask'] = [False] * len(result['input_ids'])
 
-        return tokenize_str(self.tokenizer, prompt)
+        if self.sft_delim is not None:
+            delim_id = self.tokenizer.convert_tokens_to_ids(self.sft_delim)
+            delim_idx = result['input_ids'].index(delim_id)
+            result['special_tokens_mask'][:delim_idx+1] = [True] * (delim_idx+1)
+
+        return result
 
 
 class LazyTokenizingInferenceDataset(TorchDataset):
@@ -124,7 +132,10 @@ def load_training_data(path, tokenizer, cmd_args):
     with open(path, "r") as f:
         data = json.load(f)
 
-    train_set_iter = LazyTokenizingDataset(data, tokenizer, cmd_args.max_length, cmd_args.prompt_format)
+    train_set_iter = LazyTokenizingDataset(data, tokenizer,
+                                           cmd_args.max_length,
+                                           cmd_args.prompt_format,
+                                           cmd_args.sft_delim)
 
     return train_set_iter
 

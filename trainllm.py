@@ -34,7 +34,8 @@ def _cmdline_args():
                          kw_arg_dict={ "continue_training": False, "save_steps": 100, "lr": 1.5e-5,
                             "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
                             "max_length": 2000, "prompt_format": promptops.PF_SMUGRI_MT,
-                            "deepspeed": "none"})
+                            "deepspeed": "none",
+                            "sft_delim": "none"})
 
     # if the directory args.save_location already exists, raise an exception:
     if not result.continue_training and os.path.exists(result.save_location):
@@ -45,6 +46,9 @@ def _cmdline_args():
 
     if result.deepspeed == "none":
         result.deepspeed = None
+
+    if result.sft_delim == "none":
+        result.sft_delim = None
 
     return result
 
@@ -155,9 +159,8 @@ def load_tokenizer(mdl_id, accelerator=None):
     log(f"Load tokenizer", accelerator=accelerator)
     tokenizer = AutoTokenizer.from_pretrained(mdl_id)
 
-    # LLaMA 3.x: no pad token by default
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = "<|reserved_special_token_100|>"
+    tokenizer.pad_token = "<|reserved_special_token_100|>"
+    tokenizer.mask_token = "<|reserved_special_token_130|>"
 
     return tokenizer
 
@@ -180,7 +183,10 @@ def simple_train():
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
-        mlm=False,
+        mlm=True,
+        mlm_probability=1,
+        random_replace_prob=0,
+        mask_replace_prob=0,
         pad_to_multiple_of=8,  # GPT says this helps performance
     )
 
