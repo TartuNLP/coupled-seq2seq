@@ -177,6 +177,7 @@ def simple_train():
     training_args = get_training_args(cmd_args, acc)
 
     tokenizer = load_tokenizer(cmd_args.mdl_id, acc)
+    tokenizer.padding_side = "left"
     model = load_model(cmd_args.mdl_id, device, acc)
 
     if getattr(model.config, "pad_token_id", None) is None:
@@ -191,7 +192,7 @@ def simple_train():
         mlm_probability=1,
         random_replace_prob=0,
         mask_replace_prob=0,
-        pad_to_multiple_of=8,  # GPT says this helps performance
+        pad_to_multiple_of=8,
     )
 
     log(f"Preparing to train", accelerator=acc)

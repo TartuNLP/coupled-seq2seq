@@ -10,7 +10,6 @@ from torch.utils.data import Dataset as TorchDataset, DataLoader
 
 from aux import log
 
-# TODO right-padding tokenization to enable batched inference
 def tokenize_str(tokenizer, entry, add_eos=True, max_len=3000, for_inf=False):
     if for_inf:
         tokens = tokenizer(
