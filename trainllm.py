@@ -35,6 +35,7 @@ def _cmdline_args():
                             "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
                             "max_length": 2000, "prompt_format": promptops.PF_SMUGRI_MT,
                             "deepspeed": "none",
+                            "sft_output_field": "none",
                             "sft_delim": "none"})
 
     # if the directory args.save_location already exists, raise an exception:
@@ -49,6 +50,9 @@ def _cmdline_args():
 
     if result.sft_delim == "none":
         result.sft_delim = None
+
+    if result.sft_output_field == "none":
+        result.sft_output_field = None
 
     return result
 
