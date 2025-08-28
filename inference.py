@@ -78,7 +78,7 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
     outs_final = []
 
     with torch.no_grad():
-        for idx, batch in enumerate(data_loader):
+        for idx, batch_tuple in enumerate(data_loader):
             if idx % accel.num_processes == accel.process_index:
                 if sync and (accel.num_processes > 1) and (idx // accel.num_processes) % 10 == 0:
                     # sync procs now, otherwise waiting times out in the end
@@ -88,10 +88,11 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
                     log(f"Waited for {wait_end_time - wait_start_time}")
 
                 start_time = datetime.now()
+                batch, _, json_input_entry = batch_tuple
                 outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len)
                 end_time = datetime.now()
                 log(f"Generated for {idx} in proc {accel.process_index} in {end_time - start_time}")
-                outs_final += [(idx, outputs[0]),]
+                outs_final.append({ **json_input_entry, 'hyp-output': outputs[0], 'hyp-index': idx})
 
     if multi and sync:
         accel.wait_for_everyone()
@@ -146,7 +147,7 @@ def save_all(outputs, args, acc):
 
         if args.prompt_format in {promptops.PF_RAW, promptops.PF_RAWLINES}:
             for line in outputs:
-                out_fh.write(str(line) + "\n")
+                out_fh.write(str(line['hyp-output']) + "\n")
         else:
             json.dump(outputs, out_fh)
 
