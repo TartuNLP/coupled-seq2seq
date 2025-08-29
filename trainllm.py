@@ -21,6 +21,8 @@ from transformers import (
     TrainerCallback
 )
 
+TESTING_LOCALLY = True
+
 """
 1/3 This simply reads in command-line arguments 
 """
@@ -133,7 +135,7 @@ def get_training_args(cmdline_args, acc):
         disable_tqdm=True,
         report_to="none",
         # Optional but often helpful on LUMI/ROCm if you enable it in your args:
-        bf16=True,
+        bf16=(not TESTING_LOCALLY),
         ddp_find_unused_parameters=False,
         #dataloader_num_workers=1,
         #group_by_length=True,
@@ -178,7 +180,7 @@ def simple_train():
 
     tokenizer = load_tokenizer(cmd_args.mdl_id, acc)
     tokenizer.padding_side = "left"
-    model = load_model(cmd_args.mdl_id, device, acc)
+    model = load_model(cmd_args.mdl_id, device, acc, attention=("eager" if TESTING_LOCALLY else "flash_attention_2"))
 
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
@@ -198,8 +200,9 @@ def simple_train():
     log(f"Preparing to train", accelerator=acc)
 
     clbks = [StepTimerCallback] if acc.is_main_process else []
+    TrCl = LoggingKillingTrainer if TESTING_LOCALLY else Trainer
 
-    trainer = Trainer(
+    trainer = TrCl(
         model=model,
         args=training_args,
         train_dataset=tokenized_train_data,
@@ -259,6 +262,7 @@ class LoggingKillingTrainer(Trainer):
         #return super().compute_loss(model, inputs, **kwargs)
 
 if __name__ == "__main__":
-    env_stuff()
+    if not TESTING_LOCALLY:
+        env_stuff()
 
     simple_train()
