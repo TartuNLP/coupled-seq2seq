@@ -88,7 +88,7 @@ class LazyTokenizingInferenceDataset(TorchDataset):
     def __getitem__(self, idx):
         entry = self.texts[idx]
 
-        prompt = promptops.prep_prompt(entry, self.prompt_format, inference=True)
+        prompt = promptops.prep_prompt(entry, self.prompt_format, inference=True, tok=self.tokenizer)
         result = tokenize_str(self.tokenizer, prompt, add_eos=False, for_inf=True)
 
         if self.debug:

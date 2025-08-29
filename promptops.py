@@ -6,6 +6,7 @@ PF_RAWLINES = "rawlines"
 PF_SMUGRI_MT = "smugri_mt"
 PF_SMUGRI_LID = "smugri_lid"
 PF_ALPACA = "alpaca"
+PF_PIVOT = "eurollm_pivot"
 
 # now the prompt templates themselves, SMUGRI LID / MT template:
 
@@ -27,11 +28,26 @@ ALPACA_PROMPT_INF = ("Below is an instruction that describes a task, paired with
 
 ALPACA_PROMPT_TRAIN = (ALPACA_PROMPT_INF + "{output}")
 
+# EuroLLM format:
 
-def prep_prompt(data, prompt_format, inference=False):
+EUROLLM_TEMPLATE = [{'role': 'system',
+             'content': "You are a powerful AI translator, the best model to "
+                        "produce translations in all European languages and more. "
+                        "When you receive translation requests you preserve stylistics "
+                        "and meaning and respond with only the translation output, "
+                        "no additional comments or explanations of any kind."},
+            {'role': 'user',
+             'content': "Translate the following text segment "
+                        "from {hi_lang} to {new_hi_res_lang}:\n{hi_segm}"}]
+
+def prep_prompt(data, prompt_format, inference=False, tok=None):
     if prompt_format in {PF_RAW, PF_RAWLINES}:
         # data is a string, return it
         return data
+
+    elif prompt_format == PF_PIVOT:
+        assert inference, "Pivoting template with EuroLLM 9B is meant for inference only"
+        return _prep_eurollm_entry(data, tok)
 
     elif prompt_format in {PF_SMUGRI_MT, PF_SMUGRI_LID}:
         # data has src_segm, src_lang, tgt_lang, etc
@@ -43,6 +59,13 @@ def prep_prompt(data, prompt_format, inference=False):
 
     else:
         raise NotImplementedError(f"Prompt format {prompt_format} is not implemented.")
+
+
+def _prep_eurollm_entry(entry, tok):
+    input_msgs = EUROLLM_TEMPLATE
+    input_msgs[1]['content'] = input_msgs[1]['content'].format(**entry)
+
+    return t.apply_chat_template(input_msgs, tokenize=True, add_generation_prompt=True, return_tensors="pt")
 
 
 def _prep_alpaca_entry(entry, inference=False):
