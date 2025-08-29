@@ -9,6 +9,8 @@ from random import shuffle
 from torch.utils.data import Dataset as TorchDataset, DataLoader
 
 from aux import log
+from promptops import PF_PIVOT
+
 
 def tokenize_str(tokenizer, entry, add_eos=True, max_len=3000, for_inf=False):
     if for_inf:
@@ -89,7 +91,10 @@ class LazyTokenizingInferenceDataset(TorchDataset):
         entry = self.texts[idx]
 
         prompt = promptops.prep_prompt(entry, self.prompt_format, inference=True, tok=self.tokenizer)
-        result = tokenize_str(self.tokenizer, prompt, add_eos=False, for_inf=True)
+        if self.prompt_format == PF_PIVOT:
+            result = prompt
+        else:
+            result = tokenize_str(self.tokenizer, prompt, add_eos=False, for_inf=True)
 
         if self.debug:
             log(f"Input: {prompt}")
