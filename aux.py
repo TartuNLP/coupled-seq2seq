@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import os
+import socket
 
 import numpy as np
 import pickle
@@ -6,6 +8,9 @@ import re
 import sys
 
 from datetime import datetime
+
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 def log(msg, accelerator=None, all_threads=False):
@@ -210,3 +215,57 @@ if __name__ == "__main__":
         d = np.load(dname + "/custom_checkpoint_1.pkl", allow_pickle=True)
         p = pickle.loads(d['custom_checkpoint_1/data.pkl'])
         print(dname, p)
+
+
+def load_model(mdl_id, device, accelerator=None, attention="flash_attention_2"):
+    log(f"Load model", accelerator=accelerator)
+    model = AutoModelForCausalLM.from_pretrained(mdl_id,
+                                                 low_cpu_mem_usage=False,
+                                                 torch_dtype=torch.bfloat16,
+                                                 attn_implementation=attention)
+
+    model.config.use_cache = False
+    model = model.to(device)
+    log(f"Model loaded on device: {model.device}.", accelerator=accelerator)
+
+    return model
+
+
+def load_tokenizer(mdl_id, accelerator=None):
+    log(f"Load tokenizer", accelerator=accelerator)
+    tokenizer = AutoTokenizer.from_pretrained(mdl_id)
+
+    tokenizer.pad_token = "<|reserved_special_token_100|>"
+    tokenizer.mask_token = "<|reserved_special_token_130|>"
+
+    return tokenizer
+
+
+def env_stuff():
+    os.environ.setdefault("LOCAL_RANK", os.environ.get("SLURM_LOCALID", "---"))
+    os.environ.setdefault("RANK", os.environ.get("SLURM_PROCID", "0"))
+    os.environ.setdefault("WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1"))
+    os.environ.setdefault("MASTER_ADDR", os.environ.get("SLURM_LAUNCH_NODE_IPADDR", "127.0.0.1"))
+    os.environ.setdefault("MASTER_PORT", "29500")  # pick an open port
+
+    # Optional: make sure each process selects its own GPU
+    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+
+    try:
+        log(
+            f"host={socket.gethostname()} "
+            f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
+            f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
+            f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
+            f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
+            f"cuda_count={torch.cuda.device_count()} curr_dev={torch.cuda.current_device()}"
+        )
+    except AssertionError:
+        log(
+            f"host={socket.gethostname()} "
+            f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
+            f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
+            f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
+            f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
+            f"no cuda"
+        )

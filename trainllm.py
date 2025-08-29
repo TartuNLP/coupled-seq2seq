@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
 import promptops
-from aux import log, CmdlineArgs
+from aux import log, CmdlineArgs, load_model, load_tokenizer, env_stuff
 from data import load_training_data
 
 
 import json
-import os, socket, torch
+import os
 
 from datetime import datetime
 
 from accelerate import Accelerator
 from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,
@@ -147,30 +145,6 @@ def get_training_args(cmdline_args, acc):
     return tr_args
 
 
-def load_model(mdl_id, device, accelerator=None, attention="flash_attention_2"):
-    log(f"Load model", accelerator=accelerator)
-    model = AutoModelForCausalLM.from_pretrained(mdl_id,
-                                                 low_cpu_mem_usage=False,
-                                                 torch_dtype=torch.bfloat16,
-                                                 attn_implementation=attention)
-
-    model.config.use_cache = False
-    model = model.to(device)
-    log(f"Model loaded on device: {model.device}.", accelerator=accelerator)
-
-    return model
-
-
-def load_tokenizer(mdl_id, accelerator=None):
-    log(f"Load tokenizer", accelerator=accelerator)
-    tokenizer = AutoTokenizer.from_pretrained(mdl_id)
-
-    tokenizer.pad_token = "<|reserved_special_token_100|>"
-    tokenizer.mask_token = "<|reserved_special_token_130|>"
-
-    return tokenizer
-
-
 def simple_train():
     cmd_args = _cmdline_args()
     acc = Accelerator()
@@ -219,35 +193,6 @@ def simple_train():
     log(f"Done, saving model", accelerator=acc)
     trainer.save_model()
 
-
-def env_stuff():
-    os.environ.setdefault("LOCAL_RANK", os.environ.get("SLURM_LOCALID", "---"))
-    os.environ.setdefault("RANK", os.environ.get("SLURM_PROCID", "0"))
-    os.environ.setdefault("WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1"))
-    os.environ.setdefault("MASTER_ADDR", os.environ.get("SLURM_LAUNCH_NODE_IPADDR", "127.0.0.1"))
-    os.environ.setdefault("MASTER_PORT", "29500")  # pick an open port
-
-    # Optional: make sure each process selects its own GPU
-    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
-
-    try:
-        log(
-            f"host={socket.gethostname()} "
-            f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
-            f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
-            f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
-            f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
-            f"cuda_count={torch.cuda.device_count()} curr_dev={torch.cuda.current_device()}"
-        )
-    except AssertionError:
-        log(
-            f"host={socket.gethostname()} "
-            f"RANK={os.environ['RANK']}/{os.environ['WORLD_SIZE']} "
-            f"LOCAL_RANK={os.environ['LOCAL_RANK']} "
-            f"HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES')} "
-            f"ROCR_VISIBLE_DEVICES={os.environ.get('ROCR_VISIBLE_DEVICES')} "
-            f"no cuda"
-        )
 
 """
 This replaces the trainer, in order to

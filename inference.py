@@ -2,10 +2,8 @@
 
 import promptops
 
-from aux import CmdlineArgs, log
+from aux import CmdlineArgs, log, load_model, load_tokenizer, env_stuff
 from data import get_data_loader
-from trainllm import env_stuff, load_model, load_tokenizer
-
 
 import sys
 import torch
