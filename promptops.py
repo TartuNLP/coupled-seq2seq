@@ -65,7 +65,7 @@ def _prep_eurollm_entry(entry, tok):
     input_msgs = EUROLLM_TEMPLATE
     input_msgs[1]['content'] = input_msgs[1]['content'].format(**entry)
 
-    return t.apply_chat_template(input_msgs, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+    return tok.apply_chat_template(input_msgs, tokenize=True, add_generation_prompt=True, return_tensors="pt")
 
 
 def _prep_alpaca_entry(entry, inference=False):
