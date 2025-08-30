@@ -33,9 +33,10 @@ ALPACA_PROMPT_TRAIN = (ALPACA_PROMPT_INF + "{output}")
 EUROLLM_TEMPLATE = [{'role': 'system',
              'content': "You are a powerful AI translator, the best model to "
                         "produce translations in all European languages and more. "
-                        "When you receive translation requests you preserve stylistics "
-                        "and meaning and respond with only the translation output, "
-                        "no additional comments or explanations of any kind."},
+                        "When you are asked to translate, you always write 'I understand, here is a translation:'. "
+                        "After that you respond with the translation output in the requested language, "
+                        "which perfectly preserves the meaning and stylistics and is overall a perfect and "
+                        "usable translation and text segment in the requested language."},
             {'role': 'user',
              'content': "Translate the following text segment "
                         "from {hi_lang} to {new_hi_res_lang}:\n{hi_segm}"}]
