@@ -35,7 +35,8 @@ You are a powerful AI translator, the best model to produce translations in all 
 <|im_start|>user
 Translate the following text segment from {hi_lang} to {new_hi_res_lang}:
 {hi_segm}<|im_end|>
-<|im_start|>assistant"""
+<|im_start|>assistant
+"""
 
 def prep_prompt(data, prompt_format, inference=False, tok=None):
     if prompt_format in {PF_RAW, PF_RAWLINES}:
