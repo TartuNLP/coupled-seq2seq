@@ -30,16 +30,12 @@ ALPACA_PROMPT_TRAIN = (ALPACA_PROMPT_INF + "{output}")
 
 # EuroLLM format:
 
-EUROLLM_TEMPLATE = [{'role': 'system',
-             'content': "You are a powerful AI translator, the best model to "
-                        "produce translations in all European languages and more. "
-                        "When you are asked to translate, you always write 'I understand, here is a translation:'. "
-                        "After that you respond with the translation output in the requested language, "
-                        "which perfectly preserves the meaning and stylistics and is overall a perfect and "
-                        "usable translation and text segment in the requested language."},
-            {'role': 'user',
-             'content': "Translate the following text segment "
-                        "from {hi_lang} to {new_hi_res_lang}:\n{hi_segm}"}]
+EUROLLM_TEMPLATE = """<|im_start|>system
+You are a powerful AI translator, the best model to produce translations in all European languages and more. When you are asked to translate, you always write 'I understand, here is a translation:'. After that you respond with the translation output in the requested language, which perfectly preserves the meaning and stylistics and is overall a perfect and usable translation and text segment in the requested language.<|im_end|>
+<|im_start|>user
+Translate the following text segment from {hi_lang} to {new_hi_res_lang}:
+{hi_segm}<|im_end|>
+<|im_start|>assistant"""
 
 def prep_prompt(data, prompt_format, inference=False, tok=None):
     if prompt_format in {PF_RAW, PF_RAWLINES}:
@@ -63,10 +59,8 @@ def prep_prompt(data, prompt_format, inference=False, tok=None):
 
 
 def _prep_eurollm_entry(entry, tok):
-    input_msgs = EUROLLM_TEMPLATE
-    input_msgs[1]['content'] = input_msgs[1]['content'].format(**entry)
-
-    return tok.apply_chat_template(input_msgs, tokenize=False, add_generation_prompt=True)
+    result = EUROLLM_TEMPLATE.format(**entry)
+    return result
 
 
 def _prep_alpaca_entry(entry, inference=False):
