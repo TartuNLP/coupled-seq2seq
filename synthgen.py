@@ -6,6 +6,8 @@ import sys
 from random import choices
 from collections import defaultdict
 
+from metrics import SMUGRI_RES
+
 # hi-res languages and how likely we should be to translate into them from other hi-res langs
 HI_RES_WITH_WEIGHTS = {"English": 13, "Estonian": 11, "Finnish": 8, "Hungarian": 3, "Latvian": 2,
                        "Russian": 4, "Swedish": 2, "Norwegian": 2, "German": 0, "French": 0}
@@ -75,7 +77,15 @@ def do_something_without_global_ctx():
 
             for hi_res_lang, dict3 in dict2.items():
                 for hi_res_segm, cnt in dict3.items():
-                    repl_hi_res_langs = set(choices(out_lang_candidates, weights=weights, k=cnt))
+                    gen_lo_res_lang = lo_res_lang.split(',')[0]
+                    if gen_lo_res_lang in SMUGRI_RES['xlow']:
+                        ccnt = cnt * 5
+                    elif gen_lo_res_lang in SMUGRI_RES['low']:
+                        ccnt = cnt * 3
+                    else:
+                        ccnt = cnt
+
+                    repl_hi_res_langs = set(choices(out_lang_candidates, weights=weights, k=ccnt))
 
                     for new_hi_res_lang in repl_hi_res_langs:
                         augm_data.append({
