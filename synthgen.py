@@ -7,6 +7,7 @@ from random import choices
 from collections import defaultdict
 
 from metrics import SMUGRI_RES
+from aux import log
 
 # hi-res languages and how likely we should be to translate into them from other hi-res langs
 HI_RES_WITH_WEIGHTS = {"English": 13, "Estonian": 11, "Finnish": 8, "Hungarian": 3, "Latvian": 2,
@@ -61,6 +62,7 @@ def do_something_without_global_ctx():
     input_file = sys.argv[1]
     output_file = sys.argv[2]
 
+    log(f"Reading input from {input_file}")
     with open(input_file, 'r') as fh_in:
         data = json.load(fh_in)
 
@@ -68,6 +70,7 @@ def do_something_without_global_ctx():
 
     stats = sample_and_count_pivot_entries(data)
 
+    log(f"Generating pairs")
     for lo_res_lang, dict1 in stats.items():
         for lo_res_segm, dict2 in dict1.items():
             # this segm in this lo_res_lang has M hi-res translations
@@ -96,8 +99,11 @@ def do_something_without_global_ctx():
                             'new_hi_res_lang': new_hi_res_lang,
                         })
 
+    log(f"Saving output to {output_file}")
     with open(output_file, 'w') as fh_out:
         json.dump(augm_data, fh_out, indent=2)
+
+    log(f"Done")
 
 
 if __name__ == "__main__":
