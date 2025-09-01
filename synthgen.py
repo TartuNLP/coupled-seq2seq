@@ -165,10 +165,8 @@ def lets_do_some_filtering():
             r = in_l / out_l if in_l > out_l else out_l /in_l
 
             if r > 3:
-                print(f"RATIO: {entry}")
                 entry['flt'] = 'ratio'
             elif entry['hi_segm'] == entry['hyp-output']:
-                print(f"EQ {entry['hi_segm']}")
                 entry['flt'] = 'eq'
             elif langdetect.detect(entry['hyp-output']) != LANG_MAP[entry['new_hi_res_lang']]:
                 entry['flt'] = 'lid'
