@@ -116,7 +116,7 @@ def do_something_else_without_global_ctx():
     device = acc.device
     mdl_id = "utter-project/EuroLLM-9B-Instruct"
 
-    with open(f"{sys.argv[1]}.{acc.process_index}", 'r') as fh_in:
+    with open(f"{sys.argv[1]}{acc.process_index}", 'r') as fh_in:
         data = json.load(fh_in)
 
     for entry in data:
@@ -136,7 +136,7 @@ def do_something_else_without_global_ctx():
                       max_len=2500,
                       sync=False)
 
-    with open(f"{sys.argv[1]}.{acc.process_index}-flt", 'w') as fh_out:
+    with open(f"{sys.argv[1]}{acc.process_index}-flt", 'w') as fh_out:
         json.dump(outputs, fh_out, indent=2)
 
 
