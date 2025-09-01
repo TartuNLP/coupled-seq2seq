@@ -121,6 +121,7 @@ def do_something_else_without_global_ctx():
 
     for entry in data:
         entry['hyp-translation'] = entry['hyp-output']
+        entry['hyp-origindex'] = entry['hyp-index']
         del (entry['hyp-output'])
 
     tok = load_tokenizer(mdl_id, acc)
