@@ -49,16 +49,16 @@ EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
                      "specified language, or if the texts completely differ in meaning, then respond with the word "
                      "'wrong'. Do not provide any explanations or comments, just a single word as response: "
                      "'perfect'/'approximate'/'wrong'.",
-    user_instruction="Here are the two texts, the first text should be in {hi_lang}, and the text is:\n\n"
+    user_instruction="Here are the two texts:\n\nText #1 should be in {hi_lang}:\n\n"
                      "{hi_segm}\n\n"
-                     "And here is the second text in the pair, it should be in {new_hi_res_lang}:\n\n"
+                     "Text #2 should be in {new_hi_res_lang}:\n\n"
                      "{hyp-translation}\n\n"
-                     "Now, think carefully: if the latest text is in {new_hi_res_lang} and it is a translation "
-                     "of the first text, respond as instructed with a single word, 'perfect'. If the language "
-                     "is correct and the translation has minor quality issues, respond with the word "
-                     "'approximate'. If the language of the first text is not {hi_lang}, or if the language "
-                     "of the second text is not {new_hi_res_lang}, or if the second text is not a translation "
-                     "of the first text, respond with the word 'wrong'.",
+                     "Now, check the texts carefully: if Text #2 is in {new_hi_res_lang} and it is a "
+                     "translation of Text #1, respond as instructed with a single word, 'perfect'. If the "
+                     "languages are correct but the translation has minor quality issues, respond with the word "
+                     "'approximate'. Finally, if the language of Text #1 is not {hi_lang}, or if the language "
+                     "of Text #2 is not {new_hi_res_lang}, or if Text #2 is clearly not a translation "
+                     "of Text #1, then respond with the word 'wrong'. Which one is it?",
 )
 
 MULTILING_MSG = {
