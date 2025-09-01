@@ -41,7 +41,11 @@ EUROLLM_TEMPLATE_BASE = """<|im_start|>system
 EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
     system_instruction="You are a large language model, whose sole task is to respond to user queries. Think "
                        "carefully, and after careful deliberation respond to the user, following their instructions.",
-    user_instruction="Your task is to evaluate the quality of a translation pair: an original text and its "
+    user_instruction="Your task is to detect hallucinations of a translation model. Here is the original input "
+                     "text:\n\n{hi_segm}\n\nand this next here should be its translation into {new_hi_res_lang}:\n\n"
+                     "{hyp-translation}\n\nThink carefully: is this second text actually a translation of the original "
+                     "input text into {new_hi_res_lang}? Respond with yes or no, no additional comments or discussions.",
+    user_instructionx="Your task is to evaluate the quality of a translation pair: an original text and its "
                      "translation. The goal is to check if both are in their specified languages and if the "
                      "translation is appropriate. First the texts and then the definition of how you should respond. "
                      "This is extremely important to get right, so take a deep breath and respond correctly.\n\n"
@@ -49,7 +53,7 @@ EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
                      "{hi_segm}\n\n"
                      "You need to check if this text is in {hi_lang}. The translation is:\n\n"
                      "{hyp-translation}\n\n"
-                     "You need to check if it is in {new_hi_res_lang}."
+                     "You need to check if it is in {new_hi_res_lang}. "
                      "Mainly, check if the 2nd text is actually an appropriate translation of the 1st text.\n"
                      "Respond with a single phrase only, with no additional comments or explanations:\n"
                      "- if the texts are appropriate enough translations of each other and are in the expected "
