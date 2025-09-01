@@ -153,8 +153,11 @@ def lets_do_some_filtering():
         sys.exit(0)
     res = []
     for f in sys.argv[2:]:
+        log(f"Processing {f}")
         with open(f, 'r') as fh_in:
             data = json.load(fh_in)
+
+        log(f"Filtering")
         for entry in data:
             in_l = float(len(entry['hi_segm']))
             out_l = float(len(entry['hyp-output']))
@@ -172,6 +175,8 @@ def lets_do_some_filtering():
             else:
                 entry['flt'] = 'ok'
             res += entry
+    log(f"Saving")
+
     with open(sys.argv[1], 'w') as fh_out:
         json.dump(res, fh_out, indent=2)
 
