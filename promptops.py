@@ -39,11 +39,7 @@ EUROLLM_TEMPLATE_BASE = """<|im_start|>system
 """
 
 EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
-    system_instruction="You are an AI assistant, helping users with queries related to language data. "
-                       "You respond helpfully, concisely and laconically to what the user requests. "
-                       "It is of utmost importance to address the requests as correctly as possible. "
-                       "So, take a deep breath, and carefully respond to the following request.",
-    user_instruction="Your task is to determine if a pair of texts is in the specified languages and if the second "
+    system_instruction="Your task is to determine if a pair of texts is in the specified languages and if the second "
                      "text is a correct translation of the first text. Your response should consist of a single word. "
                      "If the pair of texts is "
                      "indeed in the specified languages and they are translations of each other, then respond with "
@@ -51,13 +47,17 @@ EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
                      "each other, but still approximately correspond to each other by meaning, or if there are any "
                      "other minor issues, then respond with the word 'approximate'. If either text is NOT in the "
                      "specified language, or if the texts completely differ in meaning, then respond with the word "
-                     "'wrong'. Do not provide any explanations or comments, just a single word as response.\n\n"
-                     "Here are the texts, the first text should be in {hi_lang}, and the text is:\n\n"
+                     "'wrong'. Do not provide any explanations or comments, just a single word as response: "
+                     "'perfect'/'approximate'/'wrong'",
+    user_instruction="Here are the two texts, the first text should be in {hi_lang}, and the text is:\n\n"
                      "{hi_segm}\n\n"
                      "And here is the second text in the pair, it should be in {new_hi_res_lang}:\n\n"
                      "{hyp-translation}\n\n"
-                     "Now, think carefully: is the latest text in {new_hi_res_lang} or not, and is it a translation of the first text? "
-                     "Respond as instructed with a single word, 'perfect'/'approximate'/'wrong'.",
+                     "Now, think carefully: is the latest text in {new_hi_res_lang} or not, and is it a translation "
+                     "of the first text? Respond as instructed with a single word, 'perfect' for a perfect translation "
+                     "of the first text into the correct language ({new_hi_res_lang}), 'approximate' for an imperfect "
+                     "but still acceptable translation into the correct language, or 'wrong' if the language is not "
+                     "the correct one ({new_hi_res_lang}) or if the text is not the translation of the first one.",
 )
 
 MULTILING_MSG = {
