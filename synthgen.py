@@ -166,15 +166,17 @@ def lets_do_some_filtering():
             r = in_l / out_l if in_l > out_l else out_l /in_l
 
             try:
-                lang = langdetect.detect(entry['hyp-output'])
+                i_lang = langdetect.detect(entry['hi_segm'])
+                o_lang = langdetect.detect(entry['hyp-output'])
             except LangDetectException:
-                lang = 'none'
+                i_lang = 'none'
+                o_lang = 'none'
 
             if r > 3:
                 entry['flt'] = 'ratio'
             elif entry['hi_segm'] == entry['hyp-output']:
                 entry['flt'] = 'eq'
-            elif lang != LANG_MAP[entry['new_hi_res_lang']]:
+            elif o_lang != LANG_MAP[entry['new_hi_res_lang']] or i_lang != LANG_MAP[entry['hi_lang']]:
                 entry['flt'] = 'lid'
             else:
                 entry['flt'] = 'ok'
