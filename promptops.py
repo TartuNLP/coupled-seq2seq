@@ -40,18 +40,23 @@ EUROLLM_TEMPLATE_BASE = """<|im_start|>system
 
 EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
     system_instruction="You are an AI assistant, helping users with queries related to language data. "
-                       "You respond helpfully, concisely and laconically to what the user requests",
-    user_instruction="Your task is to determine if a pair of texts is in the provided languages and "
-                     "if it is a correct translation. Your response should be one of three words: 'perfect', 'wrong' "
-                     "or 'questionable'. If the pair of texts is in the specified languages and are translations "
-                     "of each other, then respond with 'perfect'. If one of the texts is in a different language "
-                     "than specified, or if the texts are not translations of each other, respond with 'wrong'. "
-                     "If you cannot decide on perfect or wrong, or if not sure in any other way, respond with "
-                     "'questionable'.\n\nHere are the texts, the first text should be in {hi_lang}, and the text is:"
-                     "\n\n{hi_segm}\n\n. The second text in the pair should be in {new_hi_res_lang} and the text is:"
-                     "\n\n{hyp-translation}.\n\nNow, are both texts in the specified languages, i.e. {hi_lang} and "
-                     "{new_hi_res_lang}, and are they translations of each other? Respond with a single word, "
-                     "'perfect'/'questionable'/'wrong':",
+                       "You respond helpfully, concisely and laconically to what the user requests. "
+                       "It is of utmost importance to address the requests as correctly as possible. "
+                       "So, take a deep breath, and carefully respond to the following request.",
+    user_instruction="Your task is to determine if a pair of texts is in the specified languages and if it is a "
+                     "correct translation. Your response should consist of a single word. If the pair of texts is "
+                     "indeed in the specified languages and they are translations of each other, then respond with "
+                     "the word 'perfect'. If the texts are in correct languages and are not perfect translations of "
+                     "each other, but still approximately correspond to each other by meaning, or if there are any "
+                     "other minor issues, then respond with the word 'approximate'. If either text is NOT in the "
+                     "specified language, or if the texts completely differ in meaning, then respond with the word "
+                     "'wrong'. Do not provide any explanations or comments, just a single word as response.\n\n"
+                     "Here are the texts, the first text should be in {hi_lang}, and the text is:\n\n"
+                     "{hi_segm}\n\n"
+                     "The second text in the pair should be in {new_hi_res_lang} and the text is:"
+                     "{hyp-translation}\n\n"
+                     "Now, are both texts in the specified languages, i.e. {hi_lang} and {new_hi_res_lang}, and are "
+                     "they translations of each other? Respond with a single word, 'perfect'/'approximate'/'wrong'.",
 )
 
 MULTILING_MSG = {
