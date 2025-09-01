@@ -53,10 +53,11 @@ EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
                      "'wrong'. Do not provide any explanations or comments, just a single word as response.\n\n"
                      "Here are the texts, the first text should be in {hi_lang}, and the text is:\n\n"
                      "{hi_segm}\n\n"
-                     "The second text in the pair should be in {new_hi_res_lang} and the text is:"
+                     "If this text is not in {hi_lang}, respond with the word 'wrong'. Here is the second text "
+                     "in the pair, it should be in {new_hi_res_lang}:"
                      "{hyp-translation}\n\n"
-                     "Now, are both texts in the specified languages, i.e. {hi_lang} and {new_hi_res_lang}, and are "
-                     "they translations of each other? Respond with a single word, 'perfect'/'approximate'/'wrong'.",
+                     "Now, is the latest text in {new_hi_res_lang} or not?, and is it a translation of the first text? "
+                     "Respond with a single word, 'perfect'/'approximate'/'wrong'.",
 )
 
 MULTILING_MSG = {
