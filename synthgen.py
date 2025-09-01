@@ -129,14 +129,14 @@ def do_something_else_without_global_ctx():
 
     tok = load_tokenizer(mdl_id, acc)
 
-    dl = LazyTokenizingInferenceDataset(data, tok, PF_TR_FLT, debug=True)
+    dl = LazyTokenizingInferenceDataset(data, tok, PF_TR_FLT, debug=False)
 
     mdl = load_model(mdl_id, device, acc, attention="eager")
     mdl.eval()
 
     outputs = predict(mdl, tok, dl, acc,
                       multi=False,
-                      debug=True,
+                      debug=False,
                       max_len=2500,
                       sync=False)
 
