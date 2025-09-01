@@ -6,8 +6,13 @@ import sys
 from random import choices
 from collections import defaultdict
 
+from accelerate import Accelerator
+
+from data import LazyTokenizingInferenceDataset
+from inference import predict
 from metrics import SMUGRI_RES
-from aux import log
+from aux import log, load_tokenizer, load_model
+from promptops import PF_TR_FLT
 
 # hi-res languages and how likely we should be to translate into them from other hi-res langs
 HI_RES_WITH_WEIGHTS = {"English": 13, "Estonian": 11, "Finnish": 8, "Hungarian": 3, "Latvian": 2,
@@ -106,5 +111,35 @@ def do_something_without_global_ctx():
     log(f"Done")
 
 
+def do_something_else_without_global_ctx():
+    acc = Accelerator()
+    device = acc.device
+    mdl_id = "utter-project/EuroLLM-9B-Instruct"
+
+    with open(f"{sys.argv[1]}.{acc.process_index}", 'r') as fh_in:
+        data = json.load(fh_in)
+
+    for entry in data:
+        entry['hyp-translation'] = entry['hyp-output']
+        del (entry['hyp-output'])
+
+    tok = load_tokenizer(mdl_id, acc)
+
+    dl = LazyTokenizingInferenceDataset(data, tok, PF_TR_FLT, debug=False)
+
+    mdl = load_model(mdl_id, device, acc, attention="flash_attention_2")
+    mdl.eval()
+
+    outputs = predict(mdl, tok, dl, acc,
+                      multi=True,
+                      debug=False,
+                      max_len=2500,
+                      sync=False)
+
+    with open(f"{sys.argv[1]}.{acc.process_index}-flt", 'w') as fh_out:
+        json.dump(outputs, fh_out, indent=2)
+
+
 if __name__ == "__main__":
-    do_something_without_global_ctx()
+    #do_something_without_global_ctx()
+    do_something_else_without_global_ctx()

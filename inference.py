@@ -170,7 +170,7 @@ def and_i_called_this_function_do_main_too():
 
     data_loader = get_data_loader(args.input_file, args.prompt_format, tokenizer, debug=args.debug)
 
-    model = load_model(args.mdl_id, device, acc, attention="eager")
+    model = load_model(args.mdl_id, device, acc, attention="flash_attention_2")
     model.eval()
 
     log(f"Device: {model.device}.", accelerator=acc)

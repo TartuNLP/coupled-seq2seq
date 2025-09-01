@@ -7,6 +7,7 @@ PF_SMUGRI_MT = "smugri_mt"
 PF_SMUGRI_LID = "smugri_lid"
 PF_ALPACA = "alpaca"
 PF_PIVOT = "eurollm_pivot"
+PF_TR_FLT = "eurollm_tr_flt"
 
 # now the prompt templates themselves, SMUGRI LID / MT template:
 
@@ -30,23 +31,28 @@ ALPACA_PROMPT_TRAIN = (ALPACA_PROMPT_INF + "{output}")
 
 # EuroLLM format:
 
-#EUROLLM_TEMPLATE = """<|im_start|>system
-#You are a powerful AI translator, the best model to produce translations in all European languages and more.
-#When you are asked to translate, you respond with the translation in the requested language,
-#which perfectly preserves the meaning and stylistics and is overall a perfect and usable translation
-#and text segment in the requested language.<|im_end|>
-#<|im_start|>user
-#Translate the following text segment from {hi_lang} to {new_hi_res_lang}:
-#{hi_segm}<|im_end|>
-#<|im_start|>assistant
-#"""
-
 EUROLLM_TEMPLATE_BASE = """<|im_start|>system
 {system_instruction}<|im_end|>
 <|im_start|>user
 {user_instruction}<|im_end|>
 <|im_start|>assistant
 """
+
+EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
+    system_instruction="You are an AI assistant, helping users with queries related to language data. "
+                       "You respond helpfully, concisely and laconically to what the user requests",
+    user_instruction="Your task is to determine if a pair of texts is in the provided languages and "
+                     "if it is a correct translation. Your response should be one of three words: 'perfect', 'wrong' "
+                     "or 'questionable'. If the pair of texts is in the specified languages and are translations "
+                     "of each other, then respond with 'perfect'. If one of the texts is in a different language "
+                     "than specified, or if the texts are not translations of each other, respond with 'wrong'. "
+                     "If you cannot decide on perfect or wrong, or if not sure in any other way, respond with "
+                     "'questionable'.\n\nHere are the texts, the first text should be in {hi_lang}, and the text is:"
+                     "\n\n{hi_segm}\n\n. The second text in the pair should be in {new_hi_res_lang} and the text is:"
+                     "\n\n{hyp-translation}.\n\nNow, are both texts in the specified languages, i.e. {hi_lang} and "
+                     "{new_hi_res_lang}, and are they translations of each other? Respond with a single word, "
+                     "'perfect'/'questionable'/'wrong':",
+)
 
 MULTILING_MSG = {
     'English': { 'system_instruction': "You are a powerful AI translator, the best model to produce translations "
@@ -118,6 +124,9 @@ def prep_prompt(data, prompt_format, inference=False, tok=None):
         assert inference, "Pivoting template with EuroLLM 9B is meant for inference only"
         return _prep_eurollm_entry(data)
 
+    elif prompt_format == PF_TR_FLT:
+        return _prep_eurollm_flt_entry(data)
+
     elif prompt_format in {PF_SMUGRI_MT, PF_SMUGRI_LID}:
         # data has src_segm, src_lang, tgt_lang, etc
         return _prep_ljmf_entry(data, prompt_format, inference)
@@ -134,6 +143,11 @@ def _prep_eurollm_entry(entry):
     output_lang = entry['new_hi_res_lang']
     user_msg = EUROLLM_USER_MSG_TEMPLATE.format(**entry, **MULTILING_MSG[output_lang])
     result = EUROLLM_TEMPLATE_BASE.format(**MULTILING_MSG[output_lang], user_instruction=user_msg)
+    return result
+
+
+def _prep_eurollm_flt_entry(entry):
+    result = EUROLLM_TEMPLATE_FILTER.format(**entry)
     return result
 
 
