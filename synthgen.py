@@ -144,6 +144,24 @@ def do_something_else_without_global_ctx():
         json.dump(outputs, fh_out, indent=2)
 
 
+def lets_do_some_filtering():
+    for f in sys.argv[1:]:
+        with open(f, 'r') as fh_in:
+            data = json.load(fh_in)
+        for entry in data:
+            in_l = float(len(entry['hi_segm']))
+            out_l = float(len(entry['hyp-output']))
+
+            r = in_l / out_l if in_l > out_l else out_l /in_l
+
+            if r > 3:
+                print(f"RATIO: {entry}")
+
+            if entry['hi_segm'] == entry['hyp-output']:
+                print(f"EQ {entry['hi_segm']}")
+
+
 if __name__ == "__main__":
     #do_something_without_global_ctx()
-    do_something_else_without_global_ctx()
+    #do_something_else_without_global_ctx()
+    lets_do_some_filtering()
