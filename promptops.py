@@ -48,16 +48,17 @@ EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
                      "other minor issues, then respond with the word 'approximate'. If either text is NOT in the "
                      "specified language, or if the texts completely differ in meaning, then respond with the word "
                      "'wrong'. Do not provide any explanations or comments, just a single word as response: "
-                     "'perfect'/'approximate'/'wrong'",
+                     "'perfect'/'approximate'/'wrong'.",
     user_instruction="Here are the two texts, the first text should be in {hi_lang}, and the text is:\n\n"
                      "{hi_segm}\n\n"
                      "And here is the second text in the pair, it should be in {new_hi_res_lang}:\n\n"
                      "{hyp-translation}\n\n"
-                     "Now, think carefully: is the latest text in {new_hi_res_lang} or not, and is it a translation "
-                     "of the first text? Respond as instructed with a single word, 'perfect' for a perfect translation "
-                     "of the first text into the correct language ({new_hi_res_lang}), 'approximate' for an imperfect "
-                     "but still acceptable translation into the correct language, or 'wrong' if the language is not "
-                     "the correct one ({new_hi_res_lang}) or if the text is not the translation of the first one.",
+                     "Now, think carefully: if the latest text is in {new_hi_res_lang} and is it a translation "
+                     "of the first text, respond as instructed with a single word, 'perfect'. If the language "
+                     "is correct and the translation is imperfect but still acceptable, respond with the word "
+                     "'approximate'. If the language of the first text is not {hi_lang}, or if the language "
+                     "of the second text is not {new_hi_res_lang}, or if the second text is not a translation "
+                     "of the first text, respond with the word 'wrong'.",
 )
 
 MULTILING_MSG = {
