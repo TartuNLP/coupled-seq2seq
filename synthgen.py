@@ -11,7 +11,7 @@ from accelerate import Accelerator
 from data import LazyTokenizingInferenceDataset
 from inference import predict
 from metrics import SMUGRI_RES
-from aux import log, load_tokenizer, load_model
+from aux import log, load_tokenizer, load_model, env_stuff
 from promptops import PF_TR_FLT
 
 # hi-res languages and how likely we should be to translate into them from other hi-res langs
@@ -112,8 +112,11 @@ def do_something_without_global_ctx():
 
 
 def do_something_else_without_global_ctx():
+    env_stuff()
+
     acc = Accelerator()
     device = acc.device
+
     mdl_id = "utter-project/EuroLLM-9B-Instruct"
 
     with open(f"{sys.argv[1]}{acc.process_index}", 'r') as fh_in:
