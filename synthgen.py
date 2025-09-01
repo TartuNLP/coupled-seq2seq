@@ -8,6 +8,7 @@ from collections import defaultdict
 
 import langdetect
 from accelerate import Accelerator
+from langdetect import LangDetectException
 
 from data import LazyTokenizingInferenceDataset
 from inference import predict
@@ -164,11 +165,16 @@ def lets_do_some_filtering():
 
             r = in_l / out_l if in_l > out_l else out_l /in_l
 
+            try:
+                lang = langdetect.detect(entry['hyp-output'])
+            except LangDetectException:
+                lang = 'none'
+
             if r > 3:
                 entry['flt'] = 'ratio'
             elif entry['hi_segm'] == entry['hyp-output']:
                 entry['flt'] = 'eq'
-            elif langdetect.detect(entry['hyp-output']) != LANG_MAP[entry['new_hi_res_lang']]:
+            elif lang != LANG_MAP[entry['new_hi_res_lang']]:
                 entry['flt'] = 'lid'
             else:
                 entry['flt'] = 'ok'
