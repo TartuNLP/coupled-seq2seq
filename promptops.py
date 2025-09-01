@@ -53,9 +53,9 @@ EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
                      "{hi_segm}\n\n"
                      "And here is the second text in the pair, it should be in {new_hi_res_lang}:\n\n"
                      "{hyp-translation}\n\n"
-                     "Now, think carefully: if the latest text is in {new_hi_res_lang} and is it a translation "
+                     "Now, think carefully: if the latest text is in {new_hi_res_lang} and it is a translation "
                      "of the first text, respond as instructed with a single word, 'perfect'. If the language "
-                     "is correct and the translation is imperfect but still acceptable, respond with the word "
+                     "is correct and the translation has minor quality issues, respond with the word "
                      "'approximate'. If the language of the first text is not {hi_lang}, or if the language "
                      "of the second text is not {new_hi_res_lang}, or if the second text is not a translation "
                      "of the first text, respond with the word 'wrong'.",
