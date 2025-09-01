@@ -6,6 +6,7 @@ import sys
 from random import choices, shuffle
 from collections import defaultdict
 
+import langdetect
 from accelerate import Accelerator
 
 from data import LazyTokenizingInferenceDataset
@@ -17,6 +18,8 @@ from promptops import PF_TR_FLT
 # hi-res languages and how likely we should be to translate into them from other hi-res langs
 HI_RES_WITH_WEIGHTS = {"English": 13, "Estonian": 11, "Finnish": 8, "Hungarian": 3, "Latvian": 2,
                        "Russian": 4, "Swedish": 2, "Norwegian": 2, "German": 0, "French": 0}
+LANG_MAP = {"English": 'en', "Estonian": 'et', "Finnish": 'fi', "Hungarian": 'hu', "Latvian": 'lv',
+                       "Russian": 'ru', "Swedish": 'sv', "Norwegian": 'no', "German": 'de', "French": 'fr'}
 
 
 def nest():
@@ -148,8 +151,6 @@ def lets_do_some_filtering():
     acc = Accelerator()
     if not acc.is_main_process:
         sys.exit(0)
-    c = 0
-    d = 0
     res = []
     for f in sys.argv[2:]:
         with open(f, 'r') as fh_in:
@@ -159,16 +160,18 @@ def lets_do_some_filtering():
             out_l = float(len(entry['hyp-output']))
 
             r = in_l / out_l if in_l > out_l else out_l /in_l
-            d += 1
 
             if r > 3:
                 print(f"RATIO: {entry}")
-                c += 1
+                entry['flt'] = 'ratio'
             elif entry['hi_segm'] == entry['hyp-output']:
                 print(f"EQ {entry['hi_segm']}")
-                c += 1
+                entry['flt'] = 'eq'
+            elif langdetect.detect(entry['hyp-output']) != LANG_MAP[entry['new_hi_res_lang']]:
+                entry['flt'] = 'lid'
             else:
-                res += entry
+                entry['flt'] = 'ok'
+            res += entry
     with open(sys.argv[1], 'w') as fh_out:
         json.dump(res, fh_out, indent=2)
 
