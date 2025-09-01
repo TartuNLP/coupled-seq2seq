@@ -39,26 +39,31 @@ EUROLLM_TEMPLATE_BASE = """<|im_start|>system
 """
 
 EUROLLM_TEMPLATE_FILTER = EUROLLM_TEMPLATE_BASE.format(
-    system_instruction="Your task is to determine if a pair of texts is in the specified languages and if the second "
-                     "text is a correct translation of the first text. Your response should consist of a single word. "
-                     "If the pair of texts is "
-                     "indeed in the specified languages and they are translations of each other, then respond with "
-                     "the word 'perfect'. If the texts are in correct languages and are not perfect translations of "
-                     "each other, but still approximately correspond to each other by meaning, or if there are any "
-                     "other minor issues, then respond with the word 'approximate'. If either text is NOT in the "
-                     "specified language, or if the texts completely differ in meaning, then respond with the word "
-                     "'wrong'. Do not provide any explanations or comments, just a single word as response: "
-                     "'perfect'/'approximate'/'wrong'.",
-    user_instruction="Here are the two texts:\n\nText #1 should be in {hi_lang}:\n\n"
+    system_instruction="You are a large language model, whose sole task is to respond to user queries. Think "
+                       "carefully, and after careful deliberation respond to the user, following their instructions.",
+    user_instruction="Your task is to evaluate the quality of a translation pair: an original text and its "
+                     "translation. The goal is to check if both are in their specified languages and if the "
+                     "translation is appropriate. First the texts and then the definition of how you should respond. "
+                     "This is extremely important to get right, so take a deep breath and respond correctly.\n\n"
+                     "The original text is:\n\n"
                      "{hi_segm}\n\n"
-                     "Text #2 should be in {new_hi_res_lang}:\n\n"
+                     "You need to check if this text is in {hi_lang}. The translation is:\n\n"
                      "{hyp-translation}\n\n"
-                     "Now, check the texts carefully: if Text #2 is in {new_hi_res_lang} and it is a "
-                     "translation of Text #1, respond as instructed with a single word, 'perfect'. If the "
-                     "languages are correct but the translation has minor quality issues, respond with the word "
-                     "'approximate'. Finally, if the language of Text #1 is not {hi_lang}, or if the language "
-                     "of Text #2 is not {new_hi_res_lang}, or if Text #2 is clearly not a translation "
-                     "of Text #1, then respond with the word 'wrong'. Which one is it?",
+                     "You need to check if it is in {new_hi_res_lang}."
+                     "Mainly, check if the 2nd text is actually an appropriate translation of the 1st text.\n"
+                     "Respond with a single phrase only, with no additional comments or explanations:\n"
+                     "- if the texts are appropriate enough translations of each other and are in the expected "
+                     "languages, respond with the phrase 'appropriate translation',\n"
+                     "- if the translation is not fully appropriate and precise and has some issues, but is still a "
+                     "translation of the original text, and it is definitely in {new_hi_res_lang},"
+                     "respond with the phrase 'some issues',\n"
+                     "- if the 2nd text actually is a very bad translation of the 1st text, or is not its translation "
+                     "at all, or has extra text in it, respond with the phrase 'wrong translation',\n"
+                     "- if the original text is not actually in {hi_lang}, then respond with the phrase "
+                     "'wrong input language',\n"
+                     "- finally, if the 2nd text is not in {new_hi_res_lang}, respond with the phrase "
+                     "'wrong output language'.\n"
+                     "Now, take a deep breath, and output your response, depending on the specified languages and texts",
 )
 
 MULTILING_MSG = {
