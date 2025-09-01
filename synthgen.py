@@ -174,7 +174,7 @@ def lets_do_some_filtering():
                 entry['flt'] = 'lid'
             else:
                 entry['flt'] = 'ok'
-            res += entry
+            res.append(entry)
     log(f"Saving")
 
     with open(sys.argv[1], 'w') as fh_out:
