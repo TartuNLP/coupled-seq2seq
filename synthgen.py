@@ -3,7 +3,7 @@
 import json
 import sys
 
-from random import choices
+from random import choices, shuffle
 from collections import defaultdict
 
 from accelerate import Accelerator
@@ -147,7 +147,8 @@ def do_something_else_without_global_ctx():
 def lets_do_some_filtering():
     c = 0
     d = 0
-    for f in sys.argv[1:]:
+    res = []
+    for f in sys.argv[2:]:
         with open(f, 'r') as fh_in:
             data = json.load(fh_in)
         for entry in data:
@@ -160,11 +161,13 @@ def lets_do_some_filtering():
             if r > 3:
                 print(f"RATIO: {entry}")
                 c += 1
-
-            if entry['hi_segm'] == entry['hyp-output']:
+            elif entry['hi_segm'] == entry['hyp-output']:
                 print(f"EQ {entry['hi_segm']}")
                 c += 1
-    print(f"Filtered {c} out of {d} entries")
+            else:
+                res += entry
+    with open(sys.argv[1], 'w') as fh_out:
+        json.dump(res, fh_out, indent=2)
 
 if __name__ == "__main__":
     #do_something_without_global_ctx()
