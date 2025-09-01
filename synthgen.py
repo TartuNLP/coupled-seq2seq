@@ -145,6 +145,9 @@ def do_something_else_without_global_ctx():
 
 
 def lets_do_some_filtering():
+    acc = Accelerator()
+    if not acc.is_main_process:
+        sys.exit(0)
     c = 0
     d = 0
     res = []
