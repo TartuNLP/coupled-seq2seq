@@ -136,7 +136,7 @@ def do_something_else_without_global_ctx():
 
     outputs = predict(mdl, tok, dl, acc,
                       multi=False,
-                      debug=False,
+                      debug=True,
                       max_len=2500,
                       sync=False)
 
