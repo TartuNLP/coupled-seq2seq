@@ -244,7 +244,7 @@ def filter_tr_pair(src, tgt, src_lang, tgt_lang):
         i_lang = 'none'
         o_lang = 'none'
 
-    if o_lang != LANG_MAP[tgt_lang]:
+    if o_lang != LANG_MAP[tgt_lang] and len(tgt) > 60:
         return 'lid-tgt ' + o_lang
 
     return 'ok'
