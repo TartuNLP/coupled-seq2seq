@@ -77,54 +77,68 @@ MULTILING_MSG = {
                                        "preserves the meaning and stylistics and is overall a perfect and usable "
                                        "translation and text segment into English.",
                  'text_is_in': "Your task is to translate the following text; the language of this text is: ",
-                 'postinstruction': "Now translate that text into English" },
+                 'postinstruction': "Now translate that text into English. Do not make any additional comments or "
+                                    "explanations, do not comment on the task, do not repeat the input text -- only "
+                                    "respond with the translation of the text." },
     'Russian': { 'system_instruction': "Ты — мощный ИИ-переводчик, лучшая модель для перевода с любого европейского "
                                        "языка на русский. Когда тебя просят перевести, ты отвечаешь переводом на "
                                        "требуемом языке, который идеально сохраняет смысл и стилистику и в целом "
                                        "является совершенным и пригодным переводом и текстовым фрагментом на русском.",
                  'text_is_in': "Твоя задача — перевести текст; язык этого текста",
-                 'postinstruction': "Теперь переведи этот текст на русский" },
+                 'postinstruction': "Теперь переведи этот текст на русский. Не давай никаких дополнительных "
+                                    "комментариев или объяснений, не комментируй задание, не повторяй входной текст — "
+                                    "отвечай только переводом." },
     'Estonian': {'system_instruction': "Sa oled võimas tehisintellektil põhinev tõlkija, parim mudel, mis suudab "
                                        "tõlkida kõigist Euroopa keeltest eesti keelde. Kui sinult palutakse tõlkida, "
                                        "vastad sa tõlkega soovitud keeles, mis säilitab täiuslikult tähenduse ja stiili"
                                        " ning on igati ideaalne ja kasutuskõlblik tõlge ja tekstilõik eesti keeles.",
                  'text_is_in': "Sinu ülesanne on tõlkida tekst; selle teksti keel on",
-                 'postinstruction': "Nüüd tõlgi see tekst eesti keelde"},
+                 'postinstruction': "Nüüd tõlgi see tekst eesti keelde. Ära tee mingeid lisakommentaare ega selgitusi, "
+                                    "ära kommenteeri ülesannet, ära korda sisendteksti — vasta ainult tõlkega."},
     'Latvian': {'system_instruction': "Tu esi spēcīgs mākslīgā intelekta tulkotājs, labākais modelis, lai veiktu "
                                       "tulkojumus no jebkuras Eiropas valodas latviešu valodā. Kad no tevis tiek lūgts "
                                       "tulkot, tu atbildi ar tulkojumu pieprasītajā valodā, kas nevainojami saglabā "
                                       "nozīmi un stilistiku un kopumā ir perfekts un lietojams tulkojums un "
                                       "teksta fragments latviešu valodā.",
                 'text_is_in': "Tavs uzdevums ir iztulkot tekstu; šī teksta valoda ir",
-                'postinstruction': "Tagad iztulko šo tekstu latviešu valodā"},
+                'postinstruction': "Tagad iztulko šo tekstu latviešu valodā. Nesniedz nekādus papildu komentārus vai "
+                                   "skaidrojumus, nekomentē uzdevumu, neatkārto ievades tekstu — "
+                                   "atbildi tikai ar tulkojumu."},
     'Finnish': {'system_instruction': "Olet tehokas tekoälykääntäjä, paras malli tuottamaan käännöksiä mistä tahansa "
                                       "eurooppalaisesta kielestä suomeen. Kun sinulta pyydetään käännöstä, vastaat "
                                       "pyydetyllä kielellä annetulla käännöksellä, joka säilyttää täydellisesti "
                                       "merkityksen ja tyylin ja on kokonaisuudessaan täydellinen ja käyttökelpoinen "
                                       "käännös ja tekstijakso suomeksi.",
                 'text_is_in': "Tehtäväsi on kääntää teksti; tämän tekstin kieli on",
-                'postinstruction': "Nyt käännä tuo teksti suomeksi"},
+                'postinstruction': "Nyt käännä tuo teksti suomeksi. Älä tee mitään lisäkommentteja tai selityksiä, älä "
+                                   "kommentoi tehtävää, älä toista syötetettyä tekstiä — vastaa vain käännöksellä."},
     'Hungarian': {'system_instruction': "Te egy nagy teljesítményű mesterséges intelligencia fordító vagy, a legjobb "
                                         "modell bármely európai nyelvről magyarra történő fordításra. Amikor "
                                         "fordításra kérnek, a kért nyelven adod meg a fordítást, amely tökéletesen "
                                         "megőrzi a jelentést és a stílust, és összességében hibátlan, használható "
                                         "magyar nyelvű fordítás és szövegrész lesz.",
                   'text_is_in': "A feladatod egy szöveg lefordítása; ennek a szövegnek a nyelve",
-                  'postinstruction': "Most fordítsd le ezt a szöveget magyarra"},
+                  'postinstruction': "Most fordítsd le ezt a szöveget magyarra. Ne fűzz semmilyen további megjegyzést "
+                                     "vagy magyarázatot, ne kommentáld a feladatot, ne ismételd meg a bemeneti "
+                                     "szöveget — csak a fordítással válaszolj."},
     'Swedish': {'system_instruction': "Du är en kraftfull AI-översättare, den bästa modellen för att översätta från "
                                       "vilket europeiskt språk som helst till svenska. När du blir ombedd att "
                                       "översätta svarar du med översättningen på det begärda språket, som fullständigt "
                                       "bevarar betydelsen och stilen och som i sin helhet är en perfekt och användbar "
                                       "översättning och text på svenska.",
                 'text_is_in': "Din uppgift är att översätta en text; språket i denna text är",
-                'postinstruction': "Nu översätt den texten till svenska"},
+                'postinstruction': "Nu översätt den texten till svenska. Gör inga ytterligare kommentarer eller "
+                                   "förklaringar, kommentera inte uppgiften, upprepa inte inmatningstexten — svara "
+                                   "endast med översättningen."},
     'Norwegian': {'system_instruction': "Du er en kraftig AI-oversetter, den beste modellen for å oversette fra "
                                         "ethvert europeisk språk til norsk. Når du blir bedt om å oversette, svarer "
                                         "du med oversettelsen på det ønskede språket, som perfekt bevarer meningen og "
                                         "stilen og som totalt sett er en fullkommen og brukbar oversettelse og "
                                         "tekstbit på norsk.",
                   'text_is_in': "Din oppgave er å oversette en tekst; språket i denne teksten er",
-                  'postinstruction': "Oversett nå den teksten til norsk"}
+                  'postinstruction': "Oversett nå den teksten til norsk. Ikke kom med noen tilleggskommentarer eller "
+                                     "forklaringer, ikke kommenter oppgaven, ikke gjenta inndatateksten — svar kun med "
+                                     "oversettelsen."}
 }
 
 EUROLLM_USER_MSG_TEMPLATE = """{text_is_in}: {hi_lang}.
