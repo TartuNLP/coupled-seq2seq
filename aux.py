@@ -234,15 +234,15 @@ def filter_tr_pair(src, tgt, src_lang, tgt_lang):
     if src == tgt:
         return 'eq'
 
+    if ('?' in src) != ('?' in tgt):
+        return 'ans'
+
     try:
         i_lang = langdetect.detect(src)
         o_lang = langdetect.detect(tgt)
     except LangDetectException:
         i_lang = 'none'
         o_lang = 'none'
-
-    if i_lang != LANG_MAP[src_lang]:
-        return 'lid-src ' + i_lang
 
     if o_lang != LANG_MAP[tgt_lang]:
         return 'lid-tgt ' + o_lang
