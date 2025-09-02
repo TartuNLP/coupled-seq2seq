@@ -245,7 +245,7 @@ def filter_tr_pair(src, tgt, src_lang, tgt_lang):
         return 'lid-src ' + i_lang
 
     if o_lang != LANG_MAP[tgt_lang]:
-        return 'lid-tgt' + o_lang
+        return 'lid-tgt ' + o_lang
 
     return 'ok'
 
