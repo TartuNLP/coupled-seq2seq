@@ -157,6 +157,7 @@ if __name__ == '__main__':
             this_data = json.load(f)
             all_data += this_data
 
+    log(f"Shuffling {len(all_data)} entries")
     shuffle(all_data)
 
     json.dump(all_data, sys.stdout)
