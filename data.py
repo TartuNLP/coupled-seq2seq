@@ -160,4 +160,5 @@ if __name__ == '__main__':
     log(f"Shuffling {len(all_data)} entries")
     shuffle(all_data)
 
+    log(f"Saving")
     json.dump(all_data, sys.stdout)
