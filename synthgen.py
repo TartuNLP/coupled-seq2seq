@@ -13,14 +13,12 @@ from langdetect import LangDetectException
 from data import LazyTokenizingInferenceDataset
 from inference import predict
 from metrics import SMUGRI_RES
-from aux import log, load_tokenizer, load_model, env_stuff
+from aux import log, load_tokenizer, load_model, env_stuff, filter_tr_pair
 from promptops import PF_TR_FLT
 
 # hi-res languages and how likely we should be to translate into them from other hi-res langs
 HI_RES_WITH_WEIGHTS = {"English": 13, "Estonian": 11, "Finnish": 8, "Hungarian": 3, "Latvian": 2,
                        "Russian": 4, "Swedish": 2, "Norwegian": 2, "German": 0, "French": 0}
-LANG_MAP = {"English": 'en', "Estonian": 'et', "Finnish": 'fi', "Hungarian": 'hu', "Latvian": 'lv',
-                       "Russian": 'ru', "Swedish": 'sv', "Norwegian": 'no', "German": 'de', "French": 'fr'}
 
 
 def nest():
@@ -160,26 +158,10 @@ def lets_do_some_filtering():
 
         log(f"Filtering")
         for entry in data:
-            in_l = float(len(entry['hi_segm']))
-            out_l = float(len(entry['hyp-output']))
-
-            r = in_l / out_l if in_l > out_l else out_l /in_l
-
-            try:
-                i_lang = langdetect.detect(entry['hi_segm'])
-                o_lang = langdetect.detect(entry['hyp-output'])
-            except LangDetectException:
-                i_lang = 'none'
-                o_lang = 'none'
-
-            if r > 3:
-                entry['flt'] = 'ratio'
-            elif entry['hi_segm'] == entry['hyp-output']:
-                entry['flt'] = 'eq'
-            elif o_lang != LANG_MAP[entry['new_hi_res_lang']] or i_lang != LANG_MAP[entry['hi_lang']]:
-                entry['flt'] = 'lid'
-            else:
-                entry['flt'] = 'ok'
+            entry['flt'] = filter_tr_pair(entry['hi_segm'],
+                                          entry['hyp-output'],
+                                          entry['hi_lang'],
+                                          entry['new_hi_res_lang'])
             res.append(entry)
     log(f"Saving")
 

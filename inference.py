@@ -2,7 +2,7 @@
 
 import promptops
 
-from aux import CmdlineArgs, log, load_model, load_tokenizer, env_stuff
+from aux import CmdlineArgs, log, load_model, load_tokenizer, env_stuff, filter_tr_pair
 from data import get_data_loader
 
 import sys
@@ -72,7 +72,7 @@ def reassemble_multi(list_of_lists):
     return result
 
 
-def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_len=2000, sync=False):
+def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_len=2000, sync=False, filter_eurollm=False):
     outs_final = []
 
     with torch.no_grad():
@@ -91,7 +91,13 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
                 outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len)
                 end_time = datetime.now()
                 log(f"Generated for {idx} in proc {accel.process_index} in {end_time - start_time}")
-                outs_final.append({ **json_input_entry, 'hyp-output': outputs[0], 'hyp-index': idx})
+                new_entry = { **json_input_entry, 'hyp-output': outputs[0], 'hyp-index': idx }
+                if filter_eurollm:
+                    new_entry['flt'] = filter_tr_pair(new_entry['hi_segm'],
+                                                      new_entry['hyp-output'],
+                                                      new_entry['hi_lang'],
+                                                      new_entry['new_hi_res_lang'])
+                outs_final.append(new_entry)
 
     if multi and sync:
         accel.wait_for_everyone()
@@ -122,6 +128,7 @@ def _cmdline_args():
                                     "multiproc": False,
                                     "synchronize": True,
                                     "max_len": 2000,
+                                    "filter_eurollm": False,
                                     "prompt_format": promptops.PF_ALPACA})
 
     if args.input_file == "none":
@@ -180,6 +187,7 @@ def and_i_called_this_function_do_main_too():
                       multi=args.multiproc,
                       debug=args.debug,
                       max_len=args.max_len,
+                      filter_eurollm=args.filter_eurollm,
                       sync=args.synchronize)
 
     save_all(outputs, args, acc)
