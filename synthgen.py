@@ -168,7 +168,53 @@ def lets_do_some_filtering():
     with open(sys.argv[1], 'w') as fh_out:
         json.dump(res, fh_out, indent=2)
 
+"""
+  {
+    "lo_lang": "Livonian, Standard",
+    "lo_segm": "Izā um tämpõ kuonnõ.",
+    "hi_lang": "Estonian",
+    "hi_segm": "Isa on täna kodus.",
+    "new_hi_res_lang": "Latvian",
+    "hyp-output": "Tēvs šodien ir mājās.",
+    "hyp-index": 96,
+    "flt": "ok"
+  }
+  {
+    "src_segm": "Elettih ukko da akka. A akka oli ilman paha akka, nagoli judai, i judai, i judai, i judai. Nagoli, midä mužikka, ukko, ruadau, hänellä nagoli pahoin.",
+    "tgt_segm": "Жили старик и старуха. А старуха была очень плохая старуха, всегда шумела, и шумела, и шумела, и шумела. Всегда, что муж, старик, делает, ей всегда плохо.",
+    "src_lang": "Proper Karelian, Tolmachi",
+    "tgt_lang": "Russian",
+    "task": "translate"
+  },
+
+"""
+
+def do_conversion():
+    out_fn = sys.argv[1]
+
+    aug_data = []
+
+    for in_fn in sys.argv[2:]:
+        log(f"Processing {in_fn}")
+        with open(in_fn, 'r') as fh_in:
+            data = json.load(fh_in)
+
+        for entry in data:
+            if entry['flt'] == 'ok':
+                aug_data.append({
+                    'src_segm': entry['hyp-output'],
+                    'src_lang': entry['new_hi_res_lang'] + ", synth",
+                    'tgt_segm': entry['lo_segm'],
+                    'tgt_lang': entry['lo_lang'],
+                    'task': 'approx-translate'
+                })
+
+    log(f"Saving {out_fn}")
+    with open(out_fn, 'w') as fh_out:
+        json.dump(aug_data, fh_out, indent=2)
+
 if __name__ == "__main__":
     #do_something_without_global_ctx()
     #do_something_else_without_global_ctx()
-    lets_do_some_filtering()
+    #lets_do_some_filtering()
+    do_conversion()
