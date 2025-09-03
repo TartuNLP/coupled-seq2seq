@@ -19,7 +19,7 @@ from transformers import (
     TrainerCallback
 )
 
-TESTING_LOCALLY = True
+TESTING_LOCALLY = False
 
 """
 1/3 This simply reads in command-line arguments 
