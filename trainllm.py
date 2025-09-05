@@ -123,7 +123,7 @@ def get_deepspeed_conf(cmdline_args, accum_steps):
 
 
 def get_fsdp_conf():
-    fsdp = "full_shard auto_wrap".split()
+    fsdp = "full_shard auto_wrap"
     fsdp_config = {
         "use_orig_params": True,
         "sync_module_states": True,
