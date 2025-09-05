@@ -181,7 +181,7 @@ def get_training_args(cmdline_args, acc):
 def simple_train():
     cmd_args = _cmdline_args()
     acc = Accelerator()
-    device = acc.device # it seems that the accelerator loses/changes this info later
+    device = acc.device if not cmd_args.gradckpt else None
 
     training_args = get_training_args(cmd_args, acc)
 

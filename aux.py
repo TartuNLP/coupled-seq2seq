@@ -225,8 +225,9 @@ def load_model(mdl_id, device, accelerator=None, attention="flash_attention_2"):
                                                  attn_implementation=attention)
 
     model.config.use_cache = False
-    model = model.to(device)
-    log(f"Model loaded on device: {model.device}.", accelerator=accelerator)
+    if device is not None:
+        model = model.to(device)
+        log(f"Model loaded on device: {model.device}.", accelerator=accelerator)
 
     return model
 
