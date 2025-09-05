@@ -40,7 +40,7 @@ def _cmdline_args():
 
     # if the directory args.save_location already exists, raise an exception:
     if not result.continue_training and os.path.exists(result.save_location):
-        raise Exception(f"Save location '{result.save_location}' already exists, don't want to overwrite.")
+        raise Exception(f"Path '{result.save_location}' exists, won't overwrite - did you mean to set continue_training=True?.")
 
     if result.nr_sents_per_gpu == 0:
         result.nr_sents_per_gpu = result.batch_size
