@@ -150,6 +150,8 @@ def get_training_args(cmdline_args, acc):
     dpspd = get_deepspeed_conf(cmdline_args, accum_steps) if cmdline_args.sharing == "deepspeed" else None
     fsdp, fsdp_config = get_fsdp_conf() if cmdline_args.sharing == "fsdp" else None, None
 
+    log(f"DeepSpeed: {dpspd}, fsdp: {fsdp}, fsdp_config: {fsdp_config}, gradckpt: {cmdline_args.gradckpt}")
+
     tr_args = TrainingArguments(
         output_dir=cmdline_args.save_location,
         per_device_train_batch_size=cmdline_args.nr_sents_per_gpu,
