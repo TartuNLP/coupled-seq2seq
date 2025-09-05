@@ -72,24 +72,25 @@ class StepTimerCallback(TrainerCallback):
 
         self.zero = self.abs_start - self.abs_start
 
+    # called right before each training step
     def on_step_begin(self, args, state, control, **kwargs):
-        # called right before each training step
         self._step_start = datetime.now()
 
+    # called right after each training step
     def on_step_end(self, args, state, control, **kwargs):
+        now = datetime.now()
+
         if self.actual_first_step is None:
+            log(f"It took {now - self.abs_start} to start training")
             self.actual_first_step = state.global_step - 1
 
-        # called right after each training step
-        now = datetime.now()
         elapsed = now - self._step_start
         tot_elapsed = now - self.abs_start
         self.lengths.append(elapsed)
 
         avg = sum(self.lengths, start=self.zero) / len(self.lengths)
 
-        remaining = state.max_steps - self.actual_first_step - state.global_step
-        prediction = (tot_elapsed/(state.global_step - self.actual_first_step)) * remaining
+        prediction = avg * (state.max_steps - state.global_step)
 
         # you can use logging.get_logger(...) instead of print
         print(f"[step {state.global_step}/{state.max_steps}] took {elapsed}, avg {avg}; approx {prediction} remaining")
