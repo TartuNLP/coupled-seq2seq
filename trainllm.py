@@ -99,42 +99,47 @@ class StepTimerCallback(TrainerCallback):
 
 
 def get_deepspeed_conf(cmdline_args, accum_steps):
-    return {
-        'train_batch_size': cmdline_args.batch_size,
-        'train_micro_batch_size_per_gpu': cmdline_args.nr_sents_per_gpu,
-        'gradient_accumulation_steps': accum_steps,
-        "bf16": { "enabled": True },
+    if cmdline_args.sharing == "deepspeed":
+        return {'deepspeed': {
+            'train_batch_size': cmdline_args.batch_size,
+            'train_micro_batch_size_per_gpu': cmdline_args.nr_sents_per_gpu,
+            'gradient_accumulation_steps': accum_steps,
+            "bf16": { "enabled": True },
 
-        "zero_optimization": {
-            "stage": 2,
-            "offload_optimizer": { "device": "none" },
-            "allgather_partitions": True,
-            "overlap_comm": False,
-            "allgather_bucket_size": 500000000,
-            "reduce_scatter": True,
-            "reduce_bucket_size": 500000000,
-            "contiguous_gradients": True
-        },
+            "zero_optimization": {
+                "stage": 2,
+                "offload_optimizer": { "device": "none" },
+                "allgather_partitions": True,
+                "overlap_comm": False,
+                "allgather_bucket_size": 500000000,
+                "reduce_scatter": True,
+                "reduce_bucket_size": 500000000,
+                "contiguous_gradients": True
+            },
 
-        "gradient_clipping": 1.0,
-        "steps_per_print": 20,
-        "wall_clock_breakdown": False
-    }
+            "gradient_clipping": 1.0,
+            "steps_per_print": 20,
+            "wall_clock_breakdown": False
+        }}
+    else:
+        return {}
 
 
-def get_fsdp_conf():
-    fsdp = "full_shard auto_wrap"
-    fsdp_config = {
-        "use_orig_params": True,
-        "sync_module_states": True,
-        "forward_prefetch": True,
-        "limit_all_gathers": True,
-        "reshard_after_forward": True,
-        "fsdp_min_num_params": 1e7,
-        "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
-        # DO NOT enable cpu_offload on LUMI unless desperate
-    }
-    return fsdp, fsdp_config
+def get_fsdp_conf(cmdline_args):
+    if cmdline_args.sharing == "fsdp":
+        return {'fsdp': "full_shard auto_wrap",
+            'fsdp_config': {
+                "use_orig_params": True,
+                "sync_module_states": True,
+                "forward_prefetch": True,
+                "limit_all_gathers": True,
+                "reshard_after_forward": True,
+                "fsdp_min_num_params": 1e7,
+                "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
+                # DO NOT enable cpu_offload on LUMI unless desperate
+            }}
+    else:
+        return {}
 
 
 def get_training_args(cmdline_args, acc):
@@ -147,10 +152,8 @@ def get_training_args(cmdline_args, acc):
 
     log(f"Nr of processes (GPUs): {world_size}, per-device batch: {cmdline_args.nr_sents_per_gpu}, accum. steps: {accum_steps}")
 
-    dpspd = get_deepspeed_conf(cmdline_args, accum_steps) if cmdline_args.sharing == "deepspeed" else None
-    fsdp, fsdp_config = get_fsdp_conf() if cmdline_args.sharing == "fsdp" else "", None
-
-    log(f"DeepSpeed: {dpspd}, fsdp: {fsdp}, fsdp_config: {fsdp_config}, gradckpt: {cmdline_args.gradckpt}")
+    dpspd_conf = get_deepspeed_conf(cmdline_args, accum_steps)
+    fsdp_conf = get_fsdp_conf(cmdline_args)
 
     tr_args = TrainingArguments(
         output_dir=cmdline_args.save_location,
@@ -160,9 +163,6 @@ def get_training_args(cmdline_args, acc):
         save_steps=cmdline_args.save_steps,
         save_total_limit=10,
         logging_steps=cmdline_args.log_steps,
-        deepspeed=dpspd,
-        fsdp=fsdp,
-        fsdp_config=fsdp_config,
         learning_rate=cmdline_args.lr,
         save_strategy="epoch",
         disable_tqdm=True,
@@ -176,6 +176,8 @@ def get_training_args(cmdline_args, acc):
         optim="adamw_torch",
         #gradient_checkpointing=True,
         #dataloader_persistent_workers=True
+        **dpspd_conf,
+        **fsdp_conf,
     )
 
     return tr_args
