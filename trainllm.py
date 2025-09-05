@@ -171,6 +171,7 @@ def get_training_args(cmdline_args, acc):
         #dataloader_num_workers=1,
         #group_by_length=True,
         log_level="debug",
+        optim="adamw_torch",
         #gradient_checkpointing=True,
         #dataloader_persistent_workers=True
     )
