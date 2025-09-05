@@ -148,7 +148,7 @@ def get_training_args(cmdline_args, acc):
     log(f"Nr of processes (GPUs): {world_size}, per-device batch: {cmdline_args.nr_sents_per_gpu}, accum. steps: {accum_steps}")
 
     dpspd = get_deepspeed_conf(cmdline_args, accum_steps) if cmdline_args.sharing == "deepspeed" else None
-    fsdp, fsdp_config = get_fsdp_conf() if cmdline_args.sharing == "fsdp" else None, None
+    fsdp, fsdp_config = get_fsdp_conf() if cmdline_args.sharing == "fsdp" else [], None
 
     log(f"DeepSpeed: {dpspd}, fsdp: {fsdp}, fsdp_config: {fsdp_config}, gradckpt: {cmdline_args.gradckpt}")
 
