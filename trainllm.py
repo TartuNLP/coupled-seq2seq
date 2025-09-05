@@ -34,7 +34,7 @@ def _cmdline_args():
                          kw_arg_dict={ "continue_training": False, "save_steps": 100, "lr": 1.5e-5,
                             "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
                             "max_length": 2000, "prompt_format": promptops.PF_SMUGRI_MT,
-                            "deepspeed": "none",
+                            "sharing": "none",
                             "sft_output_field": "none",
                             "sft_delim": "none"})
 
@@ -44,9 +44,6 @@ def _cmdline_args():
 
     if result.nr_sents_per_gpu == 0:
         result.nr_sents_per_gpu = result.batch_size
-
-    if result.deepspeed == "none":
-        result.deepspeed = None
 
     if result.sft_delim == "none":
         result.sft_delim = None
@@ -99,6 +96,46 @@ class StepTimerCallback(TrainerCallback):
 3/3 Finally, the filling of TrainingArguments and the launching of Trainer:
 """
 
+
+def get_deepspeed_conf(cmdline_args, accum_steps):
+    return {
+        'train_batch_size': cmdline_args.batch_size,
+        'train_micro_batch_size_per_gpu': cmdline_args.nr_sents_per_gpu,
+        'gradient_accumulation_steps': accum_steps,
+        "bf16": { "enabled": True },
+
+        "zero_optimization": {
+            "stage": 2,
+            "offload_optimizer": { "device": "none" },
+            "allgather_partitions": True,
+            "overlap_comm": False,
+            "allgather_bucket_size": 500000000,
+            "reduce_scatter": True,
+            "reduce_bucket_size": 500000000,
+            "contiguous_gradients": True
+        },
+
+        "gradient_clipping": 1.0,
+        "steps_per_print": 20,
+        "wall_clock_breakdown": False
+    }
+
+
+def get_fsdp_conf():
+    fsdp = "full_shard auto_wrap"
+    fsdp_config = {
+        "use_orig_params": True,
+        "sync_module_states": True,
+        "forward_prefetch": True,
+        "limit_all_gathers": True,
+        "reshard_after_forward": True,
+        "fsdp_min_num_params": 1e7,
+        "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
+        # DO NOT enable cpu_offload on LUMI unless desperate
+    }
+    return fsdp, fsdp_config
+
+
 def get_training_args(cmdline_args, acc):
     world_size = acc.num_processes
 
@@ -109,18 +146,8 @@ def get_training_args(cmdline_args, acc):
 
     log(f"Nr of processes (GPUs): {world_size}, per-device batch: {cmdline_args.nr_sents_per_gpu}, accum. steps: {accum_steps}")
 
-    if cmdline_args.deepspeed is not None:
-        with open(cmdline_args.deepspeed, "r") as f:
-            dpspd = json.load(f)
-
-            #correct the dictionary with current values, so that we wouldn't need to update the JSON every time
-            dpspd['train_batch_size'] = cmdline_args.batch_size
-            dpspd['train_micro_batch_size_per_gpu'] = cmdline_args.nr_sents_per_gpu
-            dpspd['gradient_accumulation_steps'] = accum_steps
-
-            log(f"Using deepspeed with config {dpspd}")
-    else:
-        dpspd = None
+    dpspd = get_deepspeed_conf(cmdline_args, accum_steps) if cmdline_args.sharing == "deepspeed" else None
+    fsdp, fsdp_config = get_fsdp_conf() if cmdline_args.sharing == "fsdp" else None, None
 
     tr_args = TrainingArguments(
         output_dir=cmdline_args.save_location,
@@ -131,6 +158,8 @@ def get_training_args(cmdline_args, acc):
         save_total_limit=10,
         logging_steps=cmdline_args.log_steps,
         deepspeed=dpspd,
+        fsdp=fsdp,
+        fsdp_config=fsdp_config,
         learning_rate=cmdline_args.lr,
         save_strategy="epoch",
         disable_tqdm=True,
