@@ -35,6 +35,7 @@ def _cmdline_args():
                             "batch_size": 1024, "nr_sents_per_gpu": 4, "log_steps": 1, "epochs": 4,
                             "max_length": 2000, "prompt_format": promptops.PF_SMUGRI_MT,
                             "sharing": "none",
+                            "gradckpt": False,
                             "sft_output_field": "none",
                             "sft_delim": "none"})
 
@@ -187,7 +188,8 @@ def simple_train():
     tokenizer = load_tokenizer(cmd_args.mdl_id, acc)
     tokenizer.padding_side = "left"
     model = load_model(cmd_args.mdl_id, device, acc, attention=("eager" if TESTING_LOCALLY else "flash_attention_2"))
-    #model.gradient_checkpointing_enable() will check out later, supposed to slow down but improve mem usage
+    if cmd_args.gradckpt:
+        model.gradient_checkpointing_enable()
 
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id
