@@ -158,6 +158,7 @@ def simple_train():
     tokenizer = load_tokenizer(cmd_args.mdl_id, acc)
     tokenizer.padding_side = "left"
     model = load_model(cmd_args.mdl_id, device, acc, attention=("eager" if TESTING_LOCALLY else "flash_attention_2"))
+    #model.gradient_checkpointing_enable() will check out later, supposed to slow down but improve mem usage
 
     if getattr(model.config, "pad_token_id", None) is None:
         model.config.pad_token_id = tokenizer.pad_token_id

@@ -219,6 +219,7 @@ if __name__ == "__main__":
 def load_model(mdl_id, device, accelerator=None, attention="flash_attention_2"):
     log(f"Load model", accelerator=accelerator)
     model = AutoModelForCausalLM.from_pretrained(mdl_id,
+                                                 device_map=None,
                                                  low_cpu_mem_usage=False,
                                                  torch_dtype=torch.bfloat16,
                                                  attn_implementation=attention)
