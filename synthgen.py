@@ -6,14 +6,12 @@ import sys
 from random import choices, shuffle
 from collections import defaultdict
 
-import langdetect
 from accelerate import Accelerator
-from langdetect import LangDetectException
 
 from data import LazyTokenizingInferenceDataset
-from inference import predict
+from inference import predict, filter_tr_pair
 from metrics import SMUGRI_RES
-from aux import log, load_tokenizer, load_model, env_stuff, filter_tr_pair
+from aux import log, load_tokenizer, load_model, env_stuff
 from promptops import PF_TR_FLT
 
 # hi-res languages and how likely we should be to translate into them from other hi-res langs

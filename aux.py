@@ -4,18 +4,12 @@ import socket
 
 import numpy as np
 import pickle
-import langdetect
 import sys
 
 from datetime import datetime
 
 import torch
-from langdetect import LangDetectException
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
-
-LANG_MAP = {"English": 'en', "Estonian": 'et', "Finnish": 'fi', "Hungarian": 'hu', "Latvian": 'lv',
-                       "Russian": 'ru', "Swedish": 'sv', "Norwegian": 'no', "German": 'de', "French": 'fr'}
 
 
 def log(msg, accelerator=None, all_threads=False):
@@ -220,34 +214,6 @@ if __name__ == "__main__":
         d = np.load(dname + "/custom_checkpoint_1.pkl", allow_pickle=True)
         p = pickle.loads(d['custom_checkpoint_1/data.pkl'])
         print(dname, p)
-
-
-def filter_tr_pair(src, tgt, src_lang, tgt_lang):
-    in_l = float(len(src))
-    out_l = float(len(tgt))
-
-    r = in_l / out_l if in_l > out_l else out_l / in_l
-
-    if r > 3:
-        return 'ratio'
-
-    if src == tgt:
-        return 'eq'
-
-    if ('?' in src) != ('?' in tgt):
-        return 'ans'
-
-    try:
-        i_lang = langdetect.detect(src)
-        o_lang = langdetect.detect(tgt)
-    except LangDetectException:
-        i_lang = 'none'
-        o_lang = 'none'
-
-    if o_lang != LANG_MAP[tgt_lang] and len(tgt) > 60:
-        return 'lid-tgt ' + o_lang
-
-    return 'ok'
 
 
 def load_model(mdl_id, device, accelerator=None, attention="flash_attention_2"):
