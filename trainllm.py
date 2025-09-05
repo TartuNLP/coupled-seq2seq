@@ -54,6 +54,8 @@ def _cmdline_args():
     if result.sft_output_field == "none":
         result.sft_output_field = None
 
+    log(f"Launched as {result}")
+
     return result
 
 """
