@@ -184,7 +184,7 @@ def get_training_args(cmdline_args, acc):
 def simple_train():
     cmd_args = _cmdline_args()
     acc = Accelerator()
-    device = acc.device if not cmd_args.gradckpt else None
+    device = None if cmd_args.sharing == "fsdp" else acc.device
 
     training_args = get_training_args(cmd_args, acc)
 
