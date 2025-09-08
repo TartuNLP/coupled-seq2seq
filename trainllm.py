@@ -29,6 +29,7 @@ MEM_CHECK_KAMIKAZE = False
 """
 
 def _cmdline_args():
+    global MEM_CHECK_KAMIKAZE
     description = """Train or tune decoder models"""
 
     result = CmdlineArgs(description,
@@ -85,6 +86,7 @@ class StepTimerCallback(TrainerCallback):
 
     # called right after each training step
     def on_step_end(self, args, state, control, **kwargs):
+        global MEM_CHECK_KAMIKAZE
         now = datetime.now()
 
         if self.actual_first_step is None:
