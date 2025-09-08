@@ -5,7 +5,8 @@ from aux import log, CmdlineArgs, load_model, load_tokenizer, env_stuff
 from data import load_training_data
 
 
-import json
+import subprocess
+import sys
 import os
 
 from datetime import datetime
@@ -20,6 +21,8 @@ from transformers import (
 )
 
 TESTING_LOCALLY = False
+
+MEM_CHECK_KAMIKAZE = False
 
 """
 1/3 This simply reads in command-line arguments 
@@ -36,6 +39,7 @@ def _cmdline_args():
                             "max_length": 2000, "prompt_format": promptops.PF_SMUGRI_MT,
                             "sharing": "none",
                             "gradckpt": False,
+                            "memcheckkamikaze": False,
                             "sft_output_field": "none",
                             "sft_delim": "none"})
 
@@ -52,6 +56,9 @@ def _cmdline_args():
     if result.sft_output_field == "none":
         result.sft_output_field = None
 
+    if result.memcheckkamikaze:
+        MEM_CHECK_KAMIKAZE = True
+
     log(f"Launched as {result}")
 
     return result
@@ -59,6 +66,8 @@ def _cmdline_args():
 """
 2/3 This here is used in training in order to report timing and predictions 
 """
+
+KamikazeException = Exception
 
 class StepTimerCallback(TrainerCallback):
     def __init__(self):
@@ -92,6 +101,14 @@ class StepTimerCallback(TrainerCallback):
 
         # you can use logging.get_logger(...) instead of print
         print(f"[step {state.global_step}/{state.max_steps}] took {elapsed}, avg {avg}; approx {prediction} remaining")
+
+        if MEM_CHECK_KAMIKAZE and state.global_step >= 103:
+            rocm_output = subprocess.check_output(['rocm-smi'])
+
+            print(rocm_output.decode('utf8'))
+
+            log(f"memory measurement done!")
+            raise KamikazeException
 
 """
 3/3 Finally, the filling of TrainingArguments and the launching of Trainer:
