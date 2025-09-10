@@ -19,7 +19,7 @@ from datetime import datetime
 This currently assumes the batch size to be 1. With larger batches the padding tokens went
 into the decoder. Right-padding as a solution?
 """
-def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=2000):
+def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=2000, get_probs=False):
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
     start_time = datetime.now()
@@ -103,7 +103,33 @@ def reassemble_multi(list_of_lists):
     return result
 
 
-def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_len=2000, sync=False, filter_eurollm=False):
+#code mostly GPT-generated
+def get_probs(model, outputs, inputs):
+    logits = model(outputs).logits
+
+    start = inputs["input_ids"].size(1)
+
+    one_shift_logits = logits[:, :-1, :]  # [1, L-1, V]
+    targets = outputs[:, 1:]  # [1, L-1]
+
+    # only score the generated continuation
+    cont_logits = one_shift_logits[:, start - 1:, :]  # [1, T, V]
+    cont_targets = targets[:, start - 1:]  # [1, T]
+
+    logprobs = torch.log_softmax(cont_logits, dim=-1)
+    chosen = logprobs.gather(-1, cont_targets.unsqueeze(-1)).squeeze(-1)
+
+    mean_logprob = chosen.mean().item()
+
+    return mean_logprob
+
+
+def predict(model, tokenizer, data_loader, accel,
+            multi=False, debug=False, max_len=2000, sync=False, filter_eurollm=False, do_probs=False, cmdline_args=None):
+    if cmdline_args is not None:
+        multi, debug, sync, filter_eurollm, max_len, do_probs = (cmdline_args.multiproc, cmdline_args.debug,
+                     cmdline_args.synchronize, cmdline_args.filter_eurollm, cmdline_args.max_len, cmdline_args.do_probs)
+
     outs_final = []
 
     with torch.no_grad():
@@ -121,8 +147,13 @@ def predict(model, tokenizer, data_loader, accel, multi=False, debug=False, max_
                 start_time = datetime.now()
                 outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len)
                 end_time = datetime.now()
+
                 log(f"Generated for {idx} in proc {accel.process_index} in {end_time - start_time}")
                 new_entry = { **json_input_entry, 'hyp-output': outputs[0], 'hyp-index': idx }
+
+                if do_probs:
+                    new_entry['hyp-probs'] = get_probs(model, outputs, batch)
+
                 if filter_eurollm:
                     new_entry['flt'] = filter_tr_pair(new_entry['hi_segm'],
                                                       new_entry['hyp-output'],
@@ -160,6 +191,7 @@ def _cmdline_args():
                                     "synchronize": True,
                                     "max_len": 2000,
                                     "filter_eurollm": False,
+                                    "do_probs": False,
                                     "prompt_format": promptops.PF_ALPACA})
 
     if args.input_file == "none":
@@ -214,12 +246,8 @@ def and_i_called_this_function_do_main_too():
     log(f"Device: {model.device}.", accelerator=acc)
 
     log("Model loaded, starting to generate")
-    outputs = predict(model, tokenizer, data_loader, acc,
-                      multi=args.multiproc,
-                      debug=args.debug,
-                      max_len=args.max_len,
-                      filter_eurollm=args.filter_eurollm,
-                      sync=args.synchronize)
+    with torch.no_grad():
+        outputs = predict(model, tokenizer, data_loader, acc, cmdline_args=args)
 
     save_all(outputs, args, acc)
 

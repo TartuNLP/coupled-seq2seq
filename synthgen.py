@@ -9,7 +9,7 @@ from collections import defaultdict
 from accelerate import Accelerator
 
 from data import LazyTokenizingInferenceDataset
-from inference import predict, filter_tr_pair
+from inference import filter_tr_pair
 from metrics import SMUGRI_RES
 from aux import log, load_tokenizer, load_model, env_stuff
 from promptops import PF_TR_FLT
@@ -24,7 +24,7 @@ def nest():
 
 
 def get_gen_lang(lang):
-    return lang.replace(", dictionary", "").replace(", speech", "")
+    return lang.replace(", dictionary", "").replace(", speech", "").replace(", ocr", "")
 
 
 def is_hi(lang):
@@ -63,7 +63,50 @@ def get_out_langs_with_weights(exclude):
     return population, weights
 
 
-def do_something_without_global_ctx():
+def get_multiplier(gen_lang):
+    if gen_lang in SMUGRI_RES['xlow']:
+        return 5
+    elif gen_lang in SMUGRI_RES['low']:
+        return 3
+    else:
+        return 1
+
+
+def do_pre_bt_generation():
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+
+    out_lang_candidates, weights = get_out_langs_with_weights({})
+
+    log(f"Reading input from {input_file}")
+    with open(input_file, 'r') as fh_in:
+        data = json.load(fh_in)
+
+    augm_data = list()
+
+    for entry in data:
+        gen_src_lang = get_gen_lang(entry['src_lang'])
+
+        if entry['task'] == 'generate' and not is_hi(gen_src_lang):
+            mul = get_multiplier(gen_src_lang)
+            repl_hi_res_langs = set(choices(out_lang_candidates, weights=weights, k=mul))
+
+            for tgt_l in repl_hi_res_langs:
+                augm_data.append({
+                    'src_lang': entry['src_lang'],
+                    'tgt_lang': tgt_l,
+                    'src_segm': entry['src_segm'],
+                    'task': 'translate'
+                })
+
+    log(f"Saving output to {output_file}")
+    with open(output_file, 'w') as fh_out:
+        json.dump(augm_data, fh_out, indent=2)
+
+    log(f"Done")
+
+
+def do_pre_pivot_generation():
     input_file = sys.argv[1]
     output_file = sys.argv[2]
 
@@ -86,12 +129,7 @@ def do_something_without_global_ctx():
             for hi_res_lang, dict3 in dict2.items():
                 for hi_res_segm, cnt in dict3.items():
                     gen_lo_res_lang = lo_res_lang.split(',')[0]
-                    if gen_lo_res_lang in SMUGRI_RES['xlow']:
-                        ccnt = cnt * 5
-                    elif gen_lo_res_lang in SMUGRI_RES['low']:
-                        ccnt = cnt * 3
-                    else:
-                        ccnt = cnt
+                    ccnt = cnt * get_multiplier(gen_lo_res_lang)
 
                     repl_hi_res_langs = set(choices(out_lang_candidates, weights=weights, k=ccnt))
 
@@ -109,39 +147,6 @@ def do_something_without_global_ctx():
         json.dump(augm_data, fh_out, indent=2)
 
     log(f"Done")
-
-
-def do_something_else_without_global_ctx():
-    env_stuff()
-
-    acc = Accelerator()
-    device = acc.device
-
-    mdl_id = "utter-project/EuroLLM-9B-Instruct"
-
-    with open(f"{sys.argv[1]}{acc.process_index}", 'r') as fh_in:
-        data = json.load(fh_in)
-
-    for entry in data:
-        entry['hyp-translation'] = entry['hyp-output']
-        entry['hyp-origindex'] = entry['hyp-index']
-        del (entry['hyp-output'])
-
-    tok = load_tokenizer(mdl_id, acc)
-
-    dl = LazyTokenizingInferenceDataset(data, tok, PF_TR_FLT, debug=False)
-
-    mdl = load_model(mdl_id, device, acc, attention="eager")
-    mdl.eval()
-
-    outputs = predict(mdl, tok, dl, acc,
-                      multi=False,
-                      debug=False,
-                      max_len=2500,
-                      sync=False)
-
-    with open(f"{sys.argv[1]}{acc.process_index}-flt", 'w') as fh_out:
-        json.dump(outputs, fh_out, indent=2)
 
 
 def lets_do_some_filtering():
@@ -212,7 +217,9 @@ def do_conversion():
         json.dump(aug_data, fh_out, indent=2)
 
 if __name__ == "__main__":
-    #do_something_without_global_ctx()
+    #do_pre_pivot_generation()
+    do_pre_bt_generation()
+
     #do_something_else_without_global_ctx()
     #lets_do_some_filtering()
-    do_conversion()
+    #do_conversion()
