@@ -19,7 +19,7 @@ from datetime import datetime
 This currently assumes the batch size to be 1. With larger batches the padding tokens went
 into the decoder. Right-padding as a solution?
 """
-def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=2000, get_probs=False):
+def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=2000, do_probs=False):
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
     start_time = datetime.now()
@@ -59,7 +59,11 @@ def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=2000, get_pro
         end_time = datetime.now()
         log(f"This took: {end_time - start_time}")
 
-    return clean_outputs
+    if do_probs:
+        meanlogprob = get_probs(model, raw_output_toks, tok_batch)
+        return clean_outputs, meanlogprob
+    else:
+        return clean_outputs
 
 
 LANG_MAP = {"English": 'en', "Estonian": 'et', "Finnish": 'fi', "Hungarian": 'hu', "Latvian": 'lv',
@@ -145,14 +149,15 @@ def predict(model, tokenizer, data_loader, accel,
                     log(f"Waited for {wait_end_time - wait_start_time}")
 
                 start_time = datetime.now()
-                outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len)
+
+                if do_probs:
+                    outputs, avg_prob = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len, do_probs=True)
+                else:
+                    outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len)
                 end_time = datetime.now()
 
                 log(f"Generated for {idx} in proc {accel.process_index} in {end_time - start_time}")
                 new_entry = { **json_input_entry, 'hyp-output': outputs[0], 'hyp-index': idx }
-
-                if do_probs:
-                    new_entry['hyp-probs'] = get_probs(model, outputs, batch)
 
                 if filter_eurollm:
                     new_entry['flt'] = filter_tr_pair(new_entry['hi_segm'],
