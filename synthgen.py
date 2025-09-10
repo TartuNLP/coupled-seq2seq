@@ -93,7 +93,8 @@ def do_pre_bt_generation():
         gen_src_lang = get_gen_lang(entry['src_lang'])
 
         if entry['task'] == 'generate' and not is_hi(gen_src_lang):
-            mul = get_multiplier(gen_src_lang)
+            mul = get_multiplier(entry['src_lang'])
+            log(f"Generating for {entry['src_lang']}: {mul}")
             repl_hi_res_langs = set(choices(out_lang_candidates, weights=weights, k=mul))
 
             for tgt_l in repl_hi_res_langs:
@@ -103,6 +104,9 @@ def do_pre_bt_generation():
                     'src_segm': entry['src_segm'],
                     'task': 'translate'
                 })
+        else:
+            log(f"Skipping {entry['src_lang']}")
+
 
     log(f"Saving output to {output_file}")
     with open(output_file, 'w') as fh_out:
