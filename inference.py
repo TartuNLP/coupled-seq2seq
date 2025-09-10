@@ -152,6 +152,7 @@ def predict(model, tokenizer, data_loader, accel,
 
                 if do_probs:
                     outputs, avg_prob = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len, do_probs=True)
+                    json_input_entry['hyp-mean-logprob'] = avg_prob
                 else:
                     outputs = llm_generate(model, tokenizer, batch, debug=debug, max_len=max_len)
                 end_time = datetime.now()
