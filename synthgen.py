@@ -24,7 +24,10 @@ def nest():
 
 
 def get_gen_lang(lang):
-    return lang.replace(", dictionary", "").replace(", speech", "").replace(", ocr", "")
+    if lang.startswith("Estonian"):
+        return lang.replace(", dictionary", "").replace(", speech", "").replace(", ocr", "")
+    else:
+        return lang.split(',')[0]
 
 
 def is_hi(lang):
@@ -63,13 +66,15 @@ def get_out_langs_with_weights(exclude):
     return population, weights
 
 
-def get_multiplier(gen_lang):
+def get_multiplier(lang):
+    gen_lang = get_gen_lang(lang)
+
     if gen_lang in SMUGRI_RES['xlow']:
-        return 5
+        return 6
     elif gen_lang in SMUGRI_RES['low']:
-        return 3
+        return 4
     else:
-        return 1
+        return 2
 
 
 def do_pre_bt_generation():
@@ -128,8 +133,7 @@ def do_pre_pivot_generation():
 
             for hi_res_lang, dict3 in dict2.items():
                 for hi_res_segm, cnt in dict3.items():
-                    gen_lo_res_lang = lo_res_lang.split(',')[0]
-                    ccnt = cnt * get_multiplier(gen_lo_res_lang)
+                    ccnt = cnt * get_multiplier(lo_res_lang)
 
                     repl_hi_res_langs = set(choices(out_lang_candidates, weights=weights, k=ccnt))
 
