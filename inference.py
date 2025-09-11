@@ -21,7 +21,7 @@ into the decoder. Right-padding as a solution?
 """
 def llm_generate(model, tokenizer, tok_batch, debug=False, max_len=2000, do_probs=False):
     if len(tok_batch['input_ids'][0]) > 1800:
-        return ('', -100) if do_probs else ''
+        return ([''], -100) if do_probs else ['']
 
     tok_batch['input_ids'] = tok_batch['input_ids'].to(model.device)
     tok_batch['attention_mask'] = tok_batch['attention_mask'].to(model.device)
